@@ -120,6 +120,16 @@ dispatches   <span class="good">0</span></pre>
       <p class="note">The automated rehearsal uses the reviewed fallback patch by default. An externally produced agent patch can be supplied explicitly; the script does not run an LLM.</p>
     </section>
 
+    <section class="shell section" id="value" aria-labelledby="value-title">
+      <div class="section-head"><h2 id="value-title">Why this matters beyond one cube.</h2><p>The same loop serves systems research, agent research, and physical-AI work. A behavioral claim is worth exactly as much as the run that reproduces it.</p></div>
+      <dl class="stack">
+        <div><dt>Research iteration</dt><dd>Every experiment gets a fresh workspace, a recorded base revision, and exported evidence. A result that cannot be rebuilt from that recorded base is a screenshot, not a finding.</dd></div>
+        <div><dt>Agentic AI research</dt><dd>An agent may propose the patch, but an allowlist bounds what it can touch and a protected verifier issues the verdict. A self-reported success is not a result.</dd></div>
+        <div><dt>Physical-AI readiness</dt><dd>Simulation is where a policy violation is cheap. This run shows a successful lift that still failed its freshness contract — exactly the failure class you do not want to meet first on hardware.</dd></div>
+        <div><dt>Compilation throughput</dt><dd>Incredibuild is integrated into this loop, and the controlled experiment that would measure distribution and cache reuse now exists in Rust. Until that experiment produces a receipt, the speedup stays unmeasured.</dd></div>
+      </dl>
+    </section>
+
     <section class="shell section" id="evidence" aria-labelledby="evidence-title">
       <div class="section-head"><h2 id="evidence-title">Seventeen recorded episodes.</h2><p>Five cube placements and three observation ages, plus simulated stop and protocol timeout. The table is generated from the committed scenario results.</p></div>
       <p class="run-label"><span>Recorded Linux run:</span> <code>ec2-e2e-20260923-160725</code></p>
