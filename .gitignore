@@ -1,0 +1,21 @@
+# Build outputs
+rust/target/
+target/
+
+# Isolated runner sandboxes (git worktrees + fresh target dirs)
+.runners/
+
+# Local secrets — NEVER commit. Sourced by scripts/robot-demo/*.sh
+.env.local
+
+# Python
+.venv/
+**/.venv/
+__pycache__/
+*.pyc
+
+# Runtime evidence (run dirs). Schema and docs stay tracked.
+evidence/*/
+
+# OS
+.DS_Store

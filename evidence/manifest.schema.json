@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "robot-demo run manifest",
+  "type": "object",
+  "required": [
+    "run_id",
+    "created_unix_ms",
+    "source",
+    "executable",
+    "simulator",
+    "policy_max_observation_age_ms",
+    "scope"
+  ],
+  "properties": {
+    "run_id": { "type": "string" },
+    "created_unix_ms": { "type": "integer" },
+    "source": {
+      "type": "object",
+      "required": ["git_commit", "git_dirty", "patch_applied"],
+      "properties": {
+        "git_commit": { "type": "string" },
+        "git_dirty": { "type": "boolean" },
+        "patch_applied": { "type": ["string", "null"] }
+      }
+    },
+    "executable": {
+      "type": "object",
+      "required": ["path", "sha256"],
+      "properties": {
+        "path": { "type": "string" },
+        "sha256": { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+      }
+    },
+    "simulator": {
+      "type": "object",
+      "required": ["backend", "python", "python_version", "platform"],
+      "properties": {
+        "backend": { "type": "string", "enum": ["mock", "robosuite"] },
+        "python": { "type": "string" },
+        "python_version": { "type": "string" },
+        "platform": { "type": "string" }
+      }
+    },
+    "policy_max_observation_age_ms": { "type": "integer", "const": 250 },
+    "scope": { "type": "string" }
+  }
+}

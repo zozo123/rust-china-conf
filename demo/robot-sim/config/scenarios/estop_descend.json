@@ -1,0 +1,9 @@
+{
+  "name": "estop_descend",
+  "description": "Simulated emergency stop asserted at the descend segment with otherwise fresh data. Must reject EmergencyStop (stop precedence), zero dispatches of the stopped action.",
+  "placement": { "x": 0.0, "y": 0.0 },
+  "staleness_ms": 0,
+  "stop_at_segment": "descend",
+  "stall_before_proposal_ms": 0,
+  "expect": "emergency_stop"
+}

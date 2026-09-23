@@ -1,0 +1,12 @@
+{
+  "comment": "Coverage matrix: 5 reachable placements x 3 freshness scenarios, plus stop and protocol-failure cases. Only placements the rehearsed controller can reach are included; episodes are not multiplied to inflate the count.",
+  "placements": [
+    { "id": "center", "x": 0.0, "y": 0.0 },
+    { "id": "left", "x": -0.03, "y": 0.0 },
+    { "id": "right", "x": 0.03, "y": 0.0 },
+    { "id": "near", "x": 0.0, "y": -0.03 },
+    { "id": "far", "x": 0.0, "y": 0.03 }
+  ],
+  "freshness_ms": [0, 50, 600],
+  "extra_scenarios": ["estop_descend", "protocol_timeout"]
+}

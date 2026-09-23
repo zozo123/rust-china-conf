@@ -1,0 +1,18 @@
+[package]
+name = "swf-cli"
+description = "Software factory CLI: robot-demo command routing"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+swf-app = { path = "../swf-app" }
+robot-safety-gate = { path = "../robot-safety-gate" }
+serde = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }
+clap = { workspace = true }
+
+[[bin]]
+name = "swf-cli"
+path = "src/main.rs"

@@ -1,0 +1,9 @@
+[package]
+name = "robot-safety-gate"
+description = "Pure Rust decision contract for the robot demo safety gate"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+
+[dependencies]
+serde = { workspace = true }

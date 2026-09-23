@@ -1,0 +1,9 @@
+{
+  "name": "protocol_timeout",
+  "description": "Bridge stalls longer than the session proposal timeout. The session must fail the episode explicitly (hold), never default-authorize.",
+  "placement": { "x": 0.0, "y": 0.0 },
+  "staleness_ms": 0,
+  "stop_at_segment": null,
+  "stall_before_proposal_ms": 12000,
+  "expect": "timeout"
+}

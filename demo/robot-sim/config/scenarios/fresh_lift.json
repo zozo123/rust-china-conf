@@ -1,0 +1,9 @@
+{
+  "name": "fresh_lift",
+  "description": "Fresh observation stream; the rehearsed pickup must be permitted and the cube lifted.",
+  "placement": { "x": 0.0, "y": 0.0 },
+  "staleness_ms": 0,
+  "stop_at_segment": null,
+  "stall_before_proposal_ms": 0,
+  "expect": "cube_lifted"
+}

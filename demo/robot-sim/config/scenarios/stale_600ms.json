@@ -1,0 +1,9 @@
+{
+  "name": "stale_600ms",
+  "description": "Observation stream delayed by 600 ms (12 ticks at 20 Hz) via labeled hold steps. Every pickup proposal must be rejected StalePerception; zero task dispatches.",
+  "placement": { "x": 0.0, "y": 0.0 },
+  "staleness_ms": 600,
+  "stop_at_segment": null,
+  "stall_before_proposal_ms": 0,
+  "expect": "rejected_stale"
+}
