@@ -2,33 +2,27 @@
 <!--
   Project-level Incredibuild Linux profile.
 
+  This structure is copied from the version 4.29.1 template at
+  /opt/incredibuild/data/custom_profiles/rustrover/ib_profile.xml and is
+  validated by /opt/incredibuild/data/ib_profile.xsd during the Linux E2E.
+
   Incredibuild loads $PWD/ib_profile.xml with highest precedence. The runner
   scripts invoke ib_console from this rust/ directory, so this is the active
-  profile for the measured Cargo build.
-
-  Cargo orchestrates child processes and must be intercepted. rustc/rustdoc
-  compilation may run remotely; link/archive processes remain local. Tests
-  and the simulator are intentionally executed outside ib_console so their
-  outcomes can never be restored from the compilation cache.
+  profile. Cargo is intercepted by ib_console; rustc work is eligible for
+  remote execution and compilation caching. Tests and simulator checks run
+  outside ib_console and are always re-executed.
 -->
-<processes>
-  <process filename="cargo" type="intercepted" />
-  <process filename="rustc" type="allow_remote" />
-  <process filename="rustdoc" type="allow_remote" />
-
-  <!-- Native compilation used by transitive Rust build scripts. -->
-  <process filename="cc" type="allow_remote" />
-  <process filename="gcc" type="allow_remote" />
-  <process filename="clang" type="allow_remote" />
-  <process filename="c++" type="allow_remote" />
-  <process filename="g++" type="allow_remote" />
-  <process filename="clang++" type="allow_remote" />
-
-  <!-- Keep final linking and archive mutation on the Initiator. -->
-  <process filename="ld" type="local_only" />
-  <process filename="ld.lld" type="local_only" />
-  <process filename="lld" type="local_only" />
-  <process filename="collect2" type="local_only" />
-  <process filename="ar" type="local_only" />
-  <process filename="ranlib" type="local_only" />
-</processes>
+<ib_profile version="1">
+  <globals
+    ignore_following_profiles="false"
+    dummy_mode="false"
+    monitor_enable="false"
+    local_slot_priority="low"
+    requested_cores="10000"
+  />
+  <processes>
+    <process filename="rustc" type="allow_remote">
+      <ib_cache enabled="true" />
+    </process>
+  </processes>
+</ib_profile>
