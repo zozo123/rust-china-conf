@@ -14,6 +14,7 @@
   <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
   <style>
     :root {
+      color-scheme: dark;
       --housing: #10171d;
       --plate: #182129;
       --well: #0b1116;
@@ -30,6 +31,17 @@
     }
 
     * { box-sizing: border-box; }
+    .skip {
+      position: absolute;
+      left: -9999px;
+      top: 0;
+      z-index: 10;
+      padding: 11px 16px;
+      background: var(--amber);
+      color: var(--well);
+      font-weight: 600;
+    }
+    .skip:focus { left: 12px; top: 12px; }
     html { max-width: 100%; overflow-x: hidden; scroll-behavior: smooth; }
     body {
       max-width: 100%;
@@ -177,10 +189,11 @@
       border-right: 1px solid var(--line);
     }
     .rail dt { color: var(--muted); font-size: 14px; }
-    .rail dd { margin: 6px 0 0; font-size: 26px; font-weight: 600; }
+    .rail dd { margin: 6px 0 0; font-size: 26px; font-weight: 600; font-variant-numeric: tabular-nums; }
     .rail .pass { color: var(--green); }
 
     .section {
+      scroll-margin-top: 24px;
       padding-block: clamp(70px, 10vw, 128px);
       border-bottom: 1px solid var(--line);
     }
@@ -258,6 +271,7 @@
       background: var(--well);
       font-weight: 500;
     }
+    .matrix td { font-variant-numeric: tabular-nums; }
     .matrix td:first-child { font-family: "IBM Plex Mono", monospace; color: var(--muted); }
     .lifted { color: var(--green); }
     .held { color: var(--amber); }
@@ -336,6 +350,7 @@
   </style>
 </head>
 <body>
+  <a class="skip" href="#main">Skip to main content</a>
   <header class="shell">
     <nav class="nav" aria-label="Main navigation">
       <a class="nav__brand" href="#">Rust China Conf demo</a>
@@ -346,7 +361,7 @@
     </nav>
   </header>
 
-  <main>
+  <main id="main">
     <section class="hero shell">
       <div>
         <h1><span>A million</span><span>compiles.</span><span>One robot</span><span>hour.</span></h1>
@@ -435,6 +450,7 @@ episode outcome  rejected_stale
           <span>Incredibuild 4.31.0 · compile stage only</span>
         </div>
         <img src="assets/validation-loop.gif" width="880" height="585"
+             loading="lazy" decoding="async"
              alt="Animated walkthrough of the validation loop: cold distributed build on runner A, three failing contract tests, four permitted dispatches on a stale observation, the agent patch, runner A destroyed, runner B rebuilding warm, ten of ten tests, zero stale dispatches, and 88 of 88 protected checks.">
         <figcaption>
           Both build phases ran through Incredibuild. The warm phase measured
