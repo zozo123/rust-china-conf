@@ -1,17 +1,15 @@
 <!doctype html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="A verified software-in-the-loop robotics demo: Rust safety gate, robosuite Panda arm, disposable runners, and digest-bound evidence.">
+  <meta name="description" content="已核验的软件在环机器人演示：Rust 安全门、robosuite Panda 机械臂、一次性运行器、摘要绑定的证据。">
   <meta name="theme-color" content="#10171d">
-  <meta property="og:title" content="A Million Compiles. One Robot Hour.">
-  <meta property="og:description" content="Burn the runner. Keep the proof. Spare the robot.">
+  <meta property="og:title" content="百万次编译，一小时机器人">
+  <meta property="og:description" content="烧掉运行器。留下证据。放过机器人。">
   <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-lift.gif">
-  <title>A Million Compiles. One Robot Hour.</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <title>百万次编译，一小时机器人</title>
+  <link rel="stylesheet" href="assets/fonts/fonts.css">
   <style>
     :root {
       color-scheme: dark;
@@ -53,9 +51,9 @@
         linear-gradient(90deg, rgba(50,64,74,.13) 1px, transparent 1px),
         var(--housing);
       background-size: 28px 28px;
-      font-family: "IBM Plex Sans Condensed", ui-sans-serif, system-ui, sans-serif;
+      font-family: "Noto Sans SC", "PingFang SC", "Microsoft YaHei", ui-sans-serif, system-ui, sans-serif;
       font-size: 18px;
-      line-height: 1.45;
+      line-height: 1.55;
       -webkit-font-smoothing: antialiased;
     }
 
@@ -84,6 +82,22 @@
       text-underline-offset: 5px;
     }
     .nav a:hover { color: var(--paper); }
+    .lang {
+      display: flex;
+      gap: 2px;
+      margin-left: 6px;
+      flex: 0 0 auto;
+    }
+    .lang button {
+      font: 500 13px/1 "Noto Sans SC", "PingFang SC", sans-serif;
+      color: var(--faint);
+      background: transparent;
+      border: 0;
+      padding: 6px 8px;
+      cursor: pointer;
+    }
+    .lang button[aria-pressed="true"] { color: var(--paper); }
+    .lang button:focus-visible { outline: 2px solid var(--amber); outline-offset: 2px; }
 
     .hero {
       display: grid;
@@ -96,20 +110,30 @@
     .hero h1 {
       max-width: 720px;
       margin: 0;
-      font-size: clamp(54px, 8vw, 106px);
+      font-size: clamp(46px, 7vw, 88px);
       font-weight: 700;
+      line-height: 1.08;
+      letter-spacing: -.02em;
+    }
+    .hero h1 span { display: block; }
+    html[lang="en"] .hero h1 {
+      font-size: clamp(54px, 8vw, 106px);
       line-height: .88;
       letter-spacing: -.055em;
     }
-    .hero h1 span { display: block; }
     .hero__lead {
       max-width: 650px;
       margin: 28px 0 0;
       color: var(--muted);
       font-size: clamp(20px, 2.2vw, 28px);
-      line-height: 1.25;
+      line-height: 1.4;
     }
     .hero__lead strong { color: var(--paper); font-weight: 600; }
+    .offline {
+      margin: 18px 0 0;
+      color: var(--faint);
+      font-size: 13.5px;
+    }
     .actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 30px; }
     .button {
       display: inline-flex;
@@ -158,7 +182,6 @@
       object-fit: cover;
       background: #0a1014;
     }
-    /* The loop walkthrough is a wide terminal capture; show it whole. */
     #loop .film img { aspect-ratio: 880 / 585; object-fit: contain; }
     .film video {
       display: block;
@@ -218,9 +241,9 @@
     }
     .section__head h2 {
       margin: 0;
-      font-size: clamp(36px, 5vw, 70px);
-      line-height: .96;
-      letter-spacing: -.035em;
+      font-size: clamp(32px, 4.6vw, 62px);
+      line-height: 1.12;
+      letter-spacing: -.02em;
     }
     .section__head p {
       max-width: 680px;
@@ -312,10 +335,10 @@
     .mantra p {
       max-width: 900px;
       margin: 0 auto;
-      font-size: clamp(42px, 7vw, 88px);
+      font-size: clamp(36px, 6vw, 72px);
       font-weight: 700;
-      line-height: .98;
-      letter-spacing: -.045em;
+      line-height: 1.12;
+      letter-spacing: -.02em;
     }
     .mantra small {
       display: block;
@@ -339,7 +362,7 @@
       .nav a:not(.nav__brand) { display: none; }
       .hero, .section__head { grid-template-columns: minmax(0, 1fr); }
       .hero { width: 100%; gap: 38px; overflow: hidden; }
-      .hero h1 { width: 100%; font-size: clamp(49px, 15vw, 66px); }
+      .hero h1 { width: 100%; font-size: clamp(40px, 12vw, 58px); }
       .hero__lead { width: 100%; }
       .film { width: 100%; max-width: 100%; }
       .film__bar { flex-wrap: wrap; }
@@ -362,66 +385,68 @@
   </style>
 </head>
 <body>
-  <a class="skip" href="#main">Skip to main content</a>
+  <a class="skip" href="#main" data-i18n="skip">跳到正文</a>
   <header class="shell">
-    <nav class="nav" aria-label="Main navigation">
-      <a class="nav__brand" href="#">Rust China Conf demo</a>
-      <a href="#loop">The loop</a>
-      <a href="#evidence">Evidence</a>
-      <a href="demo/">Interactive replay</a>
+    <nav class="nav" aria-label="主导航" data-i18n-attr="aria-label:navAria">
+      <a class="nav__brand" href="#" data-i18n="brand">Rust China Conf 演示</a>
+      <a href="#loop" data-i18n="navLoop">闭环</a>
+      <a href="#evidence" data-i18n="navEvidence">证据</a>
+      <a href="demo/" data-i18n="navReplay">交互回放</a>
       <a href="https://github.com/zozo123/rust-china-conf">GitHub</a>
+      <div class="lang" role="group" aria-label="语言" data-i18n-attr="aria-label:langAria">
+        <button type="button" data-lang-btn="zh" aria-pressed="true">中文</button>
+        <button type="button" data-lang-btn="en" aria-pressed="false">EN</button>
+      </div>
     </nav>
   </header>
 
   <main id="main">
     <section class="hero shell">
       <div>
-        <h1><span>A million</span><span>compiles.</span><span>One robot</span><span>hour.</span></h1>
-        <p class="hero__lead">
-          A Rust safety gate, a simulated Panda arm, disposable runners,
-          and proof bound to the <strong>actual executable</strong>.
+        <h1 data-i18n-html="heroTitle"><span>百万次编译，</span><span>一小时机器人。</span></h1>
+        <p class="hero__lead" data-i18n-html="heroLead">
+          Rust 安全门、仿真 Panda 机械臂、一次性运行器；证据绑定到<strong>实际可执行文件</strong>。
         </p>
         <div class="actions">
-          <a class="button button--primary" href="demo/?play=seeded">Replay the defect</a>
-          <a class="button" href="https://github.com/zozo123/rust-china-conf">Read the source</a>
-          <a class="button" href="talk/talk-25min.md">Open the talk</a>
+          <a class="button button--primary" href="demo/?play=seeded" data-i18n="btnDefect">回放缺陷</a>
+          <a class="button" href="https://github.com/zozo123/rust-china-conf" data-i18n="btnSource">阅读源码</a>
+          <a class="button" href="talk/talk-25min.md" data-i18n="btnTalk">打开讲稿</a>
         </div>
+        <p class="offline" data-i18n="offline">离线演示：克隆或解压仓库，直接打开 docs/。字体随站点自托管，不依赖外网。</p>
       </div>
 
       <figure class="film">
         <div class="film__bar mono">
           <span><i class="lamp"></i>robosuite / MuJoCo</span>
-          <span>fresh observation</span>
+          <span data-i18n="freshObs">新鲜观测</span>
         </div>
         <img src="assets/robot-lift.gif" width="640" height="480"
-             alt="Recorded robosuite simulation of a Panda robot arm approaching, grasping, and lifting an orange cube.">
-        <figcaption>
-          Real simulator frames recorded while the Rust gate authorized the
-          four motion segments. Not a separate animation.
+             alt="已记录的 robosuite 仿真：Panda 机械臂接近、抓取并举起橙色方块。"
+             data-i18n-attr="alt:heroAlt">
+        <figcaption data-i18n="heroCap">
+          真实仿真帧。每一段接近、下降、抓取、举起，都先经过 Rust 门授权。不是另做的动画。
         </figcaption>
       </figure>
     </section>
 
-    <dl class="rail shell" aria-label="Verified run summary">
-      <div><dt>Protected verifier</dt><dd class="pass">88 / 88</dd></div>
-      <div><dt>Episodes</dt><dd>17</dd></div>
-      <div><dt>Stale dispatches after fix</dt><dd>0</dd></div>
-      <div><dt>Executable identity</dt><dd class="mono">f358e898…</dd></div>
+    <dl class="rail shell" aria-label="已核验运行摘要" data-i18n-attr="aria-label:railAria">
+      <div><dt data-i18n="railV">受保护校验器</dt><dd class="pass">88 / 88</dd></div>
+      <div><dt data-i18n="railE">回合</dt><dd>17</dd></div>
+      <div><dt data-i18n="railS">修复后陈旧派发</dt><dd>0</dd></div>
+      <div><dt data-i18n="railX">可执行文件身份</dt><dd class="mono">f358e898…</dd></div>
     </dl>
 
     <section class="section shell">
       <div class="section__head">
-        <h2>The run passed. It was wrong.</h2>
-        <p>
-          The seeded gate never checked observation age. Four motion segments
-          ran on information that was already 600 ms old. The cube still
-          lifted, so an ordinary success check stayed green.
+        <h2 data-i18n="wrongH">这次运行通过了。它是错的。</h2>
+        <p data-i18n="wrongP">
+          植入门从未检查观测年龄。四段运动都建立在已经过期 600 ms 的信息上。方块仍然被举起，普通成功检查保持绿色。
         </p>
       </div>
 
       <div class="trace-compare">
         <article class="trace">
-          <h3>Seeded build <span class="state state--bad">undetected</span></h3>
+          <h3><span data-i18n="seededH">植入构建</span> <span class="state state--bad" data-i18n="undetected">未检出</span></h3>
           <pre>tick 12  approach  age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
 tick 22  descend   age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
 tick 32  grasp     age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
@@ -433,7 +458,7 @@ cube_height  0.9985 m
         </article>
 
         <article class="trace">
-          <h3>Patched build <span class="state state--good">held safely</span></h3>
+          <h3><span data-i18n="patchedH">补丁构建</span> <span class="state state--good" data-i18n="heldSafe">安全保持</span></h3>
           <pre>tick 12  approach  age=<span class="warn">600ms</span>  <span class="warn">REJECT</span>
 reason   StalePerception
 
@@ -447,18 +472,15 @@ episode outcome  rejected_stale
 
     <section class="section shell" id="loop">
       <div class="section__head">
-        <h2>One loop, start to proof.</h2>
-        <p>
-          A cold distributed build on a throwaway runner, the seeded failure,
-          a bounded agent patch, the runner destroyed, then a brand-new runner
-          rebuilding from the cache the parent warmed. Recorded numbers
-          throughout, including the one that did not go our way.
+        <h2 data-i18n="loopH">一条闭环，从开始到证明。</h2>
+        <p data-i18n="loopP">
+          一次性运行器上的冷分布式构建、植入失败、有界智能体补丁、运行器销毁，然后全新运行器从父修订预热过的缓存重建。全程是记录下来的数字，包括对我们不利的那一个。
         </p>
       </div>
 
       <figure class="film">
         <div class="film__bar mono">
-          <span><i class="lamp"></i>recorded loop</span>
+          <span><i class="lamp"></i><span data-i18n="recordedLoop">已记录闭环</span></span>
           <span>Incredibuild 4.31.0 · compile stage only</span>
         </div>
         <video id="loopVideo" width="880" height="586"
@@ -467,92 +489,170 @@ episode outcome  rejected_stale
           <source src="assets/validation-loop.mp4" type="video/mp4">
           <img src="assets/validation-loop.gif" width="880" height="585"
                loading="lazy" decoding="async"
-               alt="Walkthrough of the validation loop: cold distributed build on runner A, three failing contract tests, four permitted dispatches on a stale observation, the agent patch, runner A destroyed, runner B rebuilding warm, ten of ten tests, zero stale dispatches, and 88 of 88 protected checks.">
+               alt="验证闭环演示：运行器 A 冷分布式构建、三项契约测试失败、陈旧观测上四次允许派发、智能体补丁、销毁 A、运行器 B 热重建、十项测试全部通过、陈旧派发为零、受保护检查 88/88。"
+               data-i18n-attr="alt:loopAlt">
         </video>
-        <p class="a11y-note">
-          Nineteen seconds, pausable. Runs through the loop once and repeats.
-        </p>
-        <figcaption>
-          Both build phases ran through Incredibuild. The warm phase measured
-          21948 ms against 21426 ms cold, so it was 522 ms slower — this shows
-          the accelerated path stayed engaged across a destroyed runner, not
-          that caching made it faster.
+        <p class="a11y-note" data-i18n="a11y">十九秒，可暂停。完整走一遍后循环。</p>
+        <figcaption data-i18n="loopCap">
+          两个构建阶段都走了 Incredibuild。热阶段测得 21948 ms，冷阶段 21426 ms，热阶段慢了 522 ms——这说明加速路径在运行器被销毁后仍然接入，并不说明缓存让它更快。
         </figcaption>
       </figure>
     </section>
 
     <section class="section shell" id="evidence">
       <div class="section__head">
-        <h2>Seventeen completed episodes.</h2>
-        <p>
-          Five cube placements against three observation ages, plus emergency
-          stop and protocol timeout. Every cell is a completed robosuite run,
-          not an expected result.
+        <h2 data-i18n="evH">十七个完成的回合。</h2>
+        <p data-i18n="evP">
+          五个方块位置对三种观测年龄，外加急停与协议超时。每个格子都是一次完成的 robosuite 运行，不是预期结果。
         </p>
       </div>
 
       <table class="matrix">
         <thead>
           <tr>
-            <th>Cube placement</th>
-            <th>0 ms observation</th>
-            <th>50 ms observation</th>
-            <th>600 ms observation</th>
+            <th data-i18n="thPlace">方块位置</th>
+            <th data-i18n="th0">观测 0 ms</th>
+            <th data-i18n="th50">观测 50 ms</th>
+            <th data-i18n="th600">观测 600 ms</th>
           </tr>
         </thead>
         <tbody>
-          <tr><td>center</td><td class="lifted">lifted · 54 ticks</td><td class="lifted">lifted · 56 ticks</td><td class="held">refused · tick 12</td></tr>
-          <tr><td>left</td><td class="lifted">lifted · 52 ticks</td><td class="lifted">lifted · 53 ticks</td><td class="held">refused · tick 12</td></tr>
-          <tr><td>right</td><td class="lifted">lifted · 56 ticks</td><td class="lifted">lifted · 59 ticks</td><td class="held">refused · tick 12</td></tr>
-          <tr><td>near</td><td class="lifted">lifted · 55 ticks</td><td class="lifted">lifted · 57 ticks</td><td class="held">refused · tick 12</td></tr>
-          <tr><td>far</td><td class="lifted">lifted · 55 ticks</td><td class="lifted">lifted · 55 ticks</td><td class="held">refused · tick 12</td></tr>
+          <tr><td>center</td><td class="lifted" data-i18n="l54">举起 · 54 tick</td><td class="lifted" data-i18n="l56">举起 · 56 tick</td><td class="held" data-i18n="r12">拒绝 · tick 12</td></tr>
+          <tr><td>left</td><td class="lifted" data-i18n="l52">举起 · 52 tick</td><td class="lifted" data-i18n="l53">举起 · 53 tick</td><td class="held" data-i18n="r12b">拒绝 · tick 12</td></tr>
+          <tr><td>right</td><td class="lifted" data-i18n="l56b">举起 · 56 tick</td><td class="lifted" data-i18n="l59">举起 · 59 tick</td><td class="held" data-i18n="r12c">拒绝 · tick 12</td></tr>
+          <tr><td>near</td><td class="lifted" data-i18n="l55">举起 · 55 tick</td><td class="lifted" data-i18n="l57">举起 · 57 tick</td><td class="held" data-i18n="r12d">拒绝 · tick 12</td></tr>
+          <tr><td>far</td><td class="lifted" data-i18n="l55b">举起 · 55 tick</td><td class="lifted" data-i18n="l55c">举起 · 55 tick</td><td class="held" data-i18n="r12e">拒绝 · tick 12</td></tr>
         </tbody>
       </table>
     </section>
 
     <section class="section shell">
       <div class="section__head">
-        <h2>The boundary is part of the proof.</h2>
-        <p>
-          This is software-in-the-loop. The site says exactly what the evidence
-          establishes—and what remains downstream—because a green check without
-          a visible boundary is not evidence.
+        <h2 data-i18n="boundH">边界本身就是证明的一部分。</h2>
+        <p data-i18n="boundP">
+          这是软件在环。站点写明证据成立的范围，以及仍在下游的部分。看不见边界的绿勾，不是证据。
         </p>
       </div>
       <div class="boundary">
         <div class="done">
-          <h3>Performed</h3>
+          <h3 data-i18n="perfH">已做</h3>
           <ul>
-            <li>Rust contract and unit checks</li>
-            <li>Lock-step bridge protocol checks</li>
-            <li>Robosuite / MuJoCo simulated robot scenarios</li>
-            <li>Executable digest binding</li>
-            <li>Real Incredibuild path on both runner phases</li>
+            <li data-i18n="perf1">Rust 契约与单元检查</li>
+            <li data-i18n="perf2">锁步桥接协议检查</li>
+            <li data-i18n="perf3">Robosuite / MuJoCo 仿真机器人场景</li>
+            <li data-i18n="perf4">可执行文件摘要绑定</li>
+            <li data-i18n="perf5">两个运行器阶段都走了真实 Incredibuild 路径</li>
           </ul>
         </div>
         <div class="not">
-          <h3>Not performed</h3>
+          <h3 data-i18n="notH">未做</h3>
           <ul>
-            <li>Hardware-in-the-loop</li>
-            <li>Physical robot validation</li>
-            <li>Trained vision—the cube pose is simulator state</li>
-            <li>A controlled speedup benchmark</li>
-            <li>A claim that 250 ms is a hardware safety limit</li>
+            <li data-i18n="not1">硬件在环</li>
+            <li data-i18n="not2">实体机器人验证</li>
+            <li data-i18n="not3">训练视觉——方块位姿来自仿真器状态</li>
+            <li data-i18n="not4">受控加速基准测试</li>
+            <li data-i18n="not5">把 250 ms 说成硬件安全限</li>
           </ul>
         </div>
       </div>
     </section>
 
     <section class="mantra shell">
-      <p>Burn the runner.<br>Keep the proof.<br>Spare the robot.</p>
+      <p data-i18n-html="mantra">烧掉运行器。<br>留下证据。<br>放过机器人。</p>
       <small class="mono">run ec2-e2e-20260923-160725 · robosuite 1.5.2 · MuJoCo 3.9.0</small>
     </section>
   </main>
 
+  <footer class="shell">
+    <span data-i18n="foot">Rust China Conf 演示 · 软件在环</span>
+    <a href="demo/" data-i18n="navReplay2">交互回放</a>
+    <a href="https://github.com/zozo123/rust-china-conf" data-i18n="repo">仓库</a>
+  </footer>
+
+  <script src="assets/lang.js"></script>
   <script>
-    // Motion over five seconds needs a pause control, and a muted decorative
-    // loop must not start under prefers-reduced-motion. The controls attribute
-    // covers the first; this covers the second.
+    var COPY = {
+      zh: {
+        skip:"跳到正文", navAria:"主导航", brand:"Rust China Conf 演示",
+        navLoop:"闭环", navEvidence:"证据", navReplay:"交互回放", langAria:"语言",
+        heroTitle:"<span>百万次编译，</span><span>一小时机器人。</span>",
+        heroLead:"Rust 安全门、仿真 Panda 机械臂、一次性运行器；证据绑定到<strong>实际可执行文件</strong>。",
+        btnDefect:"回放缺陷", btnSource:"阅读源码", btnTalk:"打开讲稿",
+        offline:"离线演示：克隆或解压仓库，直接打开 docs/。字体随站点自托管，不依赖外网。",
+        freshObs:"新鲜观测",
+        heroAlt:"已记录的 robosuite 仿真：Panda 机械臂接近、抓取并举起橙色方块。",
+        heroCap:"真实仿真帧。每一段接近、下降、抓取、举起，都先经过 Rust 门授权。不是另做的动画。",
+        railAria:"已核验运行摘要", railV:"受保护校验器", railE:"回合", railS:"修复后陈旧派发", railX:"可执行文件身份",
+        wrongH:"这次运行通过了。它是错的。",
+        wrongP:"植入门从未检查观测年龄。四段运动都建立在已经过期 600 ms 的信息上。方块仍然被举起，普通成功检查保持绿色。",
+        seededH:"植入构建", undetected:"未检出", patchedH:"补丁构建", heldSafe:"安全保持",
+        loopH:"一条闭环，从开始到证明。",
+        loopP:"一次性运行器上的冷分布式构建、植入失败、有界智能体补丁、运行器销毁，然后全新运行器从父修订预热过的缓存重建。全程是记录下来的数字，包括对我们不利的那一个。",
+        recordedLoop:"已记录闭环",
+        loopAlt:"验证闭环演示：运行器 A 冷分布式构建、三项契约测试失败、陈旧观测上四次允许派发、智能体补丁、销毁 A、运行器 B 热重建、十项测试全部通过、陈旧派发为零、受保护检查 88/88。",
+        a11y:"十九秒，可暂停。完整走一遍后循环。",
+        loopCap:"两个构建阶段都走了 Incredibuild。热阶段测得 21948 ms，冷阶段 21426 ms，热阶段慢了 522 ms——这说明加速路径在运行器被销毁后仍然接入，并不说明缓存让它更快。",
+        evH:"十七个完成的回合。",
+        evP:"五个方块位置对三种观测年龄，外加急停与协议超时。每个格子都是一次完成的 robosuite 运行，不是预期结果。",
+        thPlace:"方块位置", th0:"观测 0 ms", th50:"观测 50 ms", th600:"观测 600 ms",
+        l54:"举起 · 54 tick", l56:"举起 · 56 tick", r12:"拒绝 · tick 12",
+        l52:"举起 · 52 tick", l53:"举起 · 53 tick", r12b:"拒绝 · tick 12",
+        l56b:"举起 · 56 tick", l59:"举起 · 59 tick", r12c:"拒绝 · tick 12",
+        l55:"举起 · 55 tick", l57:"举起 · 57 tick", r12d:"拒绝 · tick 12",
+        l55b:"举起 · 55 tick", l55c:"举起 · 55 tick", r12e:"拒绝 · tick 12",
+        boundH:"边界本身就是证明的一部分。",
+        boundP:"这是软件在环。站点写明证据成立的范围，以及仍在下游的部分。看不见边界的绿勾，不是证据。",
+        perfH:"已做", perf1:"Rust 契约与单元检查", perf2:"锁步桥接协议检查",
+        perf3:"Robosuite / MuJoCo 仿真机器人场景", perf4:"可执行文件摘要绑定",
+        perf5:"两个运行器阶段都走了真实 Incredibuild 路径",
+        notH:"未做", not1:"硬件在环", not2:"实体机器人验证",
+        not3:"训练视觉——方块位姿来自仿真器状态", not4:"受控加速基准测试",
+        not5:"把 250 ms 说成硬件安全限",
+        mantra:"烧掉运行器。<br>留下证据。<br>放过机器人。",
+        foot:"Rust China Conf 演示 · 软件在环", navReplay2:"交互回放", repo:"仓库"
+      },
+      en: {
+        skip:"Skip to main content", navAria:"Main navigation", brand:"Rust China Conf demo",
+        navLoop:"The loop", navEvidence:"Evidence", navReplay:"Interactive replay", langAria:"Language",
+        heroTitle:"<span>A million</span><span>compiles.</span><span>One robot</span><span>hour.</span>",
+        heroLead:"A Rust safety gate, a simulated Panda arm, disposable runners, and proof bound to the <strong>actual executable</strong>.",
+        btnDefect:"Replay the defect", btnSource:"Read the source", btnTalk:"Open the talk",
+        offline:"Offline: clone or unzip the repo and open docs/. Fonts are self-hosted; no network required.",
+        freshObs:"fresh observation",
+        heroAlt:"Recorded robosuite simulation of a Panda robot arm approaching, grasping, and lifting an orange cube.",
+        heroCap:"Real simulator frames recorded while the Rust gate authorized the four motion segments. Not a separate animation.",
+        railAria:"Verified run summary", railV:"Protected verifier", railE:"Episodes", railS:"Stale dispatches after fix", railX:"Executable identity",
+        wrongH:"The run passed. It was wrong.",
+        wrongP:"The seeded gate never checked observation age. Four motion segments ran on information that was already 600 ms old. The cube still lifted, so an ordinary success check stayed green.",
+        seededH:"Seeded build", undetected:"undetected", patchedH:"Patched build", heldSafe:"held safely",
+        loopH:"One loop, start to proof.",
+        loopP:"A cold distributed build on a throwaway runner, the seeded failure, a bounded agent patch, the runner destroyed, then a brand-new runner rebuilding from the cache the parent warmed. Recorded numbers throughout, including the one that did not go our way.",
+        recordedLoop:"recorded loop",
+        loopAlt:"Walkthrough of the validation loop: cold distributed build on runner A, three failing contract tests, four permitted dispatches on a stale observation, the agent patch, runner A destroyed, runner B rebuilding warm, ten of ten tests, zero stale dispatches, and 88 of 88 protected checks.",
+        a11y:"Nineteen seconds, pausable. Runs through the loop once and repeats.",
+        loopCap:"Both build phases ran through Incredibuild. The warm phase measured 21948 ms against 21426 ms cold, so it was 522 ms slower — this shows the accelerated path stayed engaged across a destroyed runner, not that caching made it faster.",
+        evH:"Seventeen completed episodes.",
+        evP:"Five cube placements against three observation ages, plus emergency stop and protocol timeout. Every cell is a completed robosuite run, not an expected result.",
+        thPlace:"Cube placement", th0:"0 ms observation", th50:"50 ms observation", th600:"600 ms observation",
+        l54:"lifted · 54 ticks", l56:"lifted · 56 ticks", r12:"refused · tick 12",
+        l52:"lifted · 52 ticks", l53:"lifted · 53 ticks", r12b:"refused · tick 12",
+        l56b:"lifted · 56 ticks", l59:"lifted · 59 ticks", r12c:"refused · tick 12",
+        l55:"lifted · 55 ticks", l57:"lifted · 57 ticks", r12d:"refused · tick 12",
+        l55b:"lifted · 55 ticks", l55c:"lifted · 55 ticks", r12e:"refused · tick 12",
+        boundH:"The boundary is part of the proof.",
+        boundP:"This is software-in-the-loop. The site says exactly what the evidence establishes—and what remains downstream—because a green check without a visible boundary is not evidence.",
+        perfH:"Performed", perf1:"Rust contract and unit checks", perf2:"Lock-step bridge protocol checks",
+        perf3:"Robosuite / MuJoCo simulated robot scenarios", perf4:"Executable digest binding",
+        perf5:"Real Incredibuild path on both runner phases",
+        notH:"Not performed", not1:"Hardware-in-the-loop", not2:"Physical robot validation",
+        not3:"Trained vision—the cube pose is simulator state", not4:"A controlled speedup benchmark",
+        not5:"A claim that 250 ms is a hardware safety limit",
+        mantra:"Burn the runner.<br>Keep the proof.<br>Spare the robot.",
+        foot:"Rust China Conf demo · software-in-the-loop", navReplay2:"Interactive replay", repo:"Repository"
+      }
+    };
+    rccLang.apply(COPY);
+    rccLang.bind(COPY);
     (function () {
       var v = document.getElementById("loopVideo");
       if (!v) return;
@@ -563,11 +663,5 @@ episode outcome  rejected_stale
       }
     })();
   </script>
-
-  <footer class="shell">
-    <span>Rust China Conf demo · software-in-the-loop</span>
-    <a href="demo/">Interactive replay</a>
-    <a href="https://github.com/zozo123/rust-china-conf">Repository</a>
-  </footer>
 </body>
 </html>

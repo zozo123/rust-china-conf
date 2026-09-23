@@ -1,40 +1,30 @@
-# Website media
+# 网站媒体
 
-`robot-lift.gif` contains real frames from robosuite 1.5.2 / MuJoCo 3.9.0.
-The episode was run through `swf-cli`, so each approach, descend, grasp and
-lift segment was authorized by the Rust safety gate before the simulator
-executed it.
+`robot-lift.gif` 含 robosuite 1.5.2 / MuJoCo 3.9.0 的真实帧。
+回合经 `swf-cli` 跑过，所以每一段接近、下降、抓取、举起都先经 Rust 安全门授权，仿真器才执行。
 
-Regenerate it from the pinned simulator environment:
+从钉死的仿真环境重新生成：
 
 ```bash
 scripts/robot-demo/record-gif.sh
 ```
 
-The script records `fresh_lift`, converts the resulting MP4 to a 512×384,
-12 fps GIF, and removes its temporary evidence directory. It requires
-`ffmpeg`; `gifsicle` is optional and used for additional optimization.
+脚本记录 `fresh_lift`，把得到的 MP4 转成 512×384、12 fps 的 GIF，并删掉临时证据目录。需要 `ffmpeg`；`gifsicle` 可选，用于再压缩。
 
-This GIF demonstrates simulator motion. The digest-bound conference
-evidence remains the committed run `ec2-e2e-20260923-160725` under
-`docs/examples/`; regenerating website media does not replace that evidence.
+这张 GIF 展示仿真运动。摘要绑定的会议证据仍是 `docs/examples/` 下已提交的 run `ec2-e2e-20260923-160725`；重新生成网站媒体不会替换那份证据。
 
-## The loop walkthrough
+## 闭环走查
 
-`validation-loop.mp4` (plus `validation-loop-poster.png`) is what the website
-plays. `validation-loop.gif` is the same footage, kept because GitHub's README
-renderer will not play a committed video file.
+网站播放的是 `validation-loop.mp4`（以及 `validation-loop-poster.png`）。`validation-loop.gif` 是同一段画面，留下来是因为 GitHub 的 README 渲染器不会播放提交的视频文件。闭环画面默认简体中文。
 
 ```bash
 scripts/robot-demo/record-loop-gif.sh
 ```
 
-Both come from `docs/demo/loop.html`, which renders a deterministic state at
-`?frame=N`, so the media is reproducible instead of hand-assembled.
+三者都来自 `docs/demo/loop.html`，在 `?frame=N` 渲染确定状态，所以媒体可复现，而不是手拼。
 
-The site uses the video rather than the GIF for accessibility, not size — the
-MP4 is actually larger (417 KB against 285 KB), because H.264 handles sharp
-terminal text less efficiently than a GIF palette does. The reason to prefer it
-is that the walkthrough runs 19 seconds: motion that long needs a pause
-control, and a muted loop should not start for a visitor who has asked for
-reduced motion. A GIF can do neither.
+站点用视频而不是 GIF，是为了无障碍，不是为了体积——MP4 实际上更大（约 417 KB 对 285 KB），因为 H.264 处理锐利终端文字不如 GIF 调色板。选它是因为走查有 19 秒：这么长的运动需要暂停控制，静音循环也不该对选择减少动态的访客自动开始。GIF 两样都做不到。
+
+## 字体
+
+`fonts/` 下是子集化的 Noto Sans SC（400/700）与 IBM Plex Mono（400/500），SIL Open Font License。见该目录 `LICENSE`。不要链 Google Fonts。

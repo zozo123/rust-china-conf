@@ -1,291 +1,169 @@
-# A Million Compiles. One Robot Hour.
+# 百万次编译，一小时机器人
 
-**Full speaker script — 25-minute cut (fits the published 15:15–15:45 slot as 25+5).**
-Technical subtitle: *Disposable Runners, Warm Cargo Factory.*
-Mantra: **Burn the runner. Keep the proof. Spare the robot.**
+**完整讲稿 — 25 分钟剪辑（对应公布的 15:15–15:45 时段，按 25+5）。**
+技术副标题：*一次性运行器，热 Cargo 工厂。*
+口令：**烧掉运行器。留下证据。放过机器人。**
 
-Everything in quotes is meant to be said verbatim. [Brackets] are stage
-directions. Timings are rehearsal budgets, not claimed runtimes.
+引号内的话按原文说。[方括号] 是舞台指示。时间是彩排预算，不是声称的运行时长。
 
-Every number in this script comes from run `ec2-e2e-20260923-160725`, whose
-evidence is committed under `docs/examples/`. If a number is not in that
-evidence, it is not in this talk. See "Numbers you may say out loud" at the end.
+本稿每个数字都来自 run `ec2-e2e-20260923-160725`，证据提交在 `docs/examples/`。证据里没有的数字，讲稿里也没有。文末见「可以大声说的数字」。
 
 ---
 
-## 0:00–3:00 — The robot-hour stakes
+## 0:00–3:00 — 机器人一小时的赌注
 
-[Slide: title. Then the simulator view: one Panda arm, one cube on a table.]
+[幻灯：标题。然后仿真画面：一条 Panda 臂，桌上一个方块。]
 
-> "Imagine your team has one hour booked on a robot tomorrow. Agents can
-> produce many proposed changes overnight. Which change deserves that hour?
-> Today the robot is simulated, so we can repeat failures cheaply. We will
-> repair a Rust defect, destroy the machine that produced the patch, and
-> validate the change on a fresh Linux runner using Incredibuild."
+> 「想象你们明天在机器人上只订了一小时。智能体一晚上能给出很多候选改动。哪一次改动配得上那一小时？今天机器人是仿真的，失败可以便宜地重复。我们会修一个 Rust 缺陷，销毁产出补丁的那台机器，再在全新 Linux 运行器上用 Incredibuild 核验这次改动。」
 
-[Point at the cube.]
+[指着方块。]
 
-"This is the whole task: lift the cube. It is deliberately boring. A visible
-job with a clear success condition — the simulator's own success check plus
-an explicit height condition. What is *not* boring is everything around it:
-who authorizes the arm to move, on what information, and who checked the
-build that made that decision."
+「整项任务就是：举起方块。故意无聊。看得见、成功条件清楚——仿真器自己的成功检查，加上明确的高度条件。真正不无聊的是它周围的一切：谁授权机械臂运动，依据什么信息，谁检查了做出该裁决的那次构建。」
 
-"One honesty note up front, and I will come back to it at the end: this is
-software-in-the-loop. No physical controller, no physical robot. Catching
-failures here is cheap. Hardware validation remains a separate downstream
-stage — and that is exactly why we are doing this."
+「先说一句诚实的话，结尾还会回来：这是软件在环。没有实体控制器，没有实体机器人。这里抓失败很便宜。硬件验证仍是下游单独阶段——这正是我们做这一步的原因。」
 
-## 3:00–7:00 — Agent demand: candidates, failures, context
+## 3:00–7:00 — 智能体需求：候选、失败、上下文
 
-[Slide: agents → disposable runners → warm Cargo factory [IB] → retained
-evidence → simulation → future HIL/robot gate. The final hardware stages are
-labeled "not performed".]
+[幻灯：智能体 → 一次性运行器 → 热 Cargo 工厂 [IB] → 保留证据 → 仿真 → 未来 HIL/机器人门。最后的硬件阶段标成「未做」。]
 
-"Overnight, your agents produce candidate changes. Each candidate needs the
-same thing: a bounded work order, the failing evidence, a narrow edit scope
-— and a machine to try it on. Our machine looks like this."
+「一晚上，智能体产出候选改动。每个候选需要同样的东西：有界工单、失败证据、狭窄的编辑范围——以及一台可以试的机器。我们的机器长这样。」
 
-[Show the safety gate contract: stop first, timestamp validity, then the
-250 ms freshness rule.]
+[展示安全门契约：停止优先，时间戳合法性，然后 250 ms 新鲜度规则。]
 
-"The supervisor gate is pure Rust. Three rules, in order: simulated
-emergency stop beats everything. Future or invalid observation timestamps
-are rejected. And a task action is permitted only when its observation is at
-most 250 milliseconds old at the moment of dispatch. Two-fifty is an
-illustrative demo policy — not a safe threshold for real hardware."
+「监督门是纯 Rust。三条规则，按顺序：仿真急停压过一切。未来或非法的观测时间戳被拒绝。任务动作只在派发那一刻观测不超过 250 毫秒时允许。两百五十是演示策略——不是真实硬件的安全阈值。」
 
-"Yesterday's build has a bug. The freshness check is missing. Watch what
-that means."
+「昨天的构建有一个缺陷。新鲜度检查缺失。看这意味着什么。」
 
-[Open the stage visual — `docs/demo/index.html?play=seeded` — or show the
-recorded runner-A trace directly.]
+[打开舞台画面 — `docs/demo/index.html?play=seeded` — 或直接展示已记录的运行器 A 轨迹。]
 
-"The observation stream was delayed by 600 milliseconds. Not a paused clock:
-real historical observations replayed while simulated time keeps advancing.
-So the gate is handed genuinely old information. Four proposals — approach
-at tick 12, descend at 22, grasp at 32, lift at 48. All four permitted."
+「观测流被延迟了 600 毫秒。不是暂停的时钟：回放真实的历史观测，仿真时间仍在前进。于是门拿到的是真正过期的信息。四个提案——tick 12 接近，22 下降，32 抓取，48 举起。四个全部允许。」
 
-[Let the audience look at the four green PERMIT lines.]
+[让观众看四条绿色 PERMIT。]
 
-"And now the part I want you to sit with. The episode **succeeded.** The
-cube came up to nine hundred ninety-eight millimetres. The simulator
-reported success equals true. If you were reading a CI summary, this run is
-green. Nothing crashed, nothing looked wrong, and the robot did the job —
-on information that was already six hundred milliseconds stale."
+「接下来请坐一会儿。这个回合 **成功了。** 方块到了九百九十八毫米。仿真器报告 success 等于 true。如果你在看 CI 摘要，这次运行是绿的。没有崩溃，看起来没有错，机器人把活干完了——依据已经过期六百毫秒的信息。」
 
-"The only thing that caught it is a protected assertion: *a stale episode
-must have zero task-action dispatches.* This one recorded four. That is why
-the verifier is protected and the tests are not agent-editable. A build that
-fails loudly is a gift. This one didn't."
+「抓住它的只有一条受保护断言：*陈旧回合的任务动作派发必须为零。* 这一次记录了四次。所以校验器受保护，测试不可被智能体编辑。大声失败的构建是礼物。这一次没有。」
 
-## 7:00–10:00 — The build graph: distribution, cache, clean runners
+## 7:00–10:00 — 构建图：分布、缓存、干净运行器
 
-[Slide: the Cargo dependency graph of the demo workspace; IB wrapper in the
-compile stage only.]
+[幻灯：演示工作区的 Cargo 依赖图；IB 包装只在编译阶段。]
 
-"Every candidate needs another check. It does not need every dependency
-compiled from scratch. The compile stage is the only accelerated stage:
-tests and simulator checks always re-execute; their verdicts are never
-restored from cache. Runner A starts with empty outputs and an empty cache
-namespace. Runner B is a brand-new instance — same base image, fresh
-filesystem — and reuses the compilation work the parent revision warmed."
+「每个候选都需要再检查一次。它不需要每个依赖从零编译。编译阶段是唯一加速的阶段：测试和仿真检查始终重跑；结论从不从缓存恢复。运行器 A 从空输出和空缓存命名空间起步。运行器 B 是全新实例——同一基础镜像、全新文件系统——复用父修订预热过的编译工作。」
 
-[Name the honesty constraints explicitly.]
+[把诚实约束说清楚。]
 
-"We pin the toolchain, the lockfile, the target triple, flags, and output
-paths. Dependency downloads are outside the timed section. If helpers are
-not actually executing work, we do not show distribution. A cache hit rate
-always names its denominator."
+「我们钉死工具链、锁文件、目标三元组、标志和输出路径。依赖下载在计时段之外。如果 helper 实际上没在干活，我们不展示分布。缓存命中率永远带上分母。」
 
-"And here is the claim I am *not* going to make today. I have not measured a
-speedup. I will show you what I measured, and I will tell you what it does
-and does not mean. We will get to it."
+「下面是我今天 *不会* 做的声称。我没有测过加速。我会给你们我测到的，并说清它意味着什么、不意味着什么。马上就到。」
 
-### The infrastructure detour — worth three minutes
+### 基础设施绕路 — 值得三分钟
 
-[Slide: the five walls.]
+[幻灯：五堵墙。]
 
-"A word about where this runs, because the story is the point.
+「说一下这跑在哪里，因为故事本身就是重点。
 
-I built this to run on ephemeral sandboxes from a provider called islo. That
-was the design: a runner you rent for ninety seconds and throw away. And I
-could not make it work. Not because the idea was wrong — because of limits,
-one after another.
+我本想把这套东西跑在一家叫 islo 的提供商的短生命周期沙箱上。设计就是：租九十秒，扔掉。我没做成。不是因为想法错——是限额，一个接一个。
 
-I asked for eight virtual CPUs — over quota. I asked for eight gigabytes of
-memory — over quota. Forty gigabytes of disk — over quota. Incredibuild
-wanted a ten-gigabyte helper cache; the sandbox had nine gigabytes free. I
-moved to Debian 12, and the Incredibuild coordinator explicitly does not
-support it. Five walls. I got past four of them. Then the account ran out of
-credit, and the sandbox API told me so in one clean sentence:
+我要八个虚拟 CPU——超额。我要八吉字节内存——超额。四十吉字节磁盘——超额。Incredibuild 要十吉字节 helper 缓存；沙箱只剩九吉字节。我改到 Debian 12，Incredibuild coordinator 明确不支持。五堵墙。我过了四堵。然后账户没额度了，沙箱 API 用一句干净的话告诉我：
 *insufficient credit balance to create a sandbox.*
 
-So the verified run you are about to see happened on a real Incredibuild
-grid instead — a coordinator, an initiator, and two helpers on our own
-Linux machines.
+所以你们马上看到的已核验运行，发生在真实的 Incredibuild 网格上——一台 coordinator、一台 initiator、两台 helper，在我们自己的 Linux 机器上。
 
-I am telling you this for a reason that matters more than the anecdote.
-**None of the architecture changed.** Not one line. The runner lifecycle is
-a fresh git worktree and a fresh Cargo target directory; the evidence pack
-is a directory of files; the verifier binds its verdict to a SHA-256 digest
-of the executable. That is why it moved between two completely different
-kinds of infrastructure in an afternoon.
+我说这些，理由比轶事更重要。
+**架构一行都没改。** 运行器生命周期是全新 git worktree 和全新 Cargo target 目录；证据包是一目录文件；校验器把结论绑到可执行文件的 SHA-256 摘要。所以它能在一个下午，在两种完全不同的基础设施之间搬家。
 
-If your validation loop only works on one vendor's sandbox, you do not have
-a disposable runner. You have a pet with a short life expectancy."
+如果你的验证闭环只能在一家厂商的沙箱上工作，你没有一次性运行器。你有一只寿命很短的宠物。」
 
-## 10:00–16:00 — The protected six-minute demonstration
+## 10:00–16:00 — 受保护的六分钟演示
 
-[Switch to the runbook view: simulator left, restrained terminal right.
-Follow docs/talk/runbook-6min.md. Key beats with lines:]
+[切到手册视角：左边仿真，右边克制的终端。
+按 docs/talk/runbook-6min.md。关键节拍配台词：]
 
-**0:00–0:30** — "Arm, cube, one job. The observation stream is about to lie
-by 600 milliseconds."
+**0:00–0:30** — 「机械臂，方块，一件活。观测流马上要晚六百毫秒说谎。」
 
-**0:30–1:15** — Runner A cold build; failing acceptance case.
-> "Runner A is a disposable runner: fresh worktree, empty outputs, empty
-> cache namespace. Cold build, twenty-one point four seconds, distributed.
-> And there is the failure — four permitted pickups on six-hundred-
-> millisecond-old eyes, and a green-looking episode."
+**0:30–1:15** — 运行器 A 冷构建；失败的验收用例。
+> 「运行器 A 是一次性运行器：全新 worktree、空输出、空缓存命名空间。冷构建，二十一点四秒，分布式。失败就在这儿——在六百毫秒前的眼睛上允许了四次拾取，回合看起来还是绿的。」
 
-**1:15–2:05** — Agent attempt (capped ~45 s; fallback patch visible).
-> "The agent gets the work order, the failing assertion, and a narrow edit
-> scope — the gate source only. The protected tests, the threshold, the
-> simulator: untouchable. The diff validator enforces that."
+**1:15–2:05** — 智能体尝试（上限约 45 秒；回退补丁可见）。
+> 「智能体拿到工单、失败断言、狭窄编辑范围——只有门源码。受保护测试、阈值、仿真器：动不了。diff 校验器强制这一点。」
 
-**2:05–2:30** — Show the diff; export context; destroy A.
-> "Forty-nine lines of diff; four lines of actual intent — if the
-> observation is older than the policy, reject it as stale perception.
-> Export the patch, the base revision, the context packet. And now—"
-> [destroy runner A]
-> "The runner is gone. The change, the investigation, and the reusable
-> compilation work survive."
+**2:05–2:30** — 展示 diff；导出上下文；销毁 A。
+> 「四十九行 diff；真正有意图的四行——观测比策略旧，就按陈旧感知拒绝。导出补丁、基线修订、上下文包。现在——」
+> [销毁运行器 A]
+> 「运行器没了。改动、调查、可复用的编译工作还在。」
 
-**2:30–3:15** — Runner B: fresh instance, apply patch to the exact base,
-warm build through IB, protected checks re-run.
-> "Ten Rust tests — eight contract, two unit. On the seeded build, three of
-> them failed. Here, ten of ten."
+**2:30–3:15** — 运行器 B：全新实例，补丁打在精确基线，经 IB 热构建，重跑受保护检查。
+> 「十项 Rust 测试——八项契约，两项单元。植入构建上三项失败。这里，十项全过。」
 
-**3:15–4:00** — Stale episode against the patched executable.
-> "Same six-hundred-millisecond observation. It refuses at tick twelve.
-> Zero pickup dispatches — not because I say so; the protected verifier
-> binds the trace to this exact binary's digest."
+**3:15–4:00** — 陈旧回合打在补丁后的可执行文件上。
+> 「同一条六百毫秒观测。它在 tick 十二拒绝。拾取派发为零——不是我说的；受保护校验器把轨迹绑到这份二进制的摘要。」
 
-**4:00–4:40** — Fresh episode.
-> "With current information, it permits all four segments and completes the
-> task." [Cube lifts.]
+**4:00–4:40** — 新鲜回合。
+> 「信息是当前的，它允许全部四段并完成任务。」[方块举起。]
 
-**4:40–5:20** — Evidence pack + build comparison.
-> "Seventeen episodes. Five cube placements against three observation ages,
-> plus emergency stop and a protocol timeout. Ten lifted, five refused, one
-> stopped, one timed out. Eighty-eight of eighty-eight protected checks
-> passed, bound to digest f358e898."
+**4:40–5:20** — 证据包 + 构建对比。
+> 「十七个回合。五个方块位置对三种观测年龄，外加急停和协议超时。十次举起，五次拒绝，一次停止，一次超时。八十八项受保护检查全部通过，绑定到摘要 f358e898。」
 
-**5:20–5:40** — Scope statement; **5:40–6:00** — buffer.
+**5:20–5:40** — 范围声明；**5:40–6:00** — 缓冲。
 
-## 16:00–21:00 — Measurements, and the one I don't have
+## 16:00–21:00 — 测到的，以及我没有的那一个
 
-[Slide: the two build phases, and an empty benchmark table with the
-methodology filled in.]
+[幻灯：两个构建阶段，一张填好方法论、数字栏空着的基准表。]
 
-"Here is what I measured. Cold build on runner A: twenty-one thousand four
-hundred twenty-six milliseconds. Warm build on runner B: twenty-one thousand
-nine hundred forty-eight. Both phases ran through Incredibuild — that flag
-is recorded in the evidence, and it is the thing I actually wanted to prove
-on this run: the accelerated path was genuinely engaged on both sides, on a
-real grid, with helpers.
+「这是我测到的。运行器 A 冷构建：两万一千四百二十六毫秒。运行器 B 热构建：两万一千九百四十八。两个阶段都走了 Incredibuild——这个标志记在证据里，也是这次运行我真正想证明的：加速路径在两边都真正接入，在真实网格上，带着 helper。
 
-Now read those two numbers again. The warm build was **five hundred
-milliseconds slower** than the cold one."
+再读一遍这两个数字。热构建比冷构建 **慢了五百毫秒。**」
 
-[Pause. Let it land.]
+[停顿。让它落地。]
 
-"I could have left this slide out. I am showing it because a speedup number
-is the easiest thing in this entire talk to fake, and the second easiest to
-fool yourself with. These two builds are not a benchmark. Different runners,
-different phases, one run each, a workspace small enough that distribution
-overhead is plausibly larger than the work distributed. What they establish
-is workflow continuity: the loop survived the runner being destroyed. That
-is all they establish.
+「我本可以不放这张幻灯。我放它，是因为加速数字是整场最容易造假、第二容易自我欺骗的东西。这两次构建不是基准。不同运行器、不同阶段、各一次、工作区小到分布开销很可能大于被分布的工作。它们成立的是工作流连续性：闭环在运行器被销毁后还活着。它们只成立这一点。
 
-The benchmark I would need is specified and not yet run: the same fixed
-source revision in every row, native Cargo as the baseline, IB cold with
-helpers, IB warm from the parent revision only. Minimum five runs per mode,
-cold caches reset each time, warm caches re-seeded from the parent only,
-medians and ranges, run order and contention disclosed. Separately: runner
-startup, checkout, artifact transfer, agent response time — because that is
-where the rest of the loop's time actually goes.
+我需要的基准已经写明、尚未运行：每一行同一固定源修订，原生 Cargo 作基线，IB 冷带 helper，IB 热只从父修订预热。每种模式至少五次，冷缓存每次重置，热缓存只从父修订再播种，中位数和区间，披露运行顺序和争用。另外单独测：运行器启动、检出、产物传输、智能体响应时间——闭环其余时间其实花在那里。
 
-When I have those numbers, they will be in the repo. Until then you have
-heard me say twenty-one point four and twenty-one point nine, and you have
-heard exactly what they mean."
+有那些数字时，它们会进仓库。在此之前你们听到的是二十一点四和二十一点九，以及它们精确的含义。」
 
-"One more distinction, because it gets blurred constantly. Wall-time saved
-is not CPU-hours, not cloud cost, not a faster model, and not robot hours —
-unless you measure those things. The quantity worth optimising here is
-validation latency: the time from 'candidate exists' to 'evidence says yes'."
+「再分清一件常被糊掉的事。墙钟节省不是 CPU 小时，不是云成本，不是更快的模型，也不是机器人小时——除非你测了那些。这里值得优化的量是验证延迟：从『候选存在』到『证据说可以』。」
 
-## 21:00–25:00 — Evidence boundary, downstream gate, close
+## 21:00–25:00 — 证据边界、下游门、收束
 
-[Slide: the architecture diagram again, hardware stages labeled
-"not performed".]
+[幻灯：再看架构图，硬件阶段标「未做」。]
 
-"What you saw: Rust contract checks, bridge checks, and simulated robot
-scenarios, bound to the actual executable by digest. What you did not see:
-hardware-in-the-loop, physical validation, a trained vision system — the
-cube pose is simulator state; the camera feed is for you, not for the
-controller. The 250-millisecond threshold is a demo policy, not a safe
-hardware limit. And I have not measured a speedup."
+「你们看到的：Rust 契约检查、桥接检查、仿真机器人场景，用摘要绑定到实际可执行文件。你们没看到的：硬件在环、实体验证、训练视觉系统——方块位姿是仿真器状态；摄像头画面给你们，不给控制器。250 毫秒阈值是演示策略，不是安全硬件限。我也没有测过加速。」
 
-"That list of things I did not do is not a disclaimer. It is the deliverable.
-An evidence pack whose boundary you cannot see is not evidence — it is a
-green checkmark with better production values. The seeded run in this demo
-was green. That is the whole lesson."
+「这份『我没做的事』清单不是免责声明。它就是交付物。看不见边界的证据包不是证据——它是制作更精良的绿勾。这次演示里的植入运行是绿的。整堂课就是这个。」
 
-> "Every candidate needs another check. It does not need every dependency
-> compiled from scratch. Incredibuild accelerates that Rust build loop. The
-> simulator lets us test this behavior before spending hardware time.
-> Burn the runner. Keep the proof. Spare the robot."
+> 「每个候选都需要再检查一次。它不需要每个依赖从零编译。Incredibuild 加速那段 Rust 构建闭环。仿真让我们在花硬件时间之前测试这种行为。烧掉运行器。留下证据。放过机器人。」
 
-[Final slide: repo URL, evidence pack layout, the mantra.]
+[终页：仓库 URL、证据包布局、口令。]
 
 ---
 
-## Numbers you may say out loud
+## 可以大声说的数字
 
-All from `ec2-e2e-20260923-160725`, committed under `docs/examples/`.
+全部来自 `ec2-e2e-20260923-160725`，提交在 `docs/examples/`。
 
-| Claim | Value | Source |
+| 声称 | 数值 | 来源 |
 | --- | --- | --- |
-| Seeded build, stale episode | 4 dispatches permitted, ticks 12/22/32/48 | `ec2-runner-a/events-stale_600ms.jsonl` |
-| Seeded episode outcome | `success=true`, cube 0.9985 m, 65 ticks | `ec2-runner-a/scenario-results.json` |
-| Patched, stale episode | refused at tick 12, 0 dispatches, cube 0.8209 m | `ec2-runner-b/events-center-f600.jsonl` |
-| Patched, fresh episode | 4 permits at ticks 0/11/21/37, cube 0.9978 m | `ec2-runner-b/events-center-f0.jsonl` |
-| Episode totals | 17 runs: 10 lifted, 5 refused, 1 stopped, 1 timeout | `ec2-runner-b/scenario-results.json` |
-| Rust tests, patched | 10 / 10 (8 contract + 2 unit) | contract.rs, lib.rs |
-| Rust tests, seeded | 3 failures | contract.rs |
-| Protected verifier | 88 / 88 | verifier output |
-| Cold build | 21426 ms, `ib: true` | `ec2-runner-a/build-metrics.jsonl` |
-| Warm build | 21948 ms, `ib: true` | `ec2-runner-b/build-metrics.jsonl` |
-| Executable digest | `f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326` | `ec2-runner-b/manifest.json` |
-| Simulator | robosuite 1.5.2 / MuJoCo 3.9.0, CPython 3.12.14 | `ec2-runner-b/manifest.json` |
-| Incredibuild | Linux 4.31.0, coordinator + initiator + 2 helpers | grid config |
+| 植入构建，陈旧回合 | 允许 4 次派发，tick 12/22/32/48 | `ec2-runner-a/events-stale_600ms.jsonl` |
+| 植入回合结果 | `success=true`，方块 0.9985 m，65 tick | `ec2-runner-a/scenario-results.json` |
+| 补丁后，陈旧回合 | tick 12 拒绝，0 次派发，方块 0.8209 m | `ec2-runner-b/events-center-f600.jsonl` |
+| 补丁后，新鲜回合 | tick 0/11/21/37 四次允许，方块 0.9978 m | `ec2-runner-b/events-center-f0.jsonl` |
+| 回合合计 | 17 次：10 举起，5 拒绝，1 停止，1 超时 | `ec2-runner-b/scenario-results.json` |
+| Rust 测试，补丁后 | 10 / 10（8 契约 + 2 单元） | contract.rs, lib.rs |
+| Rust 测试，植入 | 3 项失败 | contract.rs |
+| 受保护校验器 | 88 / 88 | 校验器输出 |
+| 冷构建 | 21426 ms，`ib: true` | `ec2-runner-a/build-metrics.jsonl` |
+| 热构建 | 21948 ms，`ib: true` | `ec2-runner-b/build-metrics.jsonl` |
+| 可执行文件摘要 | `f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326` | `ec2-runner-b/manifest.json` |
+| 仿真器 | robosuite 1.5.2 / MuJoCo 3.9.0，CPython 3.12.14 | `ec2-runner-b/manifest.json` |
+| Incredibuild | Linux 4.31.0，coordinator + initiator + 2 helpers | 网格配置 |
 
-**Do not say:** any speedup factor, any cache hit rate without its
-denominator, any hardware or HIL result, anything about robot-hours saved,
-or that the islo sandbox path completed. It did not.
+**不要说：** 任何加速倍数、不带分母的缓存命中率、任何硬件或 HIL 结果、任何节省的机器人小时，或 islo 沙箱路径已经跑通。它没有。
 
 ---
 
-### 20-minute cut
+### 20 分钟剪辑
 
-2-minute opening (merge stakes + task), 3 minutes on agent loops, 2 minutes
-on IB plus the infrastructure detour trimmed to its last paragraph, the same
-protected 6-minute demo, 4 minutes of measurements, 2-minute close. The
-published 30-minute slot supports 25+5 or 20+10 — not 25+10. Both cuts
-preserve the demo untouched.
+2 分钟开场（合并赌注与任务），3 分钟智能体闭环，2 分钟 IB 加基础设施绕路收束到最后一段，同一套受保护 6 分钟演示，4 分钟测量，2 分钟收束。公布的 30 分钟时段支持 25+5 或 20+10——不是 25+10。两种剪辑都不动演示。
 
-If you must cut further, cut the build graph section. Do not cut the
-"warm was slower" slide or the scope statement; they are the two moments
-that make the rest of it credible.
+必须再砍，砍构建图。不要砍「热阶段更慢」那页，也不要砍范围声明；它们是让其余部分可信的两个时刻。

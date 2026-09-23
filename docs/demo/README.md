@@ -1,37 +1,28 @@
-# Stage visual
+# 舞台画面
 
-`index.html` is a single self-contained page that replays the safety gate's recorded
-decisions. Open it directly in a browser — no server, no build step, and it works
-offline (the IBM Plex webfonts degrade to a system stack if there is no network).
+`index.html` 是单页、自包含的安全门已记录裁决回放。用浏览器直接打开——无需服务器、无需构建，可离线（Noto Sans SC 与 IBM Plex Mono 随站点自托管）。默认简体中文，右上角可切 EN。
 
-## What it shows
+## 它展示什么
 
-Three episodes, each replayed from the committed event logs in `docs/examples`:
+三个回合，各自从 `docs/examples` 里已提交的事件日志回放：
 
-| Button | Source | Point it makes |
+| 按钮 | 来源 | 要点 |
 | --- | --- | --- |
-| Stale episode · 600 ms | `ec2-runner-b/events-center-f600.jsonl` | The patched gate refuses a 600 ms old observation and dispatches nothing. |
-| Fresh episode · 0 ms | `ec2-runner-b/events-center-f0.jsonl` | With current information the same build permits all four segments and lifts the cube. |
-| Seeded build · same stale input | `ec2-runner-a/events-stale_600ms.jsonl` | The seeded build permits all four segments on that same stale observation and reports success. |
+| 陈旧回合 · 600 ms | `ec2-runner-b/events-center-f600.jsonl` | 补丁后门拒绝 600 ms 陈旧观测，什么都不派发。 |
+| 新鲜回合 · 0 ms | `ec2-runner-b/events-center-f0.jsonl` | 同一构建在当前信息下允许全部四段并举起方块。 |
+| 植入构建 · 同一陈旧输入 | `ec2-runner-a/events-stale_600ms.jsonl` | 植入构建在同一陈旧观测上允许全部四段并报告成功。 |
 
-The third one is the one worth pausing on: the episode "passes". The cube reaches
-0.9985 m and the simulator reports `success=true`. Nothing in the run looks wrong,
-which is the reason the protected assertion has to exist.
+第三个值得停住：回合「通过了」。方块到 0.9985 m，仿真器报告 `success=true`。运行里看起来没有错，所以必须有受保护断言。
 
-Below the replay, the matrix shows all 17 episodes from the patched build — five cube
-placements against three observation ages, plus the emergency-stop and protocol-timeout
-cases — and the evidence strip carries the verifier result and the digest of the
-executable that produced these decisions.
+回放下方的矩阵是补丁构建的全部 17 回合——五个方块位置对三种观测年龄，外加急停与协议超时——证据条带带着校验器结果和做出这些裁决的可执行文件摘要。
 
-## Driving it
+## 怎么开
 
-Press `1`, `2` or `3` to switch episodes without a pointer. A slide can also link
-straight into one with `index.html?play=seeded` (`stale`, `fresh`, `seeded`).
+按 `1`、`2` 或 `3` 切换回合，不需要指针。幻灯也可以用 `index.html?play=seeded`（`stale`、`fresh`、`seeded`）直接链进去。
 
-## Provenance
+## 出处
 
-Every tick number, observation age, decision, dispatch count and cube height is
-transcribed from run `ec2-e2e-20260923-160725`. To re-derive them:
+每个 tick、观测年龄、裁决、派发计数和方块高度都从 run `ec2-e2e-20260923-160725` 抄录。要重新推导：
 
 ```sh
 python3 - <<'PY'
@@ -46,9 +37,6 @@ for l in open('docs/examples/ec2-runner-a/events-stale_600ms.jsonl'):
 PY
 ```
 
-The arm drawing is a schematic, not a MuJoCo frame capture — the run did not record
-video. It is labelled as such on the page. Cube heights and all decision data are real.
+机械臂图是示意，不是 MuJoCo 帧截取——那次运行没有录像。页面上有标明。方块高度和全部裁决数据是真的。
 
-One thing the page deliberately does not claim: the two build phases measured 21.4 s
-and 21.9 s, which shows the accelerated path ran on both. That is not a speedup
-measurement, and the page says so rather than implying a benchmark.
+页面故意不声称的一件事：两个构建阶段测得 21.4 s 和 21.9 s，说明加速路径两边都跑了。那不是加速测量，页面也这么写，而不是暗示基准。

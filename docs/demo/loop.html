@@ -1,19 +1,11 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>The validation loop — run ec2-e2e-20260923-160725</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<title>验证闭环 — run ec2-e2e-20260923-160725</title>
+<link rel="stylesheet" href="../assets/fonts/fonts.css">
 <style>
-/* ---------------------------------------------------------------
-   Frame-addressable view of the recorded validation loop.
-   ?frame=N renders a deterministic state, which is what
-   scripts/robot-demo/record-loop-gif.sh screenshots to build the GIF.
-   Every value is read from docs/examples evidence.
-   --------------------------------------------------------------- */
 :root{
   --panel:#141a20; --raised:#1b232b; --sunk:#0f141a;
   --rule:#2a343e; --rule-hot:#3a4855;
@@ -23,19 +15,17 @@
 *{box-sizing:border-box}
 html,body{margin:0;background:var(--panel);color:var(--ink)}
 body{
-  font-family:"IBM Plex Sans Condensed",ui-sans-serif,system-ui,sans-serif;
+  font-family:"Noto Sans SC","PingFang SC","Microsoft YaHei",ui-sans-serif,system-ui,sans-serif;
   -webkit-font-smoothing:antialiased;
 }
 .stage{width:880px;padding:18px 20px}
 
-/* ---- pipeline rail ---------------------------------------------- */
 .rail{display:grid;grid-template-columns:repeat(6,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule)}
 .rail div{background:var(--sunk);padding:7px 9px;font-size:12.5px;color:var(--faint);white-space:nowrap}
 .rail div.on{background:var(--raised);color:var(--ink)}
 .rail div.done{color:var(--permit)}
 .rail div.on b{display:block;font-weight:600}
 
-/* ---- header ----------------------------------------------------- */
 .hd{display:flex;align-items:baseline;gap:14px;margin:14px 0 10px}
 .hd h1{margin:0;font-size:19px;font-weight:700}
 .hd .runner{
@@ -47,7 +37,6 @@ body{
 .hd .runner.gone{border-color:var(--estop);color:var(--estop)}
 .hd .scope{margin-left:auto;font-size:12px;color:var(--faint)}
 
-/* ---- terminal --------------------------------------------------- */
 .term{
   background:var(--sunk);border:1px solid var(--rule);
   height:300px;padding:12px 14px;overflow:hidden;
@@ -61,7 +50,6 @@ body{
 .term p.dim{color:var(--faint)}
 .cursor{background:var(--ink);color:var(--sunk)}
 
-/* ---- metrics ---------------------------------------------------- */
 .metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule);border-top:0}
 .metrics div{background:var(--raised);padding:9px 11px}
 .metrics dt{margin:0;font-size:11.5px;color:var(--faint)}
@@ -70,7 +58,6 @@ body{
 .metrics dd.pend{color:var(--faint)}
 .metrics dd.flag{color:var(--hold)}
 
-/* ---- footer note ------------------------------------------------ */
 .note{margin-top:9px;font-size:11.5px;color:var(--faint);line-height:1.5}
 .note b{color:var(--dim);font-weight:600}
 </style>
@@ -80,45 +67,41 @@ body{
   <div class="rail" id="rail"></div>
 
   <div class="hd">
-    <h1 id="phase">The validation loop</h1>
-    <span class="runner" id="runner">no runner</span>
-    <span class="scope">software-in-the-loop · no hardware validation</span>
+    <h1 id="phase">验证闭环</h1>
+    <span class="runner" id="runner">无运行器</span>
+    <span class="scope">软件在环 · 未做硬件验证</span>
   </div>
 
   <div class="term" id="term"></div>
 
   <dl class="metrics">
-    <div><dt>Build phase</dt><dd id="mPhase" class="pend">—</dd></div>
-    <div><dt>Compile wall</dt><dd id="mWall" class="pend">—</dd></div>
-    <div><dt>Distributed</dt><dd id="mIb" class="pend">—</dd></div>
-    <div><dt>Stale dispatches</dt><dd id="mDisp" class="pend">—</dd></div>
+    <div><dt>构建阶段</dt><dd id="mPhase" class="pend">—</dd></div>
+    <div><dt>编译墙钟</dt><dd id="mWall" class="pend">—</dd></div>
+    <div><dt>分布式</dt><dd id="mIb" class="pend">—</dd></div>
+    <div><dt>陈旧派发</dt><dd id="mDisp" class="pend">—</dd></div>
   </dl>
 
   <p class="note" id="note">
-    <b>Numbers are from run ec2-e2e-20260923-160725.</b>
-    Incredibuild accelerates compilation only; tests and simulator scenarios
-    always re-execute and are never restored from cache.
+    <b>数字来自 run ec2-e2e-20260923-160725。</b>
+    Incredibuild 只加速编译；测试与仿真场景始终重跑，从不从缓存恢复结论。
   </p>
 </div>
 
 <script>
 "use strict";
-/* Stages of the loop, in order. */
 const STAGES = [
-  ["Runner A", "cold build"],
-  ["Contract", "seeded fails"],
-  ["Agent", "bounded patch"],
-  ["Burn A", "runner destroyed"],
-  ["Runner B", "warm build"],
-  ["Verify", "digest bound"],
+  ["运行器 A", "冷构建"],
+  ["契约", "植入失败"],
+  ["智能体", "有界补丁"],
+  ["烧掉 A", "运行器销毁"],
+  ["运行器 B", "热构建"],
+  ["核验", "摘要绑定"],
 ];
 
-/* Each frame: stage index, header, runner badge, appended log lines, metrics.
-   Values transcribed from docs/examples/ec2-runner-{a,b}. */
 const F = [
-  { s:0, phase:"Runner A — disposable, empty cache", runner:["a","runner A"], add:[
+  { s:0, phase:"运行器 A — 一次性，空缓存", runner:["a","运行器 A"], add:[
     ["cmd","$ scripts/robot-demo/cold.sh ec2-e2e-20260923-160725-runner-a"],
-    ["dim","  fresh git worktree · fresh CARGO_TARGET_DIR · empty cache namespace"],
+    ["dim","  全新 git worktree · 全新 CARGO_TARGET_DIR · 空缓存命名空间"],
   ]},
   { s:0, add:[
     ["","  ib_console: coordinator + initiator + 2 helpers"],
@@ -126,10 +109,10 @@ const F = [
   ], m:{phase:"cold", wall:"…", ib:"running", disp:null} },
   { s:0, add:[
     ["ok","  Finished dev profile — 21426 ms"],
-    ["dim",'  build-metrics.jsonl: {"phase":"cold","ib":true}'],
+    ["dim","  build-metrics.jsonl: {\"phase\":\"cold\",\"ib\":true}"],
   ], m:{phase:"cold", wall:"21426 ms", ib:"ib: true", disp:null} },
 
-  { s:1, phase:"The seeded build under test", runner:["a","runner A"], add:[
+  { s:1, phase:"被测的植入构建", runner:["a","运行器 A"], add:[
     ["cmd","$ cargo test -p robot-safety-gate"],
     ["bad","  FAILED  boundary_251ms_rejects"],
     ["bad","  FAILED  stale_ages_are_rejected"],
@@ -138,7 +121,7 @@ const F = [
   ]},
   { s:1, add:[
     ["cmd","$ swf-cli robot-demo run --scenario stale_600ms --backend robosuite"],
-    ["dim","  observation replayed 600 ms late; simulated time still advancing"],
+    ["dim","  观测晚 600 ms 回放；仿真时间仍在前进"],
   ]},
   { s:1, add:[
     ["warn","  tick 12  approach  age=600ms   PERMIT"],
@@ -148,57 +131,57 @@ const F = [
   ], m:{phase:"cold", wall:"21426 ms", ib:"ib: true", disp:"4", dispFlag:true} },
   { s:1, add:[
     ["","  episode_end  success=true  cube=0.9985 m"],
-    ["bad","  protected assertion FAIL — a stale episode must dispatch 0 actions"],
-    ["dim","  the run looked green; only the protected check caught it"],
+    ["bad","  protected assertion FAIL — 陈旧回合必须派发 0 次任务动作"],
+    ["dim","  运行看起来是绿的；只有受保护检查抓住了它"],
   ], m:{phase:"cold", wall:"21426 ms", ib:"ib: true", disp:"4", dispFlag:true} },
 
-  { s:2, phase:"Agent gets a bounded work order", runner:["a","runner A"], add:[
+  { s:2, phase:"智能体拿到有界工单", runner:["a","运行器 A"], add:[
     ["cmd","$ agent --work-order evidence/.../agent-context/work-order.md"],
-    ["dim","  editable: rust/crates/robot-safety-gate/src/lib.rs"],
-    ["dim","  protected: tests, threshold, simulator, verifier"],
+    ["dim","  可编辑: rust/crates/robot-safety-gate/src/lib.rs"],
+    ["dim","  受保护: tests, threshold, simulator, verifier"],
   ]},
   { s:2, add:[
-    ["ok","  patch produced — demo/fallback-patch.diff (49 lines)"],
+    ["ok","  产出补丁 — demo/fallback-patch.diff（49 行）"],
     ["","  + if age_ms > policy.max_observation_age_ms {"],
     ["","  +     return Decision::Reject { reason: StalePerception { age_ms } };"],
     ["","  + }"],
   ]},
 
-  { s:3, phase:"Burn the runner", runner:["gone","runner A destroyed"], add:[
+  { s:3, phase:"烧掉运行器", runner:["gone","运行器 A 已销毁"], add:[
     ["cmd","$ teardown runner A"],
-    ["bad","  worktree removed · target dir removed · instance gone"],
-    ["ok","  survives: the patch, the base revision, the context packet,"],
-    ["ok","           and the compilation work the parent revision warmed"],
+    ["bad","  worktree 已删 · target 目录已删 · 实例已不在"],
+    ["ok","  留下：补丁、基线修订、上下文包，"],
+    ["ok","        以及父修订预热过的编译工作"],
   ]},
 
-  { s:4, phase:"Runner B — new instance, warm factory", runner:["b","runner B"], add:[
+  { s:4, phase:"运行器 B — 新实例，热工厂", runner:["b","运行器 B"], add:[
     ["cmd","$ scripts/robot-demo/warm.sh ec2-e2e-20260923-160725-runner-b"],
-    ["dim","  brand-new instance · no prior outputs · patch applied to exact base"],
+    ["dim","  全新实例 · 无先前产物 · 补丁打在精确基线上"],
     ["","  cargo build --locked  (reusing parent-warmed cache namespace)"],
   ], m:{phase:"warm", wall:"…", ib:"running", disp:null} },
   { s:4, add:[
     ["ok","  Finished dev profile — 21948 ms"],
-    ["dim",'  build-metrics.jsonl: {"phase":"warm","ib":true}'],
-    ["warn","  note: warm was 522 ms SLOWER than cold — not a speedup"],
+    ["dim","  build-metrics.jsonl: {\"phase\":\"warm\",\"ib\":true}"],
+    ["warn","  注意：热阶段比冷阶段慢 522 ms — 不是加速"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:null} },
   { s:4, add:[
     ["cmd","$ cargo test -p robot-safety-gate && cargo test --workspace"],
     ["ok","  test result: 10 passed; 0 failed   (8 contract + 2 unit)"],
   ]},
 
-  { s:5, phase:"The patched executable decides", runner:["b","runner B"], add:[
+  { s:5, phase:"补丁后的可执行文件在裁决", runner:["b","运行器 B"], add:[
     ["cmd","$ swf-cli robot-demo matrix --backend robosuite"],
     ["ok","  center-f600   refused at tick 12   dispatches=0"],
     ["ok","  center-f0     cube_lifted 0.9978 m dispatches=4"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },
   { s:5, add:[
-    ["dim","  17 episodes: 10 lifted · 5 refused · 1 e-stop · 1 timeout"],
+    ["dim","  17 回合：10 举起 · 5 拒绝 · 1 急停 · 1 超时"],
     ["cmd","$ swf-cli robot-demo validate --run-id ec2-e2e-...-runner-b"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },
-  { s:5, phase:"Proof bound to the artifact", add:[
+  { s:5, phase:"证明绑定到产物", add:[
     ["ok","  protected verifier: 88 / 88 PASS"],
     ["dim","  sha256 f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326"],
-    ["ok","  the verdict is bound to the executable that made these decisions"],
+    ["ok","  结论绑定到做出这些裁决的那份可执行文件"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },
 ];
 
@@ -206,8 +189,7 @@ const $ = id => document.getElementById(id);
 const frame = Math.max(0, Math.min(F.length - 1,
   parseInt(new URLSearchParams(location.search).get("frame") ?? String(F.length - 1), 10) || 0));
 
-/* Replay frames 0..frame so the state is cumulative and deterministic. */
-let phase = "The validation loop", runner = ["", "no runner"], metrics = null;
+let phase = "验证闭环", runner = ["", "无运行器"], metrics = null;
 const lines = [];
 for (let i = 0; i <= frame; i++) {
   const f = F[i];
@@ -227,7 +209,6 @@ const rb = $("runner");
 rb.textContent = runner[1];
 rb.className = "runner " + runner[0];
 
-/* Keep the last lines visible; the terminal is a fixed-height window. */
 const MAX = 11;
 $("term").innerHTML = lines.slice(-MAX)
   .map(([cls, text]) => `<p class="${cls}">${text.replace(/[&<>]/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;"}[c]))}</p>`)

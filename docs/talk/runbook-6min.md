@@ -1,82 +1,46 @@
-# Six-minute stage runbook
+# 六分钟舞台手册
 
-Allocations are rehearsal budgets, not claimed runtimes. One complete
-six-minute recording stays available locally; if network or rendering fails,
-play the recording — visibly labeled — rather than debugging live.
+分配是彩排预算，不是声称的运行时长。本地保留一份完整六分钟录像；网络或渲染失败时，播放录像——当面标明——不要现场排错。
 
-Automation: `scripts/robot-demo/rehearse.sh <run-id>` performs the whole arc
-(`ROBOT_DEMO_BACKEND=robosuite` for the real SIL path). On stage, run the
-phases individually so narration stays in charge of pacing.
+自动化：`scripts/robot-demo/rehearse.sh <run-id>` 走完整弧
+（真实 SIL 路径设 `ROBOT_DEMO_BACKEND=robosuite`）。台上分阶段跑，让旁白掌握节奏。
 
-Fallback if the grid is unreachable: `docs/demo/index.html` replays the
-recorded run with no network, no server and no build step. It is labeled as a
-replay on its face, so showing it is not a misrepresentation — but say
-"this is the recorded run" out loud anyway.
+网格不可达时的回退：`docs/demo/index.html` 回放已记录运行，无需网络、无需服务器、无需构建。页面本身标明这是回放，所以展示它不是误导——但仍然要大声说「这是已记录运行」。
 
-| Time | Stage action | Command / artifact | Number to say |
+| 时间 | 舞台动作 | 命令 / 产物 | 要说的数字 |
 |---|---|---|---|
-| 0:00–0:30 | Show Panda/cube; introduce the stale observation | simulator view; `demo/robot-sim/config/scenarios/stale_600ms.json` | "600 milliseconds" |
-| 0:30–1:15 | Runner A cold build + the failing episode | `scripts/robot-demo/cold.sh <run>-runner-a` | 21426 ms, `ib: true`; 4 dispatches at ticks 12/22/32/48 |
-| 1:15–2:05 | Agent produces bounded patch from failure context (cap ≈45 s) | work order: `evidence/<run>-runner-a/agent-context/work-order.md` | — |
-| 2:05–2:30 | Show the diff, export context, **destroy A** | `demo/fallback-patch.diff` | 49 lines, 4 of intent |
-| 2:30–3:15 | Fresh runner B builds through IB, runs checks | `scripts/robot-demo/warm.sh <run>-runner-b` | 21948 ms, `ib: true`; 10/10 tests |
-| 3:15–4:00 | Patched executable refuses the stale episode; show **zero** dispatches | matrix row `center-f600` → `rejected_stale` | refused at tick 12, 0 dispatches |
-| 4:00–4:40 | Fresh episode lifts the cube | matrix rows `*-f0` → `cube_lifted` | 4 permits, cube 0.9978 m |
-| 4:40–5:20 | Evidence pack + build comparison | `evidence/<run>-runner-b/`, `build-metrics.jsonl` | 17 episodes; 88/88; digest f358e898 |
-| 5:20–5:40 | Simulation scope; downstream hardware gate | scope statement in every manifest | — |
-| 5:40–6:00 | Buffer | — | — |
+| 0:00–0:30 | 展示 Panda/方块；引入陈旧观测 | 仿真画面；`demo/robot-sim/config/scenarios/stale_600ms.json` | 「600 毫秒」 |
+| 0:30–1:15 | 运行器 A 冷构建 + 失败回合 | `scripts/robot-demo/cold.sh <run>-runner-a` | 21426 ms，`ib: true`；tick 12/22/32/48 四次派发 |
+| 1:15–2:05 | 智能体从失败上下文产出有界补丁（上限 ≈45 s） | 工单：`evidence/<run>-runner-a/agent-context/work-order.md` | — |
+| 2:05–2:30 | 展示 diff，导出上下文，**销毁 A** | `demo/fallback-patch.diff` | 49 行，4 行是意图 |
+| 2:30–3:15 | 全新运行器 B 经 IB 构建并跑检查 | `scripts/robot-demo/warm.sh <run>-runner-b` | 21948 ms，`ib: true`；10/10 测试 |
+| 3:15–4:00 | 补丁后的可执行文件拒绝陈旧回合；展示 **零** 派发 | 矩阵行 `center-f600` → `rejected_stale` | tick 12 拒绝，0 次派发 |
+| 4:00–4:40 | 新鲜回合举起方块 | 矩阵行 `*-f0` → `cube_lifted` | 4 次允许，方块 0.9978 m |
+| 4:40–5:20 | 证据包 + 构建对比 | `evidence/<run>-runner-b/`，`build-metrics.jsonl` | 17 回合；88/88；摘要 f358e898 |
+| 5:20–5:40 | 仿真范围；下游硬件门 | 每份清单里的范围声明 | — |
+| 5:40–6:00 | 缓冲 | — | — |
 
-## The one beat that carries the talk
+## 撑起整场的那一拍
 
-At 0:30–1:15, do not rush past the seeded failure. The episode reports
-`success=true` and lifts the cube to 0.9985 m. Say that the run is *green*
-and let the room sit with it for a beat before revealing that all four
-dispatches acted on a 600 ms-old observation. The demo's argument is not
-"the build broke" — it is "the build passed and was wrong."
+0:30–1:15 不要匆匆越过植入失败。回合报告 `success=true`，方块举到 0.9985 m。先说这次运行是 *绿的*，让房间坐一会儿，再揭示四次派发都作用在 600 ms 前的观测上。演示的论点不是「构建坏了」——是「构建通过了，而且是错的。」
 
-If you are using the stage visual, `docs/demo/index.html?play=seeded` opens
-straight into this episode. Keys `1`/`2`/`3` switch between the stale, fresh
-and seeded episodes without a pointer.
+若用舞台画面，`docs/demo/index.html?play=seeded` 直接进入该回合。按键 `1`/`2`/`3` 在陈旧、新鲜、植入之间切换，不需要指针。
 
-## Hard rules for the live run
+## 现场硬规则
 
-- The live agent attempt is capped at ~45 s. If it misses, apply the
-  reviewed fallback patch **visibly**. No silent substitution of scripted
-  agent output, cached test verdicts, or recorded timings for live results.
-- If the cold build does not fit the budget on the day, show a labeled
-  recording or a measured prior result for that phase; keep the warm build
-  and the simulated behavior live.
-- Runner B must start with no prior compilation outputs in any configured
-  location. Tests and scenario assertions re-execute; verdicts are never
-  restored from cache.
-- Start the measured runner instances only when their phases begin.
-- Three consecutive rehearsals must complete within 5:30, preserving 30 s
-  of contingency inside the six-minute slot.
-- **Never state a speedup.** The two build phases are 21426 ms and 21948 ms;
-  the warm one was slower. If asked live, say: "I measured that the
-  distributed path ran on both phases. I have not measured a speedup, and
-  the benchmark to do it properly is specified in the repo."
+- 现场智能体尝试上限约 45 秒。若没打中，**当面**套用审阅过的回退补丁。禁止静默替换脚本化智能体输出、缓存的测试结论、或用录像时间冒充现场结果。
+- 若当天冷构建塞不进预算，对该阶段展示带标签的录像或先前测量；热构建和仿真行为保持现场。
+- 运行器 B 必须在任何已配置位置都没有先前编译产物。测试和场景断言重跑；结论从不从缓存恢复。
+- 被测运行器实例只在其阶段开始时启动。
+- 连续三次彩排须在 5:30 内完成，六分钟时段内留 30 秒应急。
+- **永远不要说加速。** 两个构建阶段是 21426 ms 和 21948 ms；热的那个更慢。若被现场追问，说：「我测到分布式路径在两个阶段都跑了。我没有测加速，把这件事做对的基准写在仓库里。」
 
-## If someone asks about the machines
+## 若有人问机器
 
-Answer plainly: a real Incredibuild 4.31.0 grid — one coordinator, one
-initiator, two helpers, on our own Linux hosts. The islo sandbox path is in
-the 25-minute script as the honest version: five resource limits, then the
-account ran out of credit. Do not present the verified run as having
-happened on islo; the run IDs, manifests and evidence README in the repo all
-record EC2, and the contradiction is one `ls` away.
+如实回答：真实 Incredibuild 4.31.0 网格——一台 coordinator、一台 initiator、两台 helper，在我们自己的 Linux 主机上。islo 沙箱路径在 25 分钟讲稿里有诚实版本：五次资源限制，然后账户没额度。不要把已核验运行说成发生在 islo 上；仓库里的 run ID、清单和证据 README 都记的是 EC2，矛盾一次 `ls` 就能看见。
 
-The architectural point survives either answer, which is exactly the point:
-a fresh worktree, a fresh `CARGO_TARGET_DIR`, a directory of evidence files
-and a digest-bound verdict moved between two unrelated infrastructures
-without a line changing.
+无论哪种回答，架构论点都成立，这正是重点：全新 worktree、全新 `CARGO_TARGET_DIR`、一目录证据文件、摘要绑定的结论，在两套无关基础设施之间搬家，一行都没改。
 
-## Presenter view
+## 演示者画面
 
-Simulator as the main visual; one restrained adjacent terminal. Show only:
-robot/cube scene and episode type; observation age, policy decision, and
-task-action dispatch count; runner identity and clean-output confirmation;
-actual IB cache/remote/local work and elapsed time; candidate identity and
-test/scenario result. Colors map to real states: failure, hold/rejection,
-success. The rendering follows actual simulation state — never a separate
-animation.
+仿真作主视觉；旁边一台克制的终端。只展示：机器人/方块场景与回合类型；观测年龄、策略裁决、任务动作派发计数；运行器身份与干净输出确认；实际 IB 缓存/远程/本地工作与耗时；候选身份与测试/场景结果。颜色对应真实状态：失败、保持/拒绝、成功。渲染跟随实际仿真状态——从不是另做的动画。

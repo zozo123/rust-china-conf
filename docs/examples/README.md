@@ -1,40 +1,25 @@
-# Committed example evidence
+# 已提交的示例证据
 
-Captured from a full local rehearsal (`scripts/robot-demo/rehearse.sh`,
-`ROBOT_DEMO_BACKEND=robosuite`) on CPython 3.12 / robosuite 1.5.2 /
-MuJoCo 3.9.0, macOS arm64:
+来自一次完整本地彩排（`scripts/robot-demo/rehearse.sh`，
+`ROBOT_DEMO_BACKEND=robosuite`），CPython 3.12 / robosuite 1.5.2 /
+MuJoCo 3.9.0，macOS arm64：
 
-- `sil-runner-a/` — **failure record** from the seeded revision: the stale
-  (600 ms) episode is wrongly permitted (4 task dispatches), plus the agent
-  context packet exported before the runner was destroyed.
-- `sil-runner-b/` — **validated fixed candidate**: fresh isolated runner,
-  `demo/fallback-patch.diff` applied to the exact base, contract suite
-  10/10, 17-episode coverage matrix, protected verifier **88/88 PASS**.
+- `sil-runner-a/` — 植入修订的 **失败记录**：陈旧（600 ms）回合被错误允许（4 次任务派发），以及运行器销毁前导出的智能体上下文包。
+- `sil-runner-b/` — **已核验的修复候选**：全新隔离运行器，把 `demo/fallback-patch.diff` 打在精确基线上，契约套件 10/10，17 回合覆盖矩阵，受保护校验器 **88/88 PASS**。
 
-The exported executable binary itself is not committed (size); its sha256
-is recorded in `sil-runner-b/artifact/swf-cli.sha256` and in the manifest.
-Regenerate a verifiable artifact any time with `scripts/robot-demo/rehearse.sh`.
+导出的可执行文件本身未提交（体积）；其 sha256 记在 `sil-runner-b/artifact/swf-cli.sha256` 和清单里。随时可用 `scripts/robot-demo/rehearse.sh` 再生成可核验产物。
 
-Scope reminder: these are Rust contract checks, bridge checks and simulated
-robot scenarios. Hardware HIL and physical validation were not performed.
+范围提醒：这些是 Rust 契约检查、桥接检查与仿真机器人场景。未做硬件 HIL 与实体验证。
 
-## Linux / Incredibuild grid run
+## Linux / Incredibuild 网格运行
 
-`ec2-runner-a/` and `ec2-runner-b/` were captured from run
-`ec2-e2e-20260923-160725` on an Ubuntu 20.04 x86-64 Initiator connected to
-an Incredibuild 4.31.0 grid (one Coordinator and two Helpers):
+`ec2-runner-a/` 与 `ec2-runner-b/` 来自 run
+`ec2-e2e-20260923-160725`，Ubuntu 20.04 x86-64 Initiator 连到
+Incredibuild 4.31.0 网格（一台 Coordinator 与两台 Helper）：
 
-- both Cargo phases executed under `ib_console` with the checked-in
-  `rust/ib_profile.xml`;
-- Runner A reproduced the seeded defect: a 600 ms stale episode dispatched
-  four task actions;
-- Runner B applied the reviewed patch to the exact base revision, passed all
-  10 Rust checks, and completed the 17-episode robosuite matrix;
-- the protected verifier passed **88/88 checks** against the exported
-  executable identity.
+- 两个 Cargo 阶段都在 `ib_console` 下执行，使用已入库的 `rust/ib_profile.xml`；
+- 运行器 A 复现植入缺陷：600 ms 陈旧回合派发了四次任务动作；
+- 运行器 B 把审阅过的补丁打在精确基线修订上，通过全部 10 项 Rust 检查，并完成 17 回合 robosuite 矩阵；
+- 受保护校验器对照导出的可执行文件身份通过 **88/88 项检查**。
 
-Observed build-phase wall times were 21.426 s cold and 21.948 s warm. This
-proves the Incredibuild integration path, but it does **not** demonstrate a
-speedup: the warm observation was slightly slower. Do not present these two
-workflow-continuity timings as a controlled performance benchmark. The
-planned same-candidate, minimum-five-run benchmark remains separate.
+观测到的构建阶段墙钟是冷 21.426 s、热 21.948 s。这证明 Incredibuild 集成路径，但 **不** 证明加速：热观测略慢。不要把这两次工作流连续性计时当成受控性能基准。计划中的同候选、每种模式至少五次的基准仍是另一次运行。

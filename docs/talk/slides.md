@@ -1,218 +1,218 @@
 ---
 marp: true
-title: A Million Compiles. One Robot Hour.
+title: 百万次编译，一小时机器人
 paginate: true
 ---
 
-# A Million Compiles. One Robot Hour.
+# 百万次编译，一小时机器人
 
-**Disposable Runners, Warm Cargo Factory**
+**一次性运行器，热 Cargo 工厂**
 
-Burn the runner. Keep the proof. Spare the robot.
-
----
-
-## The stakes
-
-- Your team has **one hour** booked on a robot tomorrow
-- Agents produce **many** candidate changes overnight
-- Which change deserves that hour?
-
-> Today the robot is simulated, so we can repeat failures cheaply.
+烧掉运行器。留下证据。放过机器人。
 
 ---
 
-## The task (deliberately boring)
+## 赌注
 
-- Simulated Panda arm, one cube, robosuite `Lift`
-- Success = the environment's own check + explicit height condition
-- The interesting part is **around** the arm:
-  who authorizes motion, on what information, built by which runner
+- 你们明天在机器人上只订了 **一小时**
+- 智能体一晚上产出 **很多** 候选改动
+- 哪一次改动配得上那一小时？
 
----
-
-## The safety gate (pure Rust)
-
-1. Simulated emergency stop beats **everything**
-2. Future/invalid observation timestamps → reject
-3. Observation age ≤ 250 ms at dispatch → permit, else **StalePerception**
-
-*250 ms is an illustrative demo policy, not a safe hardware threshold.*
+> 今天机器人是仿真的，失败可以便宜地重复。
 
 ---
 
-## The seeded defect
+## 任务（故意无聊）
 
-Freshness check missing. Observation stream delayed 600 ms — real
-historical observations, simulated time still advancing.
-
-Four proposals, ticks **12 / 22 / 32 / 48**. All four **permitted**.
+- 仿真 Panda 机械臂，一个方块，robosuite `Lift`
+- 成功 = 环境自己的检查 + 明确高度条件
+- 有意思的是机械臂 **周围**：
+  谁授权运动，依据什么信息，由哪台运行器构建
 
 ---
 
-## And the episode passed
+## 安全门（纯 Rust）
+
+1. 仿真急停压过 **一切**
+2. 未来/非法观测时间戳 → 拒绝
+3. 派发时观测年龄 ≤ 250 ms → 允许，否则 **StalePerception**
+
+*250 ms 是演示策略，不是安全硬件阈值。*
+
+---
+
+## 植入缺陷
+
+新鲜度检查缺失。观测流延迟 600 ms——真实
+历史观测，仿真时间仍在前进。
+
+四个提案，tick **12 / 22 / 32 / 48**。四个全部 **允许**。
+
+---
+
+## 然后这个回合通过了
 
 ```
 episode_end  success=true  reason=cube_lifted  cube=0.9985 m
 ```
 
-The cube came up. The simulator said success. In a CI summary,
-this run is **green**.
+方块起来了。仿真器说成功。在 CI 摘要里，
+这次运行是 **绿的**。
 
-Only the protected assertion caught it:
-*a stale episode must have zero task-action dispatches.* This one had four.
-
----
-
-## Architecture
-
-agents → disposable runners → warm Cargo factory **[IB]** → retained
-evidence → simulation → *future HIL / robot gate (not performed)*
-
-- IB accelerates **compilation only**
-- Tests and simulator checks always re-execute
-- Verdicts are never restored from cache
+只有受保护断言抓住了它：
+*陈旧回合的任务动作派发必须为零。* 这一次有四次。
 
 ---
 
-## Where this was supposed to run
+## 架构
 
-Ephemeral sandboxes. Rent a runner for ninety seconds, throw it away.
+智能体 → 一次性运行器 → 热 Cargo 工厂 **[IB]** → 保留
+证据 → 仿真 → *未来 HIL / 机器人门（未做）*
 
-- Asked for 8 vCPU — **over quota**
-- Asked for 8192 MB memory — **over quota**
-- Asked for 40 GB disk — **over quota**
-- IB helper cache wanted 10 GB; sandbox had **9 GB** free
-- Moved to Debian 12 — coordinator **does not support it**
+- IB **只加速编译**
+- 测试和仿真检查始终重跑
+- 结论从不从缓存恢复
+
+---
+
+## 本来要跑在哪里
+
+短生命周期沙箱。租九十秒运行器，扔掉。
+
+- 要 8 vCPU — **超额**
+- 要 8192 MB 内存 — **超额**
+- 要 40 GB 磁盘 — **超额**
+- IB helper 缓存要 10 GB；沙箱只剩 **9 GB**
+- 改到 Debian 12 — coordinator **不支持**
 
 > `insufficient credit balance to create a sandbox`
 
 ---
 
-## So it ran somewhere else
+## 于是跑到了别处
 
-A real Incredibuild 4.31.0 grid: coordinator + initiator + 2 helpers.
+真实 Incredibuild 4.31.0 网格：coordinator + initiator + 2 helpers。
 
-**Nothing in the architecture changed.**
+**架构一行都没改。**
 
-A fresh worktree. A fresh `CARGO_TARGET_DIR`. A directory of evidence
-files. A digest-bound verdict.
+全新 worktree。全新 `CARGO_TARGET_DIR`。一目录证据
+文件。摘要绑定的结论。
 
-> If your validation loop only works on one vendor's sandbox, you don't
-> have a disposable runner. You have a pet with a short life expectancy.
-
----
-
-## DEMO (protected six minutes)
-
-runbook: `docs/talk/runbook-6min.md` — automation: `scripts/robot-demo/rehearse.sh`
-
-replay, offline: `docs/demo/index.html`
+> 如果你的验证闭环只能在一家厂商的沙箱上工作，你没有
+> 一次性运行器。你有一只寿命很短的宠物。
 
 ---
 
-## "The runner is gone."
+## 演示（受保护六分钟）
 
-- Runner A: fresh worktree, empty outputs, empty cache namespace
-- Export: patch, base revision, context packet
-- **Destroy A.**
+手册：`docs/talk/runbook-6min.md` — 自动化：`scripts/robot-demo/rehearse.sh`
 
-> The change, the investigation, and the reusable compilation work survive.
+离线回放：`docs/demo/index.html`
 
 ---
 
-## Runner B: fresh machine, warm factory
+## 「运行器没了。」
 
-- New instance, same base image, fresh filesystem
-- Patch applied to the **exact** base revision
-- Compilation reuse from the parent-warmed cache
-- Protected checks re-run against the actual built executable
+- 运行器 A：全新 worktree，空输出，空缓存命名空间
+- 导出：补丁、基线修订、上下文包
+- **销毁 A。**
 
-Rust tests: **10 / 10** (8 contract + 2 unit). On the seeded build, 3 failed.
+> 改动、调查、可复用的编译工作还在。
 
 ---
 
-## Behavioral payoff
+## 运行器 B：新机器，热工厂
 
-| episode | result | dispatches |
+- 新实例，同一基础镜像，全新文件系统
+- 补丁打在 **精确** 基线修订上
+- 从父修订预热的缓存复用编译
+- 受保护检查对照实际构建的可执行文件重跑
+
+Rust 测试：**10 / 10**（8 契约 + 2 单元）。植入构建上 3 项失败。
+
+---
+
+## 行为上的兑现
+
+| 回合 | 结果 | 派发 |
 |---|---|---|
-| stale 600 ms | `rejected_stale` at tick 12 | **0** |
-| fresh 0 ms | `cube_lifted`, 0.9978 m | 4 |
-| e-stop | `emergency_stop` at tick 10 | 1 |
-| dead bridge | explicit `timeout` | 0 |
+| 陈旧 600 ms | tick 12 `rejected_stale` | **0** |
+| 新鲜 0 ms | `cube_lifted`，0.9978 m | 4 |
+| 急停 | tick 10 `emergency_stop` | 1 |
+| 死桥 | 显式 `timeout` | 0 |
 
-17 episodes total: 10 lifted, 5 refused, 1 stopped, 1 timed out.
+共 17 回合：10 举起，5 拒绝，1 停止，1 超时。
 
 ---
 
-## What I measured
+## 我测到的
 
-| phase | wall | distributed |
+| 阶段 | 墙钟 | 分布式 |
 |---|---|---|
-| cold (runner A) | 21426 ms | `ib: true` |
-| warm (runner B) | 21948 ms | `ib: true` |
+| 冷（运行器 A） | 21426 ms | `ib: true` |
+| 热（运行器 B） | 21948 ms | `ib: true` |
 
-The warm build was **522 ms slower**.
-
----
-
-## Which is not a speedup
-
-Different runners, different phases, **one run each**, a workspace small
-enough that distribution overhead plausibly exceeds the work distributed.
-
-What these two numbers establish: the accelerated path really ran, on a
-real grid, on both sides of destroying the runner. **Workflow continuity.**
-
-That is all they establish.
+热构建 **慢了 522 ms**。
 
 ---
 
-## The benchmark I still owe you
+## 这不是加速
 
-- Same fixed source revision in every comparable row
-- Native cargo baseline / IB cold / IB warm-from-parent
-- **≥5 runs per mode**; medians *and* ranges; run order and contention disclosed
-- Cache hit rate names its denominator
-- Separately: runner startup, checkout, artifact transfer, agent latency
+不同运行器、不同阶段、**各一次**，工作区小到
+分布开销很可能大于被分布的工作。
 
-Wall-time ≠ CPU-hours ≠ cost ≠ robot hours — unless measured.
+这两个数字成立的是：加速路径真的跑了，在真实网格上，
+在销毁运行器的两边。**工作流连续性。**
+
+它们只成立这一点。
 
 ---
 
-## Evidence pack
+## 我仍欠你们的基准
+
+- 每一行可比数据用同一固定源修订
+- 原生 cargo 基线 / IB 冷 / IB 从父修订热
+- **每种模式 ≥5 次**；中位数 *和* 区间；披露运行顺序与争用
+- 缓存命中率带上分母
+- 另外单独：运行器启动、检出、产物传输、智能体延迟
+
+墙钟 ≠ CPU 小时 ≠ 成本 ≠ 机器人小时——除非测过。
+
+---
+
+## 证据包
 
 `manifest.json` · `events-*.jsonl` · `scenario-results.json` ·
-`build-metrics.jsonl` · `agent-context/` · exported artifact + sha256
+`build-metrics.jsonl` · `agent-context/` · 导出产物 + sha256
 
-**88 / 88** protected checks, bound to
+**88 / 88** 受保护检查，绑定到
 `f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326`
 
-A digest identifies an artifact; the **protected verifier** binds results
-to the actual artifact.
+摘要标识一份产物；**受保护校验器**把结果
+绑到实际产物。
 
 ---
 
-## Scope honesty
+## 范围诚实
 
-Performed: Rust contract checks, bridge checks, simulated robot scenarios.
+已做：Rust 契约检查、桥接检查、仿真机器人场景。
 
-**Not** performed: hardware HIL, physical validation, trained vision
-(cube pose is simulator state; camera feed is for the audience).
-No speedup measured.
+**未**做：硬件 HIL、实体验证、训练视觉
+（方块位姿是仿真器状态；摄像头画面给观众）。
+没有测过加速。
 
-> An evidence pack whose boundary you can't see isn't evidence.
-> It's a green checkmark with better production values.
+> 看不见边界的证据包不是证据。
+> 它是制作更精良的绿勾。
 
 ---
 
-## Close
+## 收束
 
-> Every candidate needs another check. It does not need every dependency
-> compiled from scratch.
+> 每个候选都需要再检查一次。它不需要每个依赖
+> 从零编译。
 
-The seeded run in this demo was green. That's the whole lesson.
+这次演示里的植入运行是绿的。整堂课就是这个。
 
-**Burn the runner. Keep the proof. Spare the robot.**
+**烧掉运行器。留下证据。放过机器人。**
 
-Repo: github.com/zozo123/rust-china-conf
+仓库：github.com/zozo123/rust-china-conf
