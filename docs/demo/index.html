@@ -1,0 +1,530 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Robot Safety Gate — recorded run ec2-e2e-20260923-160725</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+/* ---------------------------------------------------------------
+   Stage visual for "A Million Compiles. One Robot Hour."
+   Every number is read from the committed evidence of run
+   ec2-e2e-20260923-160725 (docs/examples/ec2-runner-*). Nothing here
+   is illustrative: the traces below are the recorded protocol messages.
+   Self-contained and offline-capable; fonts degrade to a system stack.
+   --------------------------------------------------------------- */
+:root{
+  /* equipment housing, not a tinted black */
+  --panel:#141a20;
+  --panel-raised:#1b232b;
+  --panel-sunk:#0f141a;
+  --rule:#2a343e;
+  --rule-bright:#3a4855;
+  --ink:#e9eef2;
+  --ink-dim:#8998a6;
+  --ink-faint:#5d6b78;
+  /* functional machine states — never used decoratively */
+  --permit:#57a874;
+  --hold:#e3982c;      /* amber: refused + holding, per interlock convention */
+  --estop:#c8412f;
+  --cube:#c8763c;
+  --steel:#7d8b98;
+}
+*{box-sizing:border-box}
+html,body{margin:0;padding:0}
+body{
+  background:var(--panel);
+  color:var(--ink);
+  font-family:"IBM Plex Sans Condensed",ui-sans-serif,-apple-system,"Segoe UI",sans-serif;
+  font-size:17px;
+  line-height:1.45;
+  -webkit-font-smoothing:antialiased;
+}
+.mono{font-family:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,Consolas,monospace}
+.wrap{max-width:1320px;margin:0 auto;padding:22px 26px 56px}
+
+/* ---- nameplate -------------------------------------------------- */
+.plate{
+  display:flex;flex-wrap:wrap;align-items:baseline;gap:10px 26px;
+  border:1px solid var(--rule);border-left:3px solid var(--hold);
+  background:var(--panel-raised);padding:12px 18px;
+}
+.plate h1{
+  margin:0;font-size:25px;font-weight:700;letter-spacing:-.01em;
+}
+.plate .sub{color:var(--ink-dim);font-size:15px}
+.plate .id{
+  margin-left:auto;color:var(--ink-faint);font-size:13.5px;
+}
+
+/* ---- main split ------------------------------------------------- */
+.split{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:18px}
+@media(max-width:1040px){.split{grid-template-columns:1fr}}
+.bay{background:var(--panel-raised);border:1px solid var(--rule);padding:18px 20px}
+.bay h2{
+  margin:0 0 14px;font-size:14.5px;font-weight:600;color:var(--ink-dim);
+  display:flex;justify-content:space-between;align-items:baseline;gap:12px;
+}
+.bay h2 span{font-size:13px;color:var(--ink-faint)}
+
+/* ---- age gauge (the hero) --------------------------------------- */
+.gauge{position:relative;height:66px;background:var(--panel-sunk);border:1px solid var(--rule);overflow:hidden}
+.gauge .fill{
+  position:absolute;inset:0 auto 0 0;width:0;
+  background:var(--permit);
+  transition:width .28s cubic-bezier(.22,.7,.3,1),background-color .18s linear;
+}
+.gauge.over .fill{background:var(--hold)}
+.gauge .limit{
+  /* Sits above the fill so it stays legible on green or on amber. */
+  position:absolute;top:-1px;bottom:-1px;left:41.6%;width:3px;z-index:2;
+  background:var(--panel-sunk);
+  box-shadow:1px 0 0 rgba(255,255,255,.6),-1px 0 0 rgba(255,255,255,.6);
+}
+.gauge .val{
+  position:absolute;right:12px;top:50%;transform:translateY(-50%);
+  font-family:"IBM Plex Mono",monospace;font-size:30px;font-weight:600;
+  text-shadow:0 0 8px var(--panel-sunk);
+}
+.scale{position:relative;height:20px;margin-top:6px;color:var(--ink-faint);font-size:12.5px}
+.scale .s0{position:absolute;left:0}
+.scale .s1{position:absolute;right:0}
+.scale .lim{position:absolute;left:41.6%;transform:translateX(-50%);color:var(--ink);white-space:nowrap}
+.scale .lim::before{content:"";position:absolute;left:50%;top:-6px;width:1px;height:5px;background:var(--ink)}
+
+/* ---- verdict ---------------------------------------------------- */
+.verdict{
+  margin-top:16px;border:1px solid var(--rule-bright);background:var(--panel-sunk);
+  padding:18px 20px;display:flex;align-items:center;gap:18px;min-height:104px;
+}
+.verdict .lamp{
+  width:19px;height:19px;border-radius:50%;flex:0 0 auto;
+  background:var(--ink-faint);box-shadow:0 0 0 4px rgba(255,255,255,.04);
+}
+.verdict .word{font-size:41px;font-weight:700;line-height:1;letter-spacing:-.015em}
+.verdict .why{color:var(--ink-dim);font-size:15px;margin-top:5px}
+.verdict[data-state="permit"]{border-color:var(--permit)}
+.verdict[data-state="permit"] .lamp{background:var(--permit);box-shadow:0 0 16px var(--permit)}
+.verdict[data-state="permit"] .word{color:var(--permit)}
+.verdict[data-state="reject"]{border-color:var(--hold)}
+.verdict[data-state="reject"] .lamp{background:var(--hold);box-shadow:0 0 16px var(--hold)}
+.verdict[data-state="reject"] .word{color:var(--hold)}
+.verdict[data-state="estop"]{border-color:var(--estop)}
+.verdict[data-state="estop"] .lamp{background:var(--estop);box-shadow:0 0 16px var(--estop)}
+.verdict[data-state="estop"] .word{color:var(--estop)}
+
+/* ---- readouts --------------------------------------------------- */
+.readouts{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--rule);margin-top:16px;border:1px solid var(--rule)}
+.readouts div{background:var(--panel-sunk);padding:11px 13px}
+.readouts dt{color:var(--ink-faint);font-size:12.5px;margin:0}
+.readouts dd{margin:3px 0 0;font-family:"IBM Plex Mono",monospace;font-size:21px;font-weight:600}
+.readouts dd.flag{color:var(--hold)}
+
+/* ---- scene ------------------------------------------------------ */
+.scene{background:var(--panel-sunk);border:1px solid var(--rule);display:block;width:100%;height:auto}
+.scene-note{color:var(--ink-faint);font-size:12.5px;margin-top:7px}
+
+/* ---- controls --------------------------------------------------- */
+.controls{display:flex;flex-wrap:wrap;gap:9px;margin-top:16px}
+button{
+  font-family:inherit;font-size:15.5px;font-weight:600;color:var(--ink);
+  background:var(--panel-raised);border:1px solid var(--rule-bright);
+  padding:10px 17px;cursor:pointer;
+}
+button:hover{border-color:var(--steel)}
+button:focus-visible{outline:2px solid var(--hold);outline-offset:2px}
+button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-color:var(--ink)}
+
+/* ---- trace ------------------------------------------------------ */
+.trace{
+  margin-top:18px;background:var(--panel-sunk);border:1px solid var(--rule);
+  padding:14px 16px;height:212px;overflow-y:auto;
+  font-family:"IBM Plex Mono",monospace;font-size:14px;line-height:1.72;
+}
+.trace p{margin:0;white-space:pre-wrap;color:var(--ink-dim)}
+.trace p .tick{color:var(--ink-faint)}
+.trace p.permit{color:var(--permit)}
+.trace p.reject{color:var(--hold)}
+.trace p.estop{color:var(--estop)}
+.trace p.end{color:var(--ink);border-top:1px solid var(--rule);margin-top:7px;padding-top:7px}
+
+/* ---- matrix ----------------------------------------------------- */
+.matrix{margin-top:18px}
+.grid{display:grid;grid-template-columns:auto repeat(3,1fr);gap:1px;background:var(--rule);border:1px solid var(--rule)}
+.grid > *{background:var(--panel-raised);padding:10px 13px;font-size:14.5px}
+.grid .hd{color:var(--ink-faint);font-size:12.5px;background:var(--panel-sunk)}
+.grid .rowlab{color:var(--ink-dim);font-family:"IBM Plex Mono",monospace;font-size:13.5px}
+.cell{display:flex;align-items:baseline;gap:9px}
+.cell b{font-weight:600}
+.cell.lift b{color:var(--permit)}
+.cell.stale b{color:var(--hold)}
+.cell small{color:var(--ink-faint);font-family:"IBM Plex Mono",monospace;font-size:12.5px}
+.extra{display:grid;grid-template-columns:1fr 1fr;gap:1px;background:var(--rule);border:1px solid var(--rule);border-top:0}
+.extra > div{background:var(--panel-raised);padding:10px 13px;display:flex;align-items:baseline;gap:9px;font-size:14.5px}
+.extra b.estop{color:var(--estop);font-weight:600}
+.extra b.to{color:var(--steel);font-weight:600}
+
+/* ---- evidence --------------------------------------------------- */
+.evidence{margin-top:18px;border:1px solid var(--rule);border-left:3px solid var(--permit);background:var(--panel-raised);padding:15px 19px}
+.evidence dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:14px 30px;margin:0}
+.evidence dt{color:var(--ink-faint);font-size:12.5px;margin:0}
+.evidence dd{margin:2px 0 0;font-family:"IBM Plex Mono",monospace;font-size:14px;overflow-wrap:break-word}
+.evidence dd.hash{word-break:break-all}
+.evidence .pass{color:var(--permit);font-weight:600}
+.caveat{margin-top:14px;padding-top:13px;border-top:1px solid var(--rule);color:var(--ink-dim);font-size:14.5px;max-width:78ch}
+.caveat b{color:var(--ink);font-weight:600}
+
+@media (prefers-reduced-motion:reduce){
+  .gauge .fill{transition:none}
+}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <div class="plate">
+    <h1>Robot safety gate</h1>
+    <div class="sub">simulated Panda arm · observation freshness interlock</div>
+    <div class="id mono">run ec2-e2e-20260923-160725</div>
+  </div>
+
+  <div class="split">
+    <!-- LEFT: the decision -->
+    <section class="bay">
+      <h2>Gate decision at dispatch <span id="segLabel">idle</span></h2>
+
+      <div class="gauge" id="gauge">
+        <div class="fill" id="gaugeFill"></div>
+        <div class="limit"></div>
+        <div class="val mono" id="gaugeVal">—</div>
+      </div>
+      <div class="scale mono">
+        <span class="s0">0</span>
+        <span class="lim">250 ms limit</span>
+        <span class="s1">600 ms</span>
+      </div>
+
+      <div class="verdict" id="verdict" data-state="idle">
+        <div class="lamp"></div>
+        <div>
+          <div class="word" id="verdictWord">Standby</div>
+          <div class="why" id="verdictWhy">Choose an episode to replay its recorded trace.</div>
+        </div>
+      </div>
+
+      <dl class="readouts">
+        <div><dt>Task dispatches</dt><dd id="rDispatch">0</dd></div>
+        <div><dt>Simulation tick</dt><dd id="rTick">—</dd></div>
+        <div><dt>Cube height</dt><dd id="rHeight">—</dd></div>
+      </dl>
+
+      <div class="controls">
+        <button id="btnStale" aria-pressed="false">Stale episode · 600 ms</button>
+        <button id="btnFresh" aria-pressed="false">Fresh episode · 0 ms</button>
+        <button id="btnSeeded" aria-pressed="false">Seeded build · same stale input</button>
+      </div>
+    </section>
+
+    <!-- RIGHT: the scene -->
+    <section class="bay">
+      <h2>Arm and cube <span>schematic replay of recorded telemetry</span></h2>
+      <svg class="scene" id="scene" viewBox="0 0 520 340" role="img"
+           aria-label="Schematic side view of the arm and cube, replayed from recorded episode telemetry.">
+        <defs>
+          <pattern id="fl" width="26" height="26" patternUnits="userSpaceOnUse">
+            <path d="M26 0H0v26" fill="none" stroke="#1e262e" stroke-width="1"/>
+          </pattern>
+        </defs>
+        <rect width="520" height="340" fill="url(#fl)"/>
+        <!-- table -->
+        <rect x="150" y="256" width="330" height="8" fill="#39454f"/>
+        <rect x="176" y="264" width="9" height="52" fill="#2b353d"/>
+        <rect x="446" y="264" width="9" height="52" fill="#2b353d"/>
+        <!-- arm base -->
+        <rect x="56" y="214" width="74" height="50" fill="#27313a"/>
+        <rect x="70" y="196" width="46" height="22" fill="#313d47"/>
+        <!-- arm links -->
+        <g id="arm" stroke-linecap="round" fill="none">
+          <line id="link1" x1="93" y1="200" x2="170" y2="130" stroke="var(--steel)" stroke-width="15"/>
+          <line id="link2" x1="170" y1="130" x2="268" y2="168" stroke="#68757f" stroke-width="12"/>
+          <circle id="joint1" cx="93" cy="200" r="10" fill="#8d9aa5"/>
+          <circle id="joint2" cx="170" cy="130" r="8" fill="#8d9aa5"/>
+        </g>
+        <!-- gripper -->
+        <g id="grip">
+          <rect id="gripBody" x="256" y="162" width="26" height="15" fill="#9aa7b2"/>
+          <rect id="gripL" x="255" y="177" width="6" height="19" fill="#9aa7b2"/>
+          <rect id="gripR" x="277" y="177" width="6" height="19" fill="#9aa7b2"/>
+        </g>
+        <!-- cube -->
+        <rect id="cube" x="252" y="228" width="30" height="30" fill="var(--cube)"/>
+        <!-- Shown when the gate refuses: the arm never left its start pose. -->
+        <g id="heldBadge" opacity="0">
+          <rect x="56" y="34" width="208" height="46" fill="var(--panel-sunk)" stroke="var(--hold)"/>
+          <text x="70" y="55" fill="var(--hold)" font-size="15" font-weight="600"
+                font-family="IBM Plex Sans Condensed, sans-serif">Arm held</text>
+          <text x="70" y="71" fill="var(--ink-dim)" font-size="12"
+                font-family="IBM Plex Mono, monospace">no motion command issued</text>
+        </g>
+      </svg>
+      <p class="scene-note" id="sceneNote">
+        Positions are drawn from the recorded event log and cube heights are the values the
+        simulator reported; this is not a MuJoCo frame capture. Staleness is injected by
+        replaying a real earlier observation while simulated time keeps advancing, so the
+        cube itself stays put — what is old is the gate's information, not the scene.
+      </p>
+    </section>
+  </div>
+
+  <!-- TRACE -->
+  <section class="bay trace-bay" style="margin-top:18px">
+    <h2>Protocol trace <span>observation → gate decision → dispatch or hold</span></h2>
+    <div class="trace" id="trace" aria-live="polite">
+      <p>Ready. Every line below is replayed from the committed event log.</p>
+    </div>
+  </section>
+
+  <!-- MATRIX -->
+  <section class="matrix">
+    <h2 style="margin:0 0 14px;font-size:14.5px;font-weight:600;color:var(--ink-dim);display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+      All 17 recorded episodes
+      <span style="font-size:13px;color:var(--ink-faint)">patched build · every cell is a completed simulator run</span>
+    </h2>
+    <div class="grid" id="mgrid">
+      <div class="hd">cube placement</div>
+      <div class="hd">observation 0 ms</div>
+      <div class="hd">observation 50 ms</div>
+      <div class="hd">observation 600 ms</div>
+    </div>
+    <div class="extra">
+      <div><b class="estop">Emergency stop</b><span>held at tick 10 after 1 dispatch — stop outranks every other rule</span></div>
+      <div><b class="to">Bridge timeout</b><span>failed explicitly at tick 0 — a missing approval is never a yes</span></div>
+    </div>
+  </section>
+
+  <!-- EVIDENCE -->
+  <section class="evidence">
+    <dl>
+      <div><dt>Protected verifier</dt><dd class="pass">88 / 88 checks passed</dd></div>
+      <div><dt>Simulator</dt><dd>robosuite 1.5.2 · MuJoCo 3.9.0</dd></div>
+      <div><dt>Build</dt><dd>Incredibuild 4.31.0 · both phases</dd></div>
+      <div><dt>Rust contract suite</dt><dd>10 / 10 on patched candidate</dd></div>
+      <div><dt>Tested executable sha256</dt><dd class="hash">f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326</dd></div>
+      <div><dt>Freshness policy</dt><dd>250 ms — demo value, not a hardware limit</dd></div>
+    </dl>
+    <p class="caveat">
+      <b>What this shows.</b> Rust contract checks, bridge checks and simulated robot
+      scenarios, bound by digest to the executable that made these decisions. Hardware-in-the-loop
+      and physical validation were not performed, and the cube pose comes from simulator state
+      rather than a trained vision system. Build phases measured 21.4 s and 21.9 s; that
+      demonstrates the accelerated path ran, and is not a speedup measurement.
+    </p>
+  </section>
+</div>
+
+<script>
+"use strict";
+/* Recorded traces, transcribed from the events JSONL logs under docs/examples.
+   Tick numbers, observation ages, decisions and cube heights are exactly as logged. */
+const RUNS = {
+  stale: {
+    label:"Stale episode · 600 ms", build:"patched", note:"center-f600 · patched build",
+    steps:[
+      {tick:12, seg:"approach", age:600, decision:"reject", reason:"StalePerception",
+       dispatched:false, why:"Observation is 600 ms old. Limit is 250 ms."}
+    ],
+    end:{success:false, reason:"rejected_stale", height:0.8209, dispatches:0}
+  },
+  fresh: {
+    label:"Fresh episode · 0 ms", build:"patched", note:"center-f0 · patched build",
+    steps:[
+      {tick:0,  seg:"approach", age:0, decision:"permit", dispatched:true, why:"Observation is current."},
+      {tick:11, seg:"descend",  age:0, decision:"permit", dispatched:true, why:"Observation is current."},
+      {tick:21, seg:"grasp",    age:0, decision:"permit", dispatched:true, why:"Observation is current."},
+      {tick:37, seg:"lift",     age:0, decision:"permit", dispatched:true, why:"Observation is current."}
+    ],
+    end:{success:true, reason:"cube_lifted", height:0.9978, dispatches:4}
+  },
+  seeded: {
+    label:"Seeded build · same stale input", build:"seeded", note:"stale_600ms · seeded build (runner A)",
+    steps:[
+      {tick:12, seg:"approach", age:600, decision:"permit", dispatched:true, why:"Freshness never checked — the seeded defect."},
+      {tick:22, seg:"descend",  age:600, decision:"permit", dispatched:true, why:"Still acting on a 600 ms old observation."},
+      {tick:32, seg:"grasp",    age:600, decision:"permit", dispatched:true, why:"Still acting on a 600 ms old observation."},
+      {tick:48, seg:"lift",     age:600, decision:"permit", dispatched:true, why:"Still acting on a 600 ms old observation."}
+    ],
+    end:{success:true, reason:"cube_lifted", height:0.9985, dispatches:4,
+         alarm:"Task 'succeeded' on stale data. Only the protected assertion catches this."}
+  }
+};
+
+/* 17-episode coverage matrix, from scenario-results.json */
+const PLACEMENTS = ["center","left","right","near","far"];
+const MATRIX = {
+  center:{0:[1,54], 50:[1,56], 600:[0,12]},
+  left:  {0:[1,52], 50:[1,53], 600:[0,12]},
+  right: {0:[1,56], 50:[1,59], 600:[0,12]},
+  near:  {0:[1,55], 50:[1,57], 600:[0,12]},
+  far:   {0:[1,55], 50:[1,55], 600:[0,12]}
+};
+
+const $ = id => document.getElementById(id);
+const gauge=$("gauge"), gFill=$("gaugeFill"), gVal=$("gaugeVal");
+const verdict=$("verdict"), vWord=$("verdictWord"), vWhy=$("verdictWhy");
+const trace=$("trace"), segLabel=$("segLabel");
+const rDispatch=$("rDispatch"), rTick=$("rTick"), rHeight=$("rHeight");
+const cube=$("cube"), heldBadge=$("heldBadge");
+const gripBody=$("gripBody"), gripL=$("gripL"), gripR=$("gripR");
+const link2=$("link2"), joint2=$("joint2");
+const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const MAX_MS = 600;                       // gauge full scale
+let timer = null;
+
+function line(text, cls){
+  const p=document.createElement("p");
+  if(cls) p.className=cls;
+  p.textContent=text;
+  trace.appendChild(p);
+  trace.scrollTop = trace.scrollHeight;
+}
+
+function setGauge(age){
+  const pct = Math.min(age/MAX_MS,1)*100;
+  gFill.style.width = pct+"%";
+  gauge.classList.toggle("over", age>250);
+  gVal.textContent = age+" ms";
+}
+
+/* Arm pose per rehearsed segment. Cube only rises when a lift was dispatched. */
+function pose(seg, lifted){
+  const P = {
+    idle:    {x:268,y:168,open:true},
+    approach:{x:268,y:150,open:true},
+    descend: {x:268,y:196,open:true},
+    grasp:   {x:268,y:196,open:false},
+    lift:    {x:268,y:126,open:false}
+  }[seg] || {x:268,y:168,open:true};
+
+  link2.setAttribute("x2",P.x); link2.setAttribute("y2",P.y);
+  joint2.setAttribute("cx",170);
+  gripBody.setAttribute("x",P.x-12); gripBody.setAttribute("y",P.y-6);
+  const fy = P.y+9;
+  gripL.setAttribute("y",fy); gripR.setAttribute("y",fy);
+  gripL.setAttribute("x", P.open ? P.x-13 : P.x-9);
+  gripR.setAttribute("x", P.open ? P.x+9  : P.x+3);
+
+  if(lifted && (seg==="lift")){
+    cube.setAttribute("y", P.y+14);
+  }else if(seg==="idle"){
+    cube.setAttribute("y",228);
+  }
+}
+
+function reset(){
+  if(timer){clearTimeout(timer); timer=null;}
+  trace.innerHTML="";
+  setGauge(0); gVal.textContent="—"; gFill.style.width="0";
+  gauge.classList.remove("over");
+  verdict.dataset.state="idle";
+  vWord.textContent="Standby"; vWhy.textContent="Replaying…";
+  rDispatch.textContent="0"; rDispatch.className="";
+  rTick.textContent="—"; rHeight.textContent="—";
+  heldBadge.setAttribute("opacity","0");
+  cube.setAttribute("y",228);
+  pose("idle",false);
+  segLabel.textContent="";
+}
+
+function play(key, btn){
+  reset();
+  [$("btnStale"),$("btnFresh"),$("btnSeeded")].forEach(b=>b.setAttribute("aria-pressed", b===btn?"true":"false"));
+  const run = RUNS[key];
+  segLabel.textContent = run.note;
+  line("# "+run.note);
+  if(run.build==="seeded") line("# build under test: SEEDED — freshness check absent", "reject");
+
+  let i=0, dispatched=0;
+  const gap = reduce ? 240 : 1150;
+
+  (function step(){
+    if(i >= run.steps.length){
+      const e=run.end;
+      rHeight.textContent = e.height.toFixed(4)+" m";
+      line("");
+      line(`episode_end  success=${e.success}  reason=${e.reason}  cube=${e.height.toFixed(4)} m`,"end");
+      if(e.alarm){
+        verdict.dataset.state="estop";
+        vWord.textContent="Undetected";
+        vWhy.textContent=e.alarm;
+        line("!! "+e.alarm,"estop");
+      }else if(e.success){
+        vWord.textContent="Task complete";
+        vWhy.textContent="Cube lifted with current information.";
+      }
+      return;
+    }
+    const s=run.steps[i++];
+    rTick.textContent = s.tick;
+    setGauge(s.age);
+
+    line(`tick ${String(s.tick).padStart(3," ")}  proposal  ${s.seg.padEnd(9," ")} observation_age=${String(s.age).padStart(3," ")}ms`);
+
+    setTimeout(()=>{
+      if(s.decision==="permit"){
+        verdict.dataset.state="permit";
+        vWord.textContent="Permit";
+        vWhy.textContent=s.why;
+        line(`          decision  PERMIT    → dispatch ${s.seg}`,"permit");
+        dispatched++; rDispatch.textContent=dispatched;
+        pose(s.seg, true);
+      }else{
+        verdict.dataset.state="reject";
+        vWord.textContent="Reject";
+        vWhy.textContent=s.why;
+        line(`          decision  REJECT    StalePerception — no dispatch, hold`,"reject");
+        line(`          dispatches this episode: 0`,"reject");
+        rDispatch.textContent="0"; rDispatch.className="flag";
+        heldBadge.setAttribute("opacity","1");
+      }
+      timer=setTimeout(step, gap*0.55);
+    }, reduce ? 120 : 520);
+  })();
+}
+
+/* build the matrix */
+(function(){
+  const g=$("mgrid");
+  for(const p of PLACEMENTS){
+    const lab=document.createElement("div");
+    lab.className="rowlab"; lab.textContent=p;
+    g.appendChild(lab);
+    for(const age of [0,50,600]){
+      const [ok,ticks]=MATRIX[p][age];
+      const c=document.createElement("div");
+      c.className="cell "+(ok?"lift":"stale");
+      c.innerHTML = ok
+        ? `<b>lifted</b><small>4 dispatches · ${ticks} ticks</small>`
+        : `<b>refused</b><small>0 dispatches · held at tick ${ticks}</small>`;
+      g.appendChild(c);
+    }
+  }
+})();
+
+const BTN={stale:$("btnStale"), fresh:$("btnFresh"), seeded:$("btnSeeded")};
+for(const k of Object.keys(BTN)) BTN[k].addEventListener("click",()=>play(k,BTN[k]));
+
+/* Number keys 1-3 switch episode, so the deck can be driven without a pointer. */
+addEventListener("keydown",ev=>{
+  const k={"1":"stale","2":"fresh","3":"seeded"}[ev.key];
+  if(k && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) play(k,BTN[k]);
+});
+
+pose("idle",false);
+/* Deep link, e.g. index.html?play=seeded — lets a slide open straight into an episode. */
+const want=new URLSearchParams(location.search).get("play");
+if(want && BTN[want]) play(want, BTN[want]);
+</script>
+</body>
+</html>
