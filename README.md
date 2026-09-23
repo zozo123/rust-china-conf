@@ -9,7 +9,8 @@
 **[打开网站](https://zozo123.github.io/rust-china-conf/)** ·
 **[回放证据](https://zozo123.github.io/rust-china-conf/demo/?play=seeded)** ·
 **[阅读 25 分钟讲稿](docs/talk/talk-25min.md)** ·
-[English](README.en.md)
+**[English README](README.en.md)** ·
+[English talk](docs/talk/talk-25min.en.md)
 
 真实 robosuite / MuJoCo 帧。每一段接近、下降、抓取、举起，都先经过 Rust 门授权。不是另做的动画。
 

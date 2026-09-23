@@ -1,5 +1,7 @@
 # 网站媒体
 
+[English](README.en.md)
+
 `robot-lift.gif` 含 robosuite 1.5.2 / MuJoCo 3.9.0 的真实帧。
 回合经 `swf-cli` 跑过，所以每一段接近、下降、抓取、举起都先经 Rust 安全门授权，仿真器才执行。
 
@@ -17,8 +19,13 @@ scripts/robot-demo/record-gif.sh
 
 网站播放的是 `validation-loop.mp4`（以及 `validation-loop-poster.png`）。`validation-loop.gif` 是同一段画面，留下来是因为 GitHub 的 README 渲染器不会播放提交的视频文件。闭环画面默认简体中文。
 
+英文切换使用对应的 `validation-loop.en.mp4`、`validation-loop.en-poster.png`
+和 `validation-loop.en.gif`，由 `docs/demo/loop.en.html` 生成。
+
 ```bash
 scripts/robot-demo/record-loop-gif.sh
+LOOP_PAGE=$PWD/docs/demo/loop.en.html \
+  scripts/robot-demo/record-loop-gif.sh $PWD/docs/assets/validation-loop.en.gif
 ```
 
 三者都来自 `docs/demo/loop.html`，在 `?frame=N` 渲染确定状态，所以媒体可复现，而不是手拼。

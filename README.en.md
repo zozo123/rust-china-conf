@@ -10,14 +10,15 @@
 
 **[Open the website](https://zozo123.github.io/rust-china-conf/)** ·
 **[Replay the evidence](https://zozo123.github.io/rust-china-conf/demo/?play=seeded)** ·
-**[Read the 25-minute talk](docs/talk/talk-25min.md)**
+**[Read the 25-minute talk](docs/talk/talk-25min.en.md)** ·
+**[简体中文讲稿](docs/talk/talk-25min.md)**
 
 Real robosuite / MuJoCo frames, recorded while the Rust gate authorized each
 of the four motion segments. Not a separately animated robot.
 
 ## The loop
 
-![The validation loop, end to end](docs/assets/validation-loop.gif)
+![The validation loop, end to end](docs/assets/validation-loop.en.gif)
 
 Cold distributed build on a disposable runner → three failing contract tests →
 four dispatches permitted on a 600 ms-old observation → bounded agent patch →
@@ -47,8 +48,8 @@ fresh case in the simulator.
 
 Full plan: [`docs/plan.md`](docs/plan.md) · Website:
 [`docs/index.html`](docs/index.html) · Talk script:
-[`docs/talk/talk-25min.md`](docs/talk/talk-25min.md) · Stage runbook:
-[`docs/talk/runbook-6min.md`](docs/talk/runbook-6min.md)
+[`docs/talk/talk-25min.en.md`](docs/talk/talk-25min.en.md) · Stage runbook:
+[`docs/talk/runbook-6min.en.md`](docs/talk/runbook-6min.en.md)
 
 ## The story in one minute
 

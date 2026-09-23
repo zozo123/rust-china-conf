@@ -410,7 +410,7 @@
         <div class="actions">
           <a class="button button--primary" href="demo/?play=seeded" data-i18n="btnDefect">回放缺陷</a>
           <a class="button" href="https://github.com/zozo123/rust-china-conf" data-i18n="btnSource">阅读源码</a>
-          <a class="button" href="talk/talk-25min.md" data-i18n="btnTalk">打开讲稿</a>
+          <a class="button" id="talkLink" href="talk/talk-25min.md" data-i18n="btnTalk">打开讲稿</a>
         </div>
         <p class="offline" data-i18n="offline">离线演示：克隆或解压仓库，直接打开 docs/。字体随站点自托管，不依赖外网。</p>
       </div>
@@ -486,8 +486,8 @@ episode outcome  rejected_stale
         <video id="loopVideo" width="880" height="586"
                controls loop muted playsinline preload="metadata"
                poster="assets/validation-loop-poster.png">
-          <source src="assets/validation-loop.mp4" type="video/mp4">
-          <img src="assets/validation-loop.gif" width="880" height="585"
+          <source id="loopSource" src="assets/validation-loop.mp4" type="video/mp4">
+          <img id="loopFallback" src="assets/validation-loop.gif" width="880" height="585"
                loading="lazy" decoding="async"
                alt="验证闭环演示：运行器 A 冷分布式构建、三项契约测试失败、陈旧观测上四次允许派发、智能体补丁、销毁 A、运行器 B 热重建、十项测试全部通过、陈旧派发为零、受保护检查 88/88。"
                data-i18n-attr="alt:loopAlt">
@@ -651,8 +651,29 @@ episode outcome  rejected_stale
         foot:"Rust China Conf demo · software-in-the-loop", navReplay2:"Interactive replay", repo:"Repository"
       }
     };
-    rccLang.apply(COPY);
-    rccLang.bind(COPY);
+    function updateLanguageLinks(lang) {
+      document.getElementById("talkLink").href =
+        lang === "en" ? "talk/talk-25min.en.md" : "talk/talk-25min.md";
+      var video = document.getElementById("loopVideo");
+      var source = document.getElementById("loopSource");
+      var fallback = document.getElementById("loopFallback");
+      var english = lang === "en";
+      var nextSource = english
+        ? "assets/validation-loop.en.mp4"
+        : "assets/validation-loop.mp4";
+      if (source.getAttribute("src") !== nextSource) {
+        source.src = nextSource;
+        fallback.src = english
+          ? "assets/validation-loop.en.gif"
+          : "assets/validation-loop.gif";
+        video.poster = english
+          ? "assets/validation-loop.en-poster.png"
+          : "assets/validation-loop-poster.png";
+        video.load();
+      }
+    }
+    rccLang.apply(COPY, updateLanguageLinks);
+    rccLang.bind(COPY, updateLanguageLinks);
     (function () {
       var v = document.getElementById("loopVideo");
       if (!v) return;

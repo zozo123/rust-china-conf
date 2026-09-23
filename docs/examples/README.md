@@ -1,5 +1,7 @@
 # 已提交的示例证据
 
+[English](README.en.md)
+
 来自一次完整本地彩排（`scripts/robot-demo/rehearse.sh`，
 `ROBOT_DEMO_BACKEND=robosuite`），CPython 3.12 / robosuite 1.5.2 /
 MuJoCo 3.9.0，macOS arm64：

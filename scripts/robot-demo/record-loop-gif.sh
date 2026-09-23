@@ -7,7 +7,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 
 OUTPUT="${1:-$ROOT/docs/assets/validation-loop.gif}"
-PAGE="$ROOT/docs/demo/loop.html"
+PAGE="${LOOP_PAGE:-$ROOT/docs/demo/loop.html}"
 FRAMES=16          # must match the F array length in loop.html
 WIDTH=880
 HEIGHT=585

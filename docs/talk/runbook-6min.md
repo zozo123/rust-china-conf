@@ -1,5 +1,7 @@
 # 六分钟舞台手册
 
+[English](runbook-6min.en.md) · [25 分钟讲稿](talk-25min.md) · [幻灯](slides.md)
+
 分配是彩排预算，不是声称的运行时长。本地保留一份完整六分钟录像；网络或渲染失败时，播放录像——当面标明——不要现场排错。
 
 自动化：`scripts/robot-demo/rehearse.sh <run-id>` 走完整弧

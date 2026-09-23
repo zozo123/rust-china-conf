@@ -4,6 +4,8 @@ title: 百万次编译，一小时机器人
 paginate: true
 ---
 
+[English slides](slides.en.md)
+
 # 百万次编译，一小时机器人
 
 **一次性运行器，热 Cargo 工厂**

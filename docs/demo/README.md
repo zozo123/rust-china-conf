@@ -1,5 +1,7 @@
 # 舞台画面
 
+[English](README.en.md)
+
 `index.html` 是单页、自包含的安全门已记录裁决回放。用浏览器直接打开——无需服务器、无需构建，可离线（Noto Sans SC 与 IBM Plex Mono 随站点自托管）。默认简体中文，右上角可切 EN。
 
 ## 它展示什么
