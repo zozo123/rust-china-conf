@@ -160,6 +160,18 @@
     }
     /* The loop walkthrough is a wide terminal capture; show it whole. */
     #loop .film img { aspect-ratio: 880 / 585; object-fit: contain; }
+    .film video {
+      display: block;
+      width: 100%;
+      height: auto;
+      background: #0a1014;
+    }
+    .a11y-note {
+      margin: 0;
+      padding: 9px 13px 0;
+      color: var(--faint);
+      font-size: 12.5px;
+    }
     .film figcaption {
       padding: 11px 13px 13px;
       border-top: 1px solid var(--line);
@@ -449,9 +461,17 @@ episode outcome  rejected_stale
           <span><i class="lamp"></i>recorded loop</span>
           <span>Incredibuild 4.31.0 · compile stage only</span>
         </div>
-        <img src="assets/validation-loop.gif" width="880" height="585"
-             loading="lazy" decoding="async"
-             alt="Animated walkthrough of the validation loop: cold distributed build on runner A, three failing contract tests, four permitted dispatches on a stale observation, the agent patch, runner A destroyed, runner B rebuilding warm, ten of ten tests, zero stale dispatches, and 88 of 88 protected checks.">
+        <video id="loopVideo" width="880" height="586"
+               controls loop muted playsinline preload="metadata"
+               poster="assets/validation-loop-poster.png">
+          <source src="assets/validation-loop.mp4" type="video/mp4">
+          <img src="assets/validation-loop.gif" width="880" height="585"
+               loading="lazy" decoding="async"
+               alt="Walkthrough of the validation loop: cold distributed build on runner A, three failing contract tests, four permitted dispatches on a stale observation, the agent patch, runner A destroyed, runner B rebuilding warm, ten of ten tests, zero stale dispatches, and 88 of 88 protected checks.">
+        </video>
+        <p class="a11y-note">
+          Nineteen seconds, pausable. Runs through the loop once and repeats.
+        </p>
         <figcaption>
           Both build phases ran through Incredibuild. The warm phase measured
           21948 ms against 21426 ms cold, so it was 522 ms slower — this shows
@@ -528,6 +548,21 @@ episode outcome  rejected_stale
       <small class="mono">run ec2-e2e-20260923-160725 · robosuite 1.5.2 · MuJoCo 3.9.0</small>
     </section>
   </main>
+
+  <script>
+    // Motion over five seconds needs a pause control, and a muted decorative
+    // loop must not start under prefers-reduced-motion. The controls attribute
+    // covers the first; this covers the second.
+    (function () {
+      var v = document.getElementById("loopVideo");
+      if (!v) return;
+      if (!matchMedia("(prefers-reduced-motion: reduce)").matches) {
+        v.autoplay = true;
+        var play = v.play();
+        if (play && play.catch) play.catch(function () { /* poster stays */ });
+      }
+    })();
+  </script>
 
   <footer class="shell">
     <span>Rust China Conf demo · software-in-the-loop</span>

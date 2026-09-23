@@ -41,9 +41,18 @@ ffmpeg -y -framerate 1.15 -pattern_type glob -i "$TMP/*.png" \
 [b][p]paletteuse=dither=bayer:bayer_scale=4" \
   -loop 0 "$OUTPUT" >/dev/null 2>&1
 
+# H.264 + poster for the website: 19 s of motion needs a pause control.
+ffmpeg -y -framerate 1.15 -pattern_type glob -i "$TMP/*.png" \
+  -vf "scale=${WIDTH}:586:flags=lanczos,format=yuv420p" \
+  -c:v libx264 -preset slow -crf 20 -movflags +faststart -an \
+  "${OUTPUT%.gif}.mp4" >/dev/null 2>&1
+cp "$TMP/000.png" "${OUTPUT%.gif}-poster.png"
+
 if command -v gifsicle >/dev/null; then
   gifsicle -O3 --colors 128 "$OUTPUT" -o "$TMP/opt.gif" 2>/dev/null
   mv "$TMP/opt.gif" "$OUTPUT"
 fi
 
 echo "wrote $OUTPUT ($(du -h "$OUTPUT" | cut -f1))"
+echo "wrote ${OUTPUT%.gif}.mp4 ($(du -h "${OUTPUT%.gif}.mp4" | cut -f1))"
+echo "wrote ${OUTPUT%.gif}-poster.png"
