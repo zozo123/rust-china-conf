@@ -150,6 +150,10 @@ class RobosuiteBackend(BackendBase):
             hard_reset=True,
         )
         self.env.reset()
+        self._cube_body = self._resolve_body(["cube_main", "cube"])
+        self._eef_body = self._resolve_body(
+            ["gripper0_right_eef", "gripper0_right_gripper", "gripper0_right_hand"]
+        )
         self._pin_placement(placement)
         self.backend_label = (
             f"robosuite {suite.__version__} / mujoco {__import__('mujoco').__version__}"
@@ -157,23 +161,32 @@ class RobosuiteBackend(BackendBase):
         log(f"robosuite action spec pinned: {self.env.action_spec[0].shape}")
         self._record()
 
+    def _resolve_body(self, candidates) -> str:
+        names = set(self.env.sim.model.body_names)
+        for c in candidates:
+            if c in names:
+                return c
+        raise RuntimeError(f"none of {candidates} in model bodies")
+
     def _pin_placement(self, placement: dict) -> None:
         """Stable, rehearsed cube placement: default pose plus fixed offsets."""
         np = self._np
         addr = self.env.sim.model.get_joint_qpos_addr("cube_joint0")
+        if isinstance(addr, tuple):  # robosuite returns (start, end)
+            addr = addr[0]
         qpos = self.env.sim.data.qpos.copy()
         qpos[addr + 0] += float(placement.get("x", 0.0))
         qpos[addr + 1] += float(placement.get("y", 0.0))
         self.env.sim.data.qpos[:] = qpos
         self.env.sim.forward()
-        self._cube_z0 = float(self.env.sim.data.get_body_xpos("cube")[2])
+        self._cube_z0 = float(self.env.sim.data.get_body_xpos(self._cube_body)[2])
 
     def _eef_pos(self):
-        return self._np.array(self.env.sim.data.get_body_xpos("gripper0_right_gripper"))
+        return self._np.array(self.env.sim.data.get_body_xpos(self._eef_body))
 
     def capture_obs(self) -> dict:
         np = self._np
-        cube = np.array(self.env.sim.data.get_body_xpos("cube"))
+        cube = np.array(self.env.sim.data.get_body_xpos(self._cube_body))
         return {
             "observation_id": f"obs-{self.tick}",
             "capture_time_ns": self.tick * TICK_NS,
@@ -205,7 +218,7 @@ class RobosuiteBackend(BackendBase):
                 break
 
     def cube_height(self) -> float:
-        return float(self.env.sim.data.get_body_xpos("cube")[2])
+        return float(self.env.sim.data.get_body_xpos(self._cube_body)[2])
 
     def success(self) -> bool:
         # Environment's own success check plus the explicit height condition.
