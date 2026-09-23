@@ -80,6 +80,12 @@ The intended benefit is compiler distribution and valid compilation reuse.
 Tests and simulator cases execute separately. We must measure helper work and
 cache reuse before claiming either occurred.”
 
+“And this is a Rust conference, so Rust owns the proof path too. `swf-cli`
+parses the Build History response and cache statistics. It rejects a run if
+any IB sample has zero remote tasks, zero remote core time, ambiguous counters,
+or—on the parent-warmed path—zero cache hits. Python is only the robosuite
+adapter. It proposes motion; it cannot authorize it or certify the build.”
+
 [Provider caption: EC2-backed workspaces today; islo provider planned.]
 
 “This implementation uses detached Git worktrees and fresh Cargo output
@@ -115,10 +121,13 @@ This demonstrates the integration path across two workspaces. It does not
 demonstrate a speedup, prove cache reuse, or show that helpers executed work.
 The historical cold/warm labels were phase names, not controlled cache states.”
 
-“The experiment we still need uses the same fixed candidate, native Cargo,
-IB with an empty cache, and IB with a cache populated from the parent revision.
-At least five measurements per mode, medians and ranges, disclosed contention
-and verified cache preparation.”
+“The experiment harness now uses the same fixed candidate, native Cargo,
+IB with an explicitly cleared per-user cache, and IB after that cache is
+populated from the parent revision. It rotates run order and requires at least
+five measurements per mode. The Rust verifier reports medians and ranges only
+after every IB sample proves helper work and every warm sample proves cache
+hits. Until an EC2 run produces that receipt, the performance claim remains
+not measured.”
 
 Separate compilation from provisioning, checkout, agent latency, tests,
 simulation and export. A compilation improvement may or may not dominate the

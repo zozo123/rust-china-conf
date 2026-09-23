@@ -68,15 +68,33 @@ ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3" \
 归档的 Linux 运行使用 CPython 3.12.14、robosuite 1.5.2 和 MuJoCo 3.9.0。
 依赖文件面向 Linux x86-64。Rust 和 Python 仿真器应在同一主机运行，演讲电脑负责展示证据。
 
+### 受控 EC2 / Incredibuild 证明
+
+历史记录中的 `ib: true` 只能证明集成。新的 Rust 优先证明路径让同一个补丁候选按三种模式运行：
+原生构建、显式清空用户缓存后的 IB 构建、以及先用父修订预热缓存再构建候选。
+每种模式至少五个独立样本：
+
+```bash
+export IB_ALLOW_CLEAR_USER_CACHE=1
+export IB_HISTORY_URL='https://<coordinator>:8000/api/builds?coordinatorId=<id>&version=1.5.0'
+export IB_CLIENT_API_KEY='<本地密钥>'
+export ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3"
+scripts/robot-demo/ec2-agentic-physical-ai.sh conference-proof
+```
+
+解析 Build History 和缓存统计的是 `swf-cli`，不是 Python 分析脚本。每个 IB 样本都必须有远程任务与正的远程核时；
+冷样本必须零命中，父修订预热样本必须有命中；之后才报告中位数和范围。遥测缺失或歧义都会失败。
+包装脚本还会运行完整 robosuite 行为彩排并写入分阶段计时收据。它删除一次性工作区，不会销毁 EC2 实例。
+
 ## 技术栈与范围
 
 | 组件 | 职责 |
 | --- | --- |
 | 外部编码智能体 | 提出受约束的实现改动 |
 | Rust 决策门 | 仿真停止优先、时间戳有效性、每段运动派发前的时效检查 |
-| Rust 应用与 CLI | 子进程协议、身份与顺序检查、超时、证据记录 |
-| Python + robosuite / MuJoCo | 使用仿真器状态执行脚本化 Panda Lift 任务 |
-| Incredibuild | 通过 `ib_console` 和 `rustc` 配置接入编译流程 |
+| Rust 应用与 CLI | 子进程协议、身份与顺序检查、超时、证据、IB 遥测解析与基准证明 |
+| Python + robosuite / MuJoCo | 狭窄的仿真适配器，使用仿真器状态执行脚本化 Panda Lift |
+| Incredibuild | 通过 `ib_console` 编译；Build History 远程任务计数与缓存统计成为证明输入 |
 | 受保护校验器 | 完整场景覆盖、按时序核对轨迹、产物身份 |
 | 运行器脚本 | 临时 Git 工作区、全新输出、导出与清理 |
 
@@ -85,6 +103,17 @@ ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3" \
 
 决策门在每段运动前检查，一段运动可以包含多个仿真控制步。本演示不证明连续监督、
 物理急停、硬件在环或机器人安全。250 ms 是示例策略，不是硬件安全阈值。
+
+### Rust 机器人生态
+
+[robotics.rs](https://robotics.rs/) 汇总 Rust 原生 ROS、仿真、规划、视觉与设备库。本演示刻意保持较小的外部表面：
+安全契约、锁步宿主、证据模型、IB 遥测解析和证明门都使用 Rust；只有所选 robosuite 任务原生依赖 Python，
+因此 Python 仅保留为仿真适配器。
+
+[`nexus-robotics-os`](https://crates.io/crates/nexus-robotics-os) 4.2.0-rc.2
+在能力／安全／证据理念上相容，但它仍是候选发布版，而且明确不声称 HIL 或实体验证。
+我们不会只为品牌把它加入依赖：那会重复本演示的运行时并改变被测构建图。
+未来的 Nexus 适配器应作为独立、可测量且有自己证据的集成。
 
 ## 历史证据能说明什么
 

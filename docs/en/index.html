@@ -88,12 +88,25 @@ dispatches   <span class="good">0</span></pre>
       <div class="section-head"><h2 id="stack-title">Disposable workspaces. Reusable compilation.</h2><p>Every candidate needs fresh validation. The architecture keeps the temporary workspace separate from the compilation service and retained evidence.</p></div>
       <dl class="stack">
         <div><dt>Runner workspace</dt><dd>A fresh Git checkout and Cargo output directory host the candidate. Export the patch and evidence before removing the workspace. The Linux host remains running.</dd></div>
-        <div><dt>Incredibuild</dt><dd>Cargo builds through ib_console with a rustc profile. Distribution and valid compilation reuse are the intended acceleration layer. The published timings do not establish helper activity, cache reuse, or a speedup.</dd></div>
-        <div><dt>Rust + robosuite</dt><dd>Rust checks a small decision contract. Python exchanges JSON messages with the Rust executable and runs the Panda Lift simulation in robosuite / MuJoCo. Motion follows a scripted controller.</dd></div>
+        <div><dt>Incredibuild</dt><dd>Cargo builds through ib_console with a rustc profile. The new Rust proof command consumes Build History remote-task counters and cache statistics, rejects incomplete telemetry, and computes ratios only after at least five samples per mode. A completed proof run is still required.</dd></div>
+        <div><dt>Rust + robosuite</dt><dd>Rust owns the policy, lock-step session, protocol identity, timeouts, evidence, verifier entry point, IB telemetry parser and benchmark gate. Python is retained only as the robosuite / MuJoCo simulator adapter and scripted motion source.</dd></div>
         <div><dt>Independent checks</dt><dd>Contract tests and simulator checks execute again. The verifier checks required scenarios, ordered proposal/decision/outcome traces, and the exported executable’s digest. The agent’s own report is not the verdict.</dd></div>
       </dl>
       <p class="provider">Execution today: EC2-backed Linux workspaces on the Incredibuild grid. Target runner provider: islo. The checked-in workflow does not call islo or destroy EC2 instances.</p>
       <details><summary>Observation age and build duration use different clocks</summary><p>Observation age is simulation time minus capture time. The bridge advances at 20 Hz and requests authorization before each motion segment. A segment can contain several physics control steps. Build duration and protocol timeouts use wall time. This is not continuous control-step supervision.</p></details>
+    </section>
+
+    <section class="shell section" id="rust" aria-labelledby="rust-title">
+      <div class="section-head"><h2 id="rust-title">Rust is the control plane, not a label.</h2><p>The conference path keeps policy and proof in Rust. The simulator boundary stays narrow and explicit.</p></div>
+      <dl class="stack">
+        <div><dt>Typed safety gate</dt><dd>Proposal, observation identity, simulated stop precedence, timestamp validity and StalePerception are Rust types and deterministic functions.</dd></div>
+        <div><dt>Lock-step runtime</dt><dd>Rust spawns the simulator adapter, binds one approval to one action and tick, rejects malformed messages, and treats timeout as failure rather than permission.</dd></div>
+        <div><dt>Build proof</dt><dd>swf-cli parses IB Build History and cache counters, requires remote tasks and parent-warmed hits for every IB sample, then reports medians and ranges.</dd></div>
+        <div><dt>Python adapter only</dt><dd>robosuite is Python-native, so Python steps MuJoCo and proposes scripted segments. It cannot authorize motion or declare the final verdict.</dd></div>
+      </dl>
+      <p class="run-label"><span>EC2 proof command:</span>
+        <code>scripts/robot-demo/ec2-agentic-physical-ai.sh &lt;run-id&gt;</code>
+      </p>
     </section>
 
     <section class="shell section" id="loop" aria-labelledby="loop-title">

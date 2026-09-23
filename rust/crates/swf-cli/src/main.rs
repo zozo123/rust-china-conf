@@ -4,8 +4,10 @@
 //! Assumes it is invoked from the repository root (the scripts in
 //! scripts/robot-demo cd there). Override with ROBOT_DEMO_ROOT.
 
-use anyhow::{Context, Result};
+use anyhow::{bail, Context, Result};
 use clap::{Parser, Subcommand};
+use serde::{Deserialize, Serialize};
+use std::collections::BTreeMap;
 use std::path::{Path, PathBuf};
 use std::process::ExitCode;
 use std::time::Duration;
@@ -65,6 +67,446 @@ enum RobotDemoCommands {
         #[arg(long, value_parser = parse_identifier)]
         scenario: Vec<String>,
     },
+    /// Verify and summarize a controlled native/IB/cache benchmark receipt
+    BuildProof {
+        /// JSON receipt produced by scripts/robot-demo/ib-benchmark.sh
+        #[arg(long)]
+        receipt: PathBuf,
+        /// Minimum independent samples required for every mode
+        #[arg(long, default_value = "5", value_parser = parse_positive_usize)]
+        min_samples: usize,
+    },
+    /// Extract documented counters from an Incredibuild Build History response
+    BuildHistory {
+        #[arg(long)]
+        input: PathBuf,
+        #[arg(long)]
+        caption: String,
+        /// Print only the build number (for cache-statistics collection)
+        #[arg(long)]
+        build_number_only: bool,
+    },
+    /// Create one normalized benchmark sample, failing on missing telemetry
+    BuildSample {
+        #[arg(long, value_parser = ["native", "ib-cold", "ib-parent-warm"])]
+        mode: String,
+        #[arg(long)]
+        repetition: usize,
+        #[arg(long)]
+        wall_ms: u64,
+        #[arg(long)]
+        caption: String,
+        #[arg(long)]
+        source_revision: String,
+        #[arg(long, requires = "cache")]
+        history: Option<PathBuf>,
+        #[arg(long, requires = "history")]
+        cache: Option<PathBuf>,
+    },
+    /// Assemble normalized JSONL samples into a Rust-verifiable receipt
+    BuildReceipt {
+        #[arg(long)]
+        samples: PathBuf,
+        #[arg(long, value_parser = parse_identifier)]
+        run_id: String,
+        #[arg(long)]
+        candidate_revision: String,
+        #[arg(long)]
+        parent_revision: String,
+        #[arg(long)]
+        output: PathBuf,
+    },
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BuildProof {
+    schema_version: u32,
+    run_id: String,
+    candidate_revision: String,
+    parent_revision: String,
+    cache_scope: String,
+    cache_cleared_before_each_cold_sample: bool,
+    cache_cleared_before_each_parent_seed: bool,
+    samples: Vec<BuildSample>,
+}
+
+#[derive(Debug, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct BuildSample {
+    mode: String,
+    repetition: usize,
+    wall_ms: u64,
+    build_caption: String,
+    source_revision: String,
+    remote_tasks: Option<u64>,
+    local_tasks: Option<u64>,
+    remote_core_time_s: Option<f64>,
+    cache_hits: Option<u64>,
+    cache_misses: Option<u64>,
+}
+
+#[derive(Debug, Serialize)]
+struct IbHistory {
+    build_number: u64,
+    remote_tasks: u64,
+    local_tasks: u64,
+    remote_core_time_s: f64,
+}
+
+fn normalized(name: &str) -> String {
+    name.chars()
+        .filter(char::is_ascii_alphanumeric)
+        .flat_map(char::to_lowercase)
+        .collect()
+}
+
+fn value_for<'a>(
+    record: &'a serde_json::Map<String, serde_json::Value>,
+    aliases: &[&str],
+) -> Option<&'a serde_json::Value> {
+    record.iter().find_map(|(key, value)| {
+        let key = normalized(key);
+        aliases
+            .iter()
+            .any(|alias| key == normalized(alias))
+            .then_some(value)
+    })
+}
+
+fn walk_records<'a>(
+    value: &'a serde_json::Value,
+    records: &mut Vec<&'a serde_json::Map<String, serde_json::Value>>,
+) {
+    match value {
+        serde_json::Value::Object(object) => {
+            records.push(object);
+            for child in object.values() {
+                walk_records(child, records);
+            }
+        }
+        serde_json::Value::Array(array) => {
+            for child in array {
+                walk_records(child, records);
+            }
+        }
+        _ => {}
+    }
+}
+
+fn as_u64(value: Option<&serde_json::Value>, label: &str) -> Result<u64> {
+    value
+        .and_then(|value| {
+            value
+                .as_u64()
+                .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
+        })
+        .with_context(|| format!("{label} is missing or not an unsigned integer"))
+}
+
+fn as_f64(value: Option<&serde_json::Value>, label: &str) -> Result<f64> {
+    value
+        .and_then(|value| {
+            value
+                .as_f64()
+                .or_else(|| value.as_str().and_then(|text| text.parse().ok()))
+        })
+        .filter(|value| *value >= 0.0)
+        .with_context(|| format!("{label} is missing, negative, or not numeric"))
+}
+
+fn parse_ib_history(document: &serde_json::Value, caption: &str) -> Result<IbHistory> {
+    let mut records = Vec::new();
+    walk_records(document, &mut records);
+    let matches: Vec<_> = records
+        .into_iter()
+        .filter(|record| {
+            value_for(record, &["buildCaption", "caption", "buildName", "name"])
+                .and_then(serde_json::Value::as_str)
+                == Some(caption)
+        })
+        .collect();
+    if matches.len() != 1 {
+        bail!(
+            "expected exactly one Build History record for {caption:?}, found {}",
+            matches.len()
+        );
+    }
+    let record = matches[0];
+    let status = value_for(record, &["buildStatus", "status"])
+        .and_then(serde_json::Value::as_str)
+        .context("build status is missing")?
+        .to_ascii_lowercase();
+    if !["success", "successful", "completed"].contains(&status.as_str()) {
+        bail!("build {caption:?} is not successful: {status}");
+    }
+    Ok(IbHistory {
+        build_number: as_u64(
+            value_for(record, &["buildNumber", "buildId", "id"]),
+            "build number",
+        )?,
+        remote_tasks: as_u64(
+            value_for(record, &["numberOfRemoteTasks", "remoteTasks"]),
+            "remote tasks",
+        )?,
+        local_tasks: as_u64(
+            value_for(record, &["numberOfLocalTasks", "localTasks"]),
+            "local tasks",
+        )?,
+        remote_core_time_s: as_f64(
+            value_for(record, &["remoteCoreTime", "remoteCoreTimeSeconds"]),
+            "remote core time",
+        )?,
+    })
+}
+
+fn parse_cache_counters(text: &str) -> Result<(u64, u64)> {
+    fn counter(text: &str, wanted: &str) -> Result<u64> {
+        let mut values = Vec::new();
+        for line in text.lines() {
+            let Some((label, value)) = line.split_once([':', '=']) else {
+                continue;
+            };
+            let label = normalized(label);
+            let accepted = [
+                wanted.to_string(),
+                format!("cache{wanted}"),
+                format!("buildcache{wanted}"),
+                format!("total{wanted}"),
+                format!("totalcache{wanted}"),
+                format!("totalbuildcache{wanted}"),
+            ];
+            if accepted.contains(&label) {
+                if let Ok(value) = value.trim().parse::<u64>() {
+                    values.push(value);
+                }
+            }
+        }
+        values.sort_unstable();
+        values.dedup();
+        if values.len() != 1 {
+            bail!("expected one unambiguous cache {wanted} counter, found {values:?}");
+        }
+        Ok(values[0])
+    }
+    Ok((counter(text, "hits")?, counter(text, "misses")?))
+}
+
+#[allow(clippy::too_many_arguments)]
+fn make_build_sample(
+    mode: String,
+    repetition: usize,
+    wall_ms: u64,
+    caption: String,
+    source_revision: String,
+    history: Option<PathBuf>,
+    cache: Option<PathBuf>,
+) -> Result<BuildSample> {
+    if mode == "native" {
+        if history.is_some() || cache.is_some() {
+            bail!("native samples must not contain IB telemetry");
+        }
+        return Ok(BuildSample {
+            mode,
+            repetition,
+            wall_ms,
+            build_caption: caption,
+            source_revision,
+            remote_tasks: None,
+            local_tasks: None,
+            remote_core_time_s: None,
+            cache_hits: None,
+            cache_misses: None,
+        });
+    }
+    let history_path = history.context("IB sample requires --history")?;
+    let cache_path = cache.context("IB sample requires --cache")?;
+    let history = parse_ib_history(
+        &serde_json::from_str(&std::fs::read_to_string(&history_path)?)
+            .with_context(|| format!("parsing {}", history_path.display()))?,
+        &caption,
+    )?;
+    let (cache_hits, cache_misses) = parse_cache_counters(&std::fs::read_to_string(&cache_path)?)?;
+    Ok(BuildSample {
+        mode,
+        repetition,
+        wall_ms,
+        build_caption: caption,
+        source_revision,
+        remote_tasks: Some(history.remote_tasks),
+        local_tasks: Some(history.local_tasks),
+        remote_core_time_s: Some(history.remote_core_time_s),
+        cache_hits: Some(cache_hits),
+        cache_misses: Some(cache_misses),
+    })
+}
+
+#[derive(Debug)]
+struct ModeStats {
+    median_ms: f64,
+    min_ms: u64,
+    max_ms: u64,
+}
+
+fn mode_stats(samples: &[&BuildSample]) -> ModeStats {
+    let mut walls: Vec<u64> = samples.iter().map(|sample| sample.wall_ms).collect();
+    walls.sort_unstable();
+    let middle = walls.len() / 2;
+    let median_ms = if walls.len().is_multiple_of(2) {
+        (walls[middle - 1] as f64 + walls[middle] as f64) / 2.0
+    } else {
+        walls[middle] as f64
+    };
+    ModeStats {
+        median_ms,
+        min_ms: walls[0],
+        max_ms: walls[walls.len() - 1],
+    }
+}
+
+fn validate_build_proof(
+    proof: &BuildProof,
+    min_samples: usize,
+) -> Result<BTreeMap<String, ModeStats>> {
+    if proof.schema_version != 1 {
+        bail!("unsupported build-proof schema {}", proof.schema_version);
+    }
+    parse_identifier(&proof.run_id).map_err(anyhow::Error::msg)?;
+    if proof.candidate_revision.is_empty() || proof.parent_revision.is_empty() {
+        bail!("candidate_revision and parent_revision are required");
+    }
+    if proof.cache_scope != "local-user" {
+        bail!(
+            "expected isolated local-user cache scope, got {}",
+            proof.cache_scope
+        );
+    }
+    if !proof.cache_cleared_before_each_cold_sample {
+        bail!("cold cache was not cleared before every independent sample");
+    }
+    if !proof.cache_cleared_before_each_parent_seed {
+        bail!("cache was not cleared before every parent-seed sample");
+    }
+
+    let mut by_mode: BTreeMap<String, Vec<&BuildSample>> = BTreeMap::new();
+    for sample in &proof.samples {
+        if !["native", "ib-cold", "ib-parent-warm"].contains(&sample.mode.as_str()) {
+            bail!("unknown benchmark mode {}", sample.mode);
+        }
+        if sample.wall_ms == 0 || sample.build_caption.is_empty() {
+            bail!(
+                "sample {} / {} has no wall time or caption",
+                sample.mode,
+                sample.repetition
+            );
+        }
+        if sample.source_revision != proof.candidate_revision {
+            bail!(
+                "sample {} / {} built {}, expected candidate {}",
+                sample.mode,
+                sample.repetition,
+                sample.source_revision,
+                proof.candidate_revision
+            );
+        }
+        if sample.mode == "native" {
+            if sample.remote_tasks.is_some()
+                || sample.remote_core_time_s.is_some()
+                || sample.cache_hits.is_some()
+            {
+                bail!(
+                    "native sample {} contains IB-only telemetry",
+                    sample.repetition
+                );
+            }
+        } else {
+            if sample.remote_tasks.unwrap_or(0) == 0 {
+                bail!(
+                    "{} sample {} has no verified remote tasks",
+                    sample.mode,
+                    sample.repetition
+                );
+            }
+            if sample.remote_core_time_s.unwrap_or(0.0) <= 0.0 {
+                bail!(
+                    "{} sample {} has no verified remote core time",
+                    sample.mode,
+                    sample.repetition
+                );
+            }
+            if sample.local_tasks.is_none() || sample.cache_misses.is_none() {
+                bail!(
+                    "{} sample {} has incomplete IB telemetry",
+                    sample.mode,
+                    sample.repetition
+                );
+            }
+        }
+        if sample.mode == "ib-cold" && sample.cache_hits != Some(0) {
+            bail!(
+                "ib-cold sample {} was not empty-cache (hits={:?})",
+                sample.repetition,
+                sample.cache_hits
+            );
+        }
+        if sample.mode == "ib-parent-warm" && sample.cache_hits.unwrap_or(0) == 0 {
+            bail!(
+                "ib-parent-warm sample {} has no verified cache hits",
+                sample.repetition
+            );
+        }
+        by_mode.entry(sample.mode.clone()).or_default().push(sample);
+    }
+
+    let mut stats = BTreeMap::new();
+    for mode in ["native", "ib-cold", "ib-parent-warm"] {
+        let samples = by_mode
+            .get(mode)
+            .with_context(|| format!("missing benchmark mode {mode}"))?;
+        if samples.len() < min_samples {
+            bail!(
+                "{mode} has {} sample(s), require at least {min_samples}",
+                samples.len()
+            );
+        }
+        let mut repetitions: Vec<usize> = samples.iter().map(|sample| sample.repetition).collect();
+        repetitions.sort_unstable();
+        repetitions.dedup();
+        if repetitions.len() != samples.len() {
+            bail!("{mode} contains duplicate repetition numbers");
+        }
+        stats.insert(mode.to_string(), mode_stats(samples));
+    }
+    Ok(stats)
+}
+
+fn print_build_proof(proof: &BuildProof, min_samples: usize) -> Result<()> {
+    let stats = validate_build_proof(proof, min_samples)?;
+    println!("BUILD PROOF PASS  run={}", proof.run_id);
+    println!(
+        "candidate={} parent={}",
+        proof.candidate_revision, proof.parent_revision
+    );
+    for mode in ["native", "ib-cold", "ib-parent-warm"] {
+        let s = &stats[mode];
+        println!(
+            "{mode:<15} median={:>8.1}ms range={:>6}..{:>6}ms",
+            s.median_ms, s.min_ms, s.max_ms
+        );
+    }
+    let native = stats["native"].median_ms;
+    for mode in ["ib-cold", "ib-parent-warm"] {
+        let measured = stats[mode].median_ms;
+        println!(
+            "{mode:<15} measured ratio={:.3}x vs native; saved={:.0}ms",
+            native / measured,
+            native - measured
+        );
+    }
+    println!(
+        "distribution verified for every IB sample; parent-warmed cache hits verified for every warm sample"
+    );
+    Ok(())
 }
 
 fn parse_identifier(value: &str) -> std::result::Result<String, String> {
@@ -83,6 +525,14 @@ fn parse_identifier(value: &str) -> std::result::Result<String, String> {
         );
     }
     Ok(value.to_owned())
+}
+
+fn parse_positive_usize(value: &str) -> std::result::Result<usize, String> {
+    value
+        .parse::<usize>()
+        .ok()
+        .filter(|parsed| *parsed > 0)
+        .ok_or_else(|| "must be a positive integer".into())
 }
 
 fn expects_timeout(path: &Path) -> Result<bool> {
@@ -309,6 +759,81 @@ fn main() -> Result<ExitCode> {
                 let status = command.status().context("running protected verifier")?;
                 return Ok(ExitCode::from(status.code().unwrap_or(1) as u8));
             }
+            RobotDemoCommands::BuildProof {
+                receipt,
+                min_samples,
+            } => {
+                let proof: BuildProof = serde_json::from_str(
+                    &std::fs::read_to_string(&receipt)
+                        .with_context(|| format!("reading {}", receipt.display()))?,
+                )
+                .with_context(|| format!("parsing {}", receipt.display()))?;
+                print_build_proof(&proof, min_samples)?;
+            }
+            RobotDemoCommands::BuildHistory {
+                input,
+                caption,
+                build_number_only,
+            } => {
+                let history = parse_ib_history(
+                    &serde_json::from_str(&std::fs::read_to_string(&input)?)
+                        .with_context(|| format!("parsing {}", input.display()))?,
+                    &caption,
+                )?;
+                if build_number_only {
+                    println!("{}", history.build_number);
+                } else {
+                    println!("{}", serde_json::to_string(&history)?);
+                }
+            }
+            RobotDemoCommands::BuildSample {
+                mode,
+                repetition,
+                wall_ms,
+                caption,
+                source_revision,
+                history,
+                cache,
+            } => {
+                let sample = make_build_sample(
+                    mode,
+                    repetition,
+                    wall_ms,
+                    caption,
+                    source_revision,
+                    history,
+                    cache,
+                )?;
+                println!("{}", serde_json::to_string(&sample)?);
+            }
+            RobotDemoCommands::BuildReceipt {
+                samples,
+                run_id,
+                candidate_revision,
+                parent_revision,
+                output,
+            } => {
+                let samples = std::fs::read_to_string(&samples)?
+                    .lines()
+                    .filter(|line| !line.trim().is_empty())
+                    .map(serde_json::from_str)
+                    .collect::<std::result::Result<Vec<BuildSample>, _>>()?;
+                let proof = BuildProof {
+                    schema_version: 1,
+                    run_id,
+                    candidate_revision,
+                    parent_revision,
+                    cache_scope: "local-user".into(),
+                    cache_cleared_before_each_cold_sample: true,
+                    cache_cleared_before_each_parent_seed: true,
+                    samples,
+                };
+                if let Some(parent) = output.parent() {
+                    std::fs::create_dir_all(parent)?;
+                }
+                std::fs::write(&output, serde_json::to_string_pretty(&proof)? + "\n")?;
+                println!("{}", output.display());
+            }
         },
     }
     Ok(ExitCode::SUCCESS)
@@ -403,5 +928,130 @@ mod tests {
             result.outcome = outcome.into();
             assert!(!infrastructure_failure(&result, false));
         }
+    }
+
+    fn proof_sample(
+        mode: &str,
+        repetition: usize,
+        remote_tasks: Option<u64>,
+        cache_hits: Option<u64>,
+    ) -> BuildSample {
+        BuildSample {
+            mode: mode.into(),
+            repetition,
+            wall_ms: 1_000 + repetition as u64,
+            build_caption: format!("proof-{mode}-{repetition}"),
+            source_revision: "candidate".into(),
+            remote_tasks,
+            local_tasks: remote_tasks.map(|_| 2),
+            remote_core_time_s: remote_tasks.map(|_| 0.25),
+            cache_hits,
+            cache_misses: remote_tasks.map(|_| 3),
+        }
+    }
+
+    fn complete_build_proof() -> BuildProof {
+        let mut samples = Vec::new();
+        for repetition in 1..=5 {
+            samples.push(proof_sample("native", repetition, None, None));
+            samples.push(proof_sample("ib-cold", repetition, Some(4), Some(0)));
+            samples.push(proof_sample("ib-parent-warm", repetition, Some(1), Some(3)));
+        }
+        BuildProof {
+            schema_version: 1,
+            run_id: "proof-1".into(),
+            candidate_revision: "candidate".into(),
+            parent_revision: "parent".into(),
+            cache_scope: "local-user".into(),
+            cache_cleared_before_each_cold_sample: true,
+            cache_cleared_before_each_parent_seed: true,
+            samples,
+        }
+    }
+
+    #[test]
+    fn build_proof_requires_distribution_and_cache_hits() {
+        let mut proof = complete_build_proof();
+        assert!(validate_build_proof(&proof, 5).is_ok());
+
+        proof.cache_cleared_before_each_parent_seed = false;
+        assert!(validate_build_proof(&proof, 5)
+            .unwrap_err()
+            .to_string()
+            .contains("parent-seed"));
+        proof.cache_cleared_before_each_parent_seed = true;
+
+        proof.samples[1].remote_tasks = Some(0);
+        assert!(validate_build_proof(&proof, 5)
+            .unwrap_err()
+            .to_string()
+            .contains("no verified remote tasks"));
+        proof.samples[1].remote_tasks = Some(4);
+
+        let warm = proof
+            .samples
+            .iter_mut()
+            .find(|sample| sample.mode == "ib-parent-warm")
+            .unwrap();
+        warm.cache_hits = Some(0);
+        assert!(validate_build_proof(&proof, 5)
+            .unwrap_err()
+            .to_string()
+            .contains("no verified cache hits"));
+    }
+
+    #[test]
+    fn build_proof_requires_five_independent_samples_per_mode() {
+        let mut proof = complete_build_proof();
+        proof
+            .samples
+            .retain(|sample| sample.mode != "native" || sample.repetition != 5);
+        assert!(validate_build_proof(&proof, 5)
+            .unwrap_err()
+            .to_string()
+            .contains("require at least 5"));
+    }
+
+    #[test]
+    fn ib_history_parser_selects_caption_and_documented_counters() {
+        let history = serde_json::json!({
+            "builds": [
+                {
+                    "buildCaption": "other",
+                    "buildNumber": 40,
+                    "buildStatus": "Success",
+                    "numberOfRemoteTasks": 1,
+                    "numberOfLocalTasks": 1,
+                    "remoteCoreTime": 0.1
+                },
+                {
+                    "buildCaption": "rcc-proof-ib-cold-1",
+                    "buildNumber": 41,
+                    "buildStatus": "Success",
+                    "numberOfRemoteTasks": 7,
+                    "numberOfLocalTasks": 2,
+                    "remoteCoreTime": 1.25
+                }
+            ]
+        });
+        let parsed = parse_ib_history(&history, "rcc-proof-ib-cold-1").unwrap();
+        assert_eq!(parsed.build_number, 41);
+        assert_eq!(parsed.remote_tasks, 7);
+        assert_eq!(parsed.local_tasks, 2);
+        assert_eq!(parsed.remote_core_time_s, 1.25);
+        assert!(parse_ib_history(&history, "missing").is_err());
+    }
+
+    #[test]
+    fn cache_parser_requires_unambiguous_hits_and_misses() {
+        assert_eq!(
+            parse_cache_counters("Build Cache Hits: 9\nBuild Cache Misses: 3\n").unwrap(),
+            (9, 3)
+        );
+        assert!(parse_cache_counters("Build Cache Misses: 3\n").is_err());
+        assert!(parse_cache_counters(
+            "Build Cache Hits: 9\nCache Hits: 8\nBuild Cache Misses: 3\n"
+        )
+        .is_err());
     }
 }

@@ -65,10 +65,28 @@ The default rehearsal uses a reviewed fallback patch.
 | --- | --- |
 | Temporary workspace | Candidate checkout and fresh outputs |
 | Incredibuild | Compilation distribution/reuse integration |
-| Rust + Python | Decision protocol and simulator execution |
+| Rust | Gate, lock-step host, evidence, IB telemetry and proof |
+| Python | Narrow robosuite / MuJoCo adapter |
 | Protected verifier | Required cases, ordered traces, artifact identity |
 
 <!-- The intended IB benefits need helper/cache telemetry. The observed build path alone does not prove reuse. -->
+
+---
+
+## Rust owns the decision and the proof
+
+`Proposal → Decision → Dispatch` is typed Rust.
+
+`swf-cli` requires, per IB sample:
+
+- remote tasks > 0
+- remote core time > 0
+- cold cache hits = 0
+- parent-warmed cache hits > 0
+
+Incomplete telemetry is a failure, not a zero.
+
+<!-- Python remains only because robosuite is Python-native. It advances MuJoCo and proposes scripted segments; it cannot authorize motion or certify evidence. Nexus Robotics OS has aligned ideas but is an RC and is not added just for branding or to inflate this measured graph. -->
 
 ---
 
@@ -119,6 +137,20 @@ Same patched executable in the recorded Linux run
 B took **522 ms longer**. No measured speedup.
 
 <!-- Both records indicate IB use. Different candidates, one sample per phase, uncontrolled cache states. No proof of helper work or cache reuse in those metrics. -->
+
+---
+
+## The controlled proof gate
+
+Same fixed candidate, rotating order, **≥5 samples per mode**
+
+1. Native Cargo
+2. IB after clearing the per-user cache
+3. IB after the parent revision seeds that cache
+
+Report medians + ranges only after Rust verifies helper and cache counters.
+
+<!-- scripts/robot-demo/ec2-agentic-physical-ai.sh. Until a receipt exists, say “implemented, not measured,” not “accelerated.” -->
 
 ---
 

@@ -12,12 +12,16 @@
 ```bash
 export REQUIRE_IB=1
 export ROBOT_DEMO_BACKEND=robosuite
+export IB_ALLOW_CLEAR_USER_CACHE=1
+export IB_HISTORY_URL='https://<coordinator>:8000/api/builds?coordinatorId=<id>&version=1.5.0'
+export IB_CLIENT_API_KEY='<仅保存在本机的密钥>'
 export ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3"
 scripts/robot-demo/preflight.sh
-scripts/robot-demo/rehearse.sh rehearsal-unique-id
+scripts/robot-demo/ec2-agentic-physical-ai.sh rehearsal-unique-id
 ```
 
-保留完整 17 场景证据、可执行文件和校验报告。确认仿真器可初始化且结果满足契约。
+该流程只清空当前用户的本地 IB 缓存。保留原始 Build History 与缓存遥测、
+Rust 证明收据、完整 17 场景证据、可执行文件和校验报告。确认仿真器可初始化且结果满足契约。
 完成三次不超过 5:30 的计时彩排，脚本打印的阶段时间并非实际耗时。
 
 Mac 上保留本地网站、媒体及完整且标明为录像的演示。
@@ -71,5 +75,8 @@ B 执行完整矩阵；若时间不足，展示已经完成且明确标注的彩
 
 - 当前运行器是 EC2 Linux 主机上的临时工作区，删除工作区不会销毁主机。islo 接入仍在计划中。
 - 新旧运行编号不同，检查数量也可能不同。历史 10/10 和 88/88 属于归档修订。
-- 历史构建观测为 21.426 s 与 21.948 s，B 慢 522 ms；不能声称已测得加速或受控缓存复用。
+- 历史构建观测为 21.426 s 与 21.948 s，B 慢 522 ms；它们仍是未受控的历史数据。
+- 新实验针对同一候选，分别执行原生、IB 冷缓存、IB 父修订预热构建，每种至少五个样本。
+  只有 Rust 校验器通过远程任务、远程核时与缓存命中检查，且收据支持结论时，
+  才能声称加速或缓存复用。
 - 本演示是按运动段授权的软件在环，不涉及实体验证或逐控制步的连续监督。

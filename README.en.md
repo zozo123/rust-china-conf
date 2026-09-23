@@ -79,15 +79,37 @@ The archived Linux run used CPython 3.12.14, robosuite 1.5.2 and MuJoCo 3.9.0.
 The dependency file targets Linux x86-64. Keep Rust and the Python simulator
 together on that host; the presenter laptop displays their evidence.
 
+### Controlled EC2 / Incredibuild proof
+
+The historical `ib: true` records prove integration only. The new Rust-first
+proof path runs the same patched candidate in three modes—native, IB with an
+explicitly cleared user cache, and IB after seeding that cache from the parent
+revision—with at least five independent samples per mode:
+
+```bash
+export IB_ALLOW_CLEAR_USER_CACHE=1
+export IB_HISTORY_URL='https://<coordinator>:8000/api/builds?coordinatorId=<id>&version=1.5.0'
+export IB_CLIENT_API_KEY='<local secret>'
+export ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3"
+scripts/robot-demo/ec2-agentic-physical-ai.sh conference-proof
+```
+
+`swf-cli`, not a Python analysis script, parses Build History and cache
+statistics, requires remote tasks and positive remote core time in every IB
+sample, requires zero cold hits and positive parent-warmed hits, then reports
+medians and ranges. Missing or ambiguous telemetry is a failure. The wrapper
+also runs the complete robosuite behavior rehearsal and writes a timing receipt.
+It deletes disposable workspaces, not EC2 instances.
+
 ## Stack and scope
 
 | Component | Responsibility |
 | --- | --- |
 | Coding agent, when supplied externally | Propose a bounded implementation change |
 | Rust gate | Simulated stop precedence, timestamp validity, segment-dispatch freshness |
-| Rust application / CLI | Subprocess protocol, identity and ordering, timeouts, evidence |
-| Python + robosuite / MuJoCo | Scripted Panda Lift task using simulator-provided state |
-| Incredibuild | Compilation integration through `ib_console` and the `rustc` profile |
+| Rust application / CLI | Subprocess protocol, identity and ordering, timeouts, evidence, IB telemetry parsing and benchmark proof |
+| Python + robosuite / MuJoCo | Narrow simulator adapter and scripted Panda Lift task using simulator-provided state |
+| Incredibuild | Compilation through `ib_console`; Build History remote-task counters and cache statistics become proof inputs |
 | Protected verifier | Complete scenario coverage, chronological trace checks, artifact identity |
 | Runner scripts | Temporary Git worktrees, fresh outputs, export and cleanup |
 
@@ -99,6 +121,21 @@ The gate checks before each motion segment; a segment contains multiple
 simulator control steps. This does not establish continuous supervision,
 physical emergency-stop behavior, hardware-in-the-loop, or robot safety.
 The 250 ms threshold is an illustrative policy, not a hardware limit.
+
+### Rust robotics ecosystem
+
+[robotics.rs](https://robotics.rs/) catalogs Rust-native ROS, simulation,
+planning, vision and device libraries. This demo deliberately keeps its
+external surface smaller: its safety contract, lock-step host, evidence model,
+IB telemetry parser and proof gate are Rust; Python remains only because the
+selected robosuite task is Python-native.
+
+[`nexus-robotics-os`](https://crates.io/crates/nexus-robotics-os) 4.2.0-rc.2
+has a compatible capability/safety/evidence philosophy, but it is a release
+candidate and explicitly does not claim HIL or physical validation. It is not
+added merely for branding: doing so would duplicate this demo's runtime and
+change the measured build graph. A future Nexus adapter should be a separate,
+measured integration with its own evidence.
 
 ## What the historical evidence says
 

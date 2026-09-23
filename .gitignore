@@ -4,6 +4,7 @@ target/
 
 # Isolated runner sandboxes (git worktrees + fresh target dirs)
 .runners/
+.ib-proof.*/
 
 # Local secrets — NEVER commit. Sourced by scripts/robot-demo/*.sh
 .env.local

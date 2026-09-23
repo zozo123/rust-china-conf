@@ -12,14 +12,19 @@ On the Linux initiator, select the real simulator and require IB:
 ```bash
 export REQUIRE_IB=1
 export ROBOT_DEMO_BACKEND=robosuite
+export IB_ALLOW_CLEAR_USER_CACHE=1
+export IB_HISTORY_URL='https://<coordinator>:8000/api/builds?coordinatorId=<id>&version=1.5.0'
+export IB_CLIENT_API_KEY='<local secret>'
 export ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3"
 scripts/robot-demo/preflight.sh
-scripts/robot-demo/rehearse.sh rehearsal-unique-id
+scripts/robot-demo/ec2-agentic-physical-ai.sh rehearsal-unique-id
 ```
 
-Retain the full 17-case evidence, executable and verifier report. Confirm
-the simulator initializes and the result meets the contract. Do three timed
-rehearsals under 5:30. A script's printed stage labels are not elapsed timings.
+This clears only the current user's local IB cache. Retain the raw Build History
+and cache telemetry, Rust proof receipt, full 17-case evidence, executable and
+verifier report. Confirm the simulator initializes and the result meets the
+contract. Do three timed rehearsals under 5:30. A script's printed stage labels
+are not elapsed timings.
 
 Keep the local site, media and a complete labeled recording on the Mac.
 The historical replay is `docs/demo/index.html?play=seeded&lang=en`.
@@ -80,6 +85,10 @@ the full suite.
 - New run results and historical results have different IDs and may have
   different check counts. The old 10/10 and 88/88 describe the archived revision.
 - Historical build observations were 21.426 s and 21.948 s. B was 522 ms slower.
-  There is no measured speedup or controlled cache-reuse claim.
+  They remain historical and uncontrolled.
+- The new experiment compares native, IB cold, and IB parent-warmed builds of
+  one candidate with at least five samples per mode. Claim acceleration or
+  reuse only if the Rust verifier passes remote-task, remote-core-time, and
+  cache-hit checks and the generated receipt supports the claim.
 - This is software-in-the-loop with segment-level authorization.
   Physical robot validation and continuous control-step supervision are outside scope.
