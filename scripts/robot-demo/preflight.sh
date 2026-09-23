@@ -23,10 +23,21 @@ else
   echo "warn no sim venv — robosuite backend unavailable, mock backend only"
 fi
 
-if command -v ib_console >/dev/null 2>&1 || command -v ibwrap >/dev/null 2>&1; then
-  echo "ok   Incredibuild wrapper detected — accelerated builds enabled"
+if [ ! -f rust/ib_profile.xml ]; then
+  echo "FAIL rust/ib_profile.xml missing — refusing an unprofiled Incredibuild run"
+  exit 1
+fi
+python3 -c 'import xml.etree.ElementTree as ET; ET.parse("rust/ib_profile.xml")'
+echo "ok   rust/ib_profile.xml is well-formed (project-level profile)"
+
+if command -v ib_console >/dev/null 2>&1; then
+  echo "ok   ib_console detected — Cargo builds use rust/ib_profile.xml"
 else
-  echo "warn Incredibuild wrapper not found — native cargo baseline (labeled; no acceleration claimed)"
+  if [ "${REQUIRE_IB:-0}" = "1" ]; then
+    echo "FAIL REQUIRE_IB=1 but ib_console is unavailable"
+    exit 1
+  fi
+  echo "warn ib_console not found — native cargo baseline (labeled; no acceleration claimed)"
 fi
 
 if [ -n "${ISLO_SANDBOX_KEY:-}" ]; then
