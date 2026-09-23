@@ -56,7 +56,8 @@ impl Session {
             .append(true)
             .open(stderr_log)?;
 
-        let mut child = Command::new(&cfg.python)
+        let mut command = Command::new(&cfg.python);
+        command
             .arg(&cfg.bridge_path)
             .arg("--scenario")
             .arg(&cfg.scenario_path)
@@ -65,7 +66,11 @@ impl Session {
             .arg("--run-id")
             .arg(&cfg.run_id)
             .arg("--episode-id")
-            .arg(format!("{}-{}", cfg.run_id, cfg.scenario_name))
+            .arg(format!("{}-{}", cfg.run_id, cfg.scenario_name));
+        if let Ok(video_dir) = std::env::var("ROBOT_DEMO_VIDEO_DIR") {
+            command.arg("--video-dir").arg(video_dir);
+        }
+        let mut child = command
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
             .stderr(Stdio::from(stderr_file))

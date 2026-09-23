@@ -4,6 +4,15 @@
 
 > Burn the runner. Keep the proof. Spare the robot.
 
+[![Real robosuite Panda arm lifting the cube](docs/assets/robot-lift.gif)](https://zozo123.github.io/rust-china-conf/)
+
+**[Open the website](https://zozo123.github.io/rust-china-conf/)** ·
+**[Replay the evidence](https://zozo123.github.io/rust-china-conf/demo/?play=seeded)** ·
+**[Read the 25-minute talk](docs/talk/talk-25min.md)**
+
+The GIF is made from real robosuite / MuJoCo frames recorded while the Rust
+gate authorized the fresh episode. It is not a separately animated robot.
+
 An end-to-end **software-in-the-loop (SIL)** demonstration: a simulated Panda
 arm lifts a cube (robosuite `Lift`). A deliberately seeded bug in a Rust
 supervisor permits pickup actions from stale observations. A coding agent
@@ -11,7 +20,8 @@ repairs the bug. A fresh, isolated runner rebuilds the candidate and the
 **actual resulting executable** rejects the stale case and completes the
 fresh case in the simulator.
 
-Full plan: [`docs/plan.md`](docs/plan.md) · Talk script:
+Full plan: [`docs/plan.md`](docs/plan.md) · Website:
+[`docs/index.html`](docs/index.html) · Talk script:
 [`docs/talk/talk-25min.md`](docs/talk/talk-25min.md) · Stage runbook:
 [`docs/talk/runbook-6min.md`](docs/talk/runbook-6min.md)
 

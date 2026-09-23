@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="A verified software-in-the-loop robotics demo: Rust safety gate, robosuite Panda arm, disposable runners, and digest-bound evidence.">
+  <meta name="theme-color" content="#10171d">
+  <meta property="og:title" content="A Million Compiles. One Robot Hour.">
+  <meta property="og:description" content="Burn the runner. Keep the proof. Spare the robot.">
+  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-lift.gif">
+  <title>A Million Compiles. One Robot Hour.</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans+Condensed:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --housing: #10171d;
+      --plate: #182129;
+      --well: #0b1116;
+      --line: #32404a;
+      --line-hot: #526370;
+      --paper: #edf2f4;
+      --muted: #99a8b4;
+      --faint: #667683;
+      --amber: #e59a2b;
+      --green: #54aa73;
+      --red: #d34b3b;
+      --steel: #83939f;
+      --max: 1180px;
+    }
+
+    * { box-sizing: border-box; }
+    html { max-width: 100%; overflow-x: hidden; scroll-behavior: smooth; }
+    body {
+      max-width: 100%;
+      overflow-x: hidden;
+      margin: 0;
+      color: var(--paper);
+      background:
+        linear-gradient(rgba(50,64,74,.13) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(50,64,74,.13) 1px, transparent 1px),
+        var(--housing);
+      background-size: 28px 28px;
+      font-family: "IBM Plex Sans Condensed", ui-sans-serif, system-ui, sans-serif;
+      font-size: 18px;
+      line-height: 1.45;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a { color: inherit; }
+    img { max-width: 100%; }
+    .mono { font-family: "IBM Plex Mono", ui-monospace, monospace; }
+    .shell { width: min(calc(100% - 36px), var(--max)); margin-inline: auto; }
+
+    .nav {
+      display: flex;
+      align-items: center;
+      gap: 22px;
+      min-height: 66px;
+      border-bottom: 1px solid var(--line);
+    }
+    .nav__brand {
+      margin-right: auto;
+      font-weight: 700;
+      text-decoration: none;
+      letter-spacing: -.01em;
+    }
+    .nav a:not(.nav__brand) {
+      color: var(--muted);
+      font-size: 15px;
+      text-decoration-thickness: 1px;
+      text-underline-offset: 5px;
+    }
+    .nav a:hover { color: var(--paper); }
+
+    .hero {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(360px, .9fr);
+      gap: 48px;
+      align-items: center;
+      padding-block: clamp(52px, 8vw, 104px);
+    }
+    .hero > * { min-width: 0; }
+    .hero h1 {
+      max-width: 720px;
+      margin: 0;
+      font-size: clamp(54px, 8vw, 106px);
+      font-weight: 700;
+      line-height: .88;
+      letter-spacing: -.055em;
+    }
+    .hero h1 span { display: block; }
+    .hero__lead {
+      max-width: 650px;
+      margin: 28px 0 0;
+      color: var(--muted);
+      font-size: clamp(20px, 2.2vw, 28px);
+      line-height: 1.25;
+    }
+    .hero__lead strong { color: var(--paper); font-weight: 600; }
+    .actions { display: flex; flex-wrap: wrap; gap: 11px; margin-top: 30px; }
+    .button {
+      display: inline-flex;
+      min-height: 47px;
+      align-items: center;
+      justify-content: center;
+      padding: 10px 18px;
+      border: 1px solid var(--line-hot);
+      color: var(--paper);
+      background: var(--plate);
+      font-weight: 600;
+      text-decoration: none;
+    }
+    .button--primary {
+      border-color: var(--amber);
+      background: var(--amber);
+      color: var(--well);
+    }
+    .button:hover { border-color: var(--paper); }
+    .button:focus-visible, .nav a:focus-visible {
+      outline: 2px solid var(--amber);
+      outline-offset: 3px;
+    }
+
+    .film {
+      min-width: 0;
+      overflow: hidden;
+      border: 1px solid var(--line-hot);
+      background: var(--well);
+      box-shadow: 18px 18px 0 rgba(0,0,0,.22);
+    }
+    .film__bar {
+      display: flex;
+      justify-content: space-between;
+      gap: 15px;
+      padding: 10px 13px;
+      border-bottom: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 12px;
+    }
+    .film img {
+      display: block;
+      width: 100%;
+      aspect-ratio: 4 / 3;
+      object-fit: cover;
+      background: #0a1014;
+    }
+    .film figcaption {
+      padding: 11px 13px 13px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    .lamp {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      margin-right: 7px;
+      border-radius: 50%;
+      background: var(--green);
+      box-shadow: 0 0 9px var(--green);
+    }
+
+    .rail {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      border-block: 1px solid var(--line);
+      border-left: 1px solid var(--line);
+      background: var(--plate);
+    }
+    .rail > div {
+      min-height: 108px;
+      padding: 18px;
+      border-right: 1px solid var(--line);
+    }
+    .rail dt { color: var(--muted); font-size: 14px; }
+    .rail dd { margin: 6px 0 0; font-size: 26px; font-weight: 600; }
+    .rail .pass { color: var(--green); }
+
+    .section {
+      padding-block: clamp(70px, 10vw, 128px);
+      border-bottom: 1px solid var(--line);
+    }
+    .section__head {
+      display: grid;
+      grid-template-columns: .42fr 1fr;
+      gap: 40px;
+      align-items: start;
+      margin-bottom: 42px;
+    }
+    .section__head h2 {
+      margin: 0;
+      font-size: clamp(36px, 5vw, 70px);
+      line-height: .96;
+      letter-spacing: -.035em;
+    }
+    .section__head p {
+      max-width: 680px;
+      margin: 4px 0 0;
+      color: var(--muted);
+      font-size: 21px;
+    }
+
+    .trace-compare {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      border: 1px solid var(--line);
+      background: var(--line);
+      gap: 1px;
+    }
+    .trace {
+      min-width: 0;
+      padding: clamp(20px, 3vw, 34px);
+      background: var(--well);
+    }
+    .trace h3 {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      margin: 0 0 21px;
+      font-size: 25px;
+    }
+    .state {
+      border: 1px solid currentColor;
+      padding: 3px 7px;
+      font: 500 12px/1.2 "IBM Plex Mono", monospace;
+    }
+    .state--bad { color: var(--red); }
+    .state--good { color: var(--green); }
+    .trace pre {
+      margin: 0;
+      overflow: auto;
+      color: var(--muted);
+      font: 13px/1.75 "IBM Plex Mono", monospace;
+      white-space: pre-wrap;
+    }
+    .trace .bad { color: var(--red); }
+    .trace .good { color: var(--green); }
+    .trace .warn { color: var(--amber); }
+
+    .matrix {
+      width: 100%;
+      border-collapse: collapse;
+      background: var(--plate);
+      font-size: 16px;
+    }
+    .matrix th, .matrix td {
+      padding: 14px 16px;
+      border: 1px solid var(--line);
+      text-align: left;
+    }
+    .matrix th {
+      color: var(--muted);
+      background: var(--well);
+      font-weight: 500;
+    }
+    .matrix td:first-child { font-family: "IBM Plex Mono", monospace; color: var(--muted); }
+    .lifted { color: var(--green); }
+    .held { color: var(--amber); }
+
+    .boundary {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 1px;
+      background: var(--line);
+      border: 1px solid var(--line);
+    }
+    .boundary > div {
+      padding: clamp(24px, 4vw, 44px);
+      background: var(--plate);
+    }
+    .boundary h3 { margin: 0 0 15px; font-size: 29px; }
+    .boundary ul { margin: 0; padding-left: 20px; color: var(--muted); }
+    .boundary li + li { margin-top: 8px; }
+    .boundary .not { border-top: 3px solid var(--red); }
+    .boundary .done { border-top: 3px solid var(--green); }
+
+    .mantra {
+      padding-block: clamp(80px, 12vw, 150px);
+      text-align: center;
+    }
+    .mantra p {
+      max-width: 900px;
+      margin: 0 auto;
+      font-size: clamp(42px, 7vw, 88px);
+      font-weight: 700;
+      line-height: .98;
+      letter-spacing: -.045em;
+    }
+    .mantra small {
+      display: block;
+      margin-top: 26px;
+      color: var(--muted);
+      font-size: 16px;
+    }
+
+    footer {
+      display: flex;
+      gap: 20px;
+      align-items: center;
+      padding-block: 28px 44px;
+      border-top: 1px solid var(--line);
+      color: var(--muted);
+      font-size: 14px;
+    }
+    footer span { margin-right: auto; }
+
+    @media (max-width: 850px) {
+      .nav a:not(.nav__brand) { display: none; }
+      .hero, .section__head { grid-template-columns: minmax(0, 1fr); }
+      .hero { width: 100%; gap: 38px; overflow: hidden; }
+      .hero h1 { width: 100%; font-size: clamp(49px, 15vw, 66px); }
+      .hero__lead { width: 100%; }
+      .film { width: 100%; max-width: 100%; }
+      .film__bar { flex-wrap: wrap; }
+      .rail { grid-template-columns: 1fr 1fr; }
+      .trace-compare, .boundary { grid-template-columns: 1fr; }
+      .matrix { font-size: 13px; }
+      .matrix th, .matrix td { padding: 10px 8px; }
+    }
+    @media (max-width: 510px) {
+      .shell { width: min(calc(100% - 22px), var(--max)); }
+      .rail { grid-template-columns: 1fr; }
+      .hero { padding-top: 38px; }
+      .film { box-shadow: 8px 8px 0 rgba(0,0,0,.22); }
+      .matrix th:nth-child(3), .matrix td:nth-child(3) { display: none; }
+      footer { flex-wrap: wrap; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+    }
+  </style>
+</head>
+<body>
+  <header class="shell">
+    <nav class="nav" aria-label="Main navigation">
+      <a class="nav__brand" href="#">Rust China Conf demo</a>
+      <a href="#evidence">Evidence</a>
+      <a href="demo/">Interactive replay</a>
+      <a href="https://github.com/zozo123/rust-china-conf">GitHub</a>
+    </nav>
+  </header>
+
+  <main>
+    <section class="hero shell">
+      <div>
+        <h1><span>A million</span><span>compiles.</span><span>One robot</span><span>hour.</span></h1>
+        <p class="hero__lead">
+          A Rust safety gate, a simulated Panda arm, disposable runners,
+          and proof bound to the <strong>actual executable</strong>.
+        </p>
+        <div class="actions">
+          <a class="button button--primary" href="demo/?play=seeded">Replay the defect</a>
+          <a class="button" href="https://github.com/zozo123/rust-china-conf">Read the source</a>
+          <a class="button" href="talk/talk-25min.md">Open the talk</a>
+        </div>
+      </div>
+
+      <figure class="film">
+        <div class="film__bar mono">
+          <span><i class="lamp"></i>robosuite / MuJoCo</span>
+          <span>fresh observation</span>
+        </div>
+        <img src="assets/robot-lift.gif" width="640" height="480"
+             alt="Recorded robosuite simulation of a Panda robot arm approaching, grasping, and lifting an orange cube.">
+        <figcaption>
+          Real simulator frames recorded while the Rust gate authorized the
+          four motion segments. Not a separate animation.
+        </figcaption>
+      </figure>
+    </section>
+
+    <dl class="rail shell" aria-label="Verified run summary">
+      <div><dt>Protected verifier</dt><dd class="pass">88 / 88</dd></div>
+      <div><dt>Episodes</dt><dd>17</dd></div>
+      <div><dt>Stale dispatches after fix</dt><dd>0</dd></div>
+      <div><dt>Executable identity</dt><dd class="mono">f358e898…</dd></div>
+    </dl>
+
+    <section class="section shell">
+      <div class="section__head">
+        <h2>The run passed. It was wrong.</h2>
+        <p>
+          The seeded gate never checked observation age. Four motion segments
+          ran on information that was already 600 ms old. The cube still
+          lifted, so an ordinary success check stayed green.
+        </p>
+      </div>
+
+      <div class="trace-compare">
+        <article class="trace">
+          <h3>Seeded build <span class="state state--bad">undetected</span></h3>
+          <pre>tick 12  approach  age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
+tick 22  descend   age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
+tick 32  grasp     age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
+tick 48  lift      age=<span class="warn">600ms</span>  <span class="good">PERMIT</span>
+
+episode_end  success=true
+cube_height  0.9985 m
+<span class="bad">protected assertion: FAIL</span></pre>
+        </article>
+
+        <article class="trace">
+          <h3>Patched build <span class="state state--good">held safely</span></h3>
+          <pre>tick 12  approach  age=<span class="warn">600ms</span>  <span class="warn">REJECT</span>
+reason   StalePerception
+
+task dispatches  <span class="good">0</span>
+arm command      held
+episode outcome  rejected_stale
+<span class="good">protected assertion: PASS</span></pre>
+        </article>
+      </div>
+    </section>
+
+    <section class="section shell" id="evidence">
+      <div class="section__head">
+        <h2>Seventeen completed episodes.</h2>
+        <p>
+          Five cube placements against three observation ages, plus emergency
+          stop and protocol timeout. Every cell is a completed robosuite run,
+          not an expected result.
+        </p>
+      </div>
+
+      <table class="matrix">
+        <thead>
+          <tr>
+            <th>Cube placement</th>
+            <th>0 ms observation</th>
+            <th>50 ms observation</th>
+            <th>600 ms observation</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr><td>center</td><td class="lifted">lifted · 54 ticks</td><td class="lifted">lifted · 56 ticks</td><td class="held">refused · tick 12</td></tr>
+          <tr><td>left</td><td class="lifted">lifted · 52 ticks</td><td class="lifted">lifted · 53 ticks</td><td class="held">refused · tick 12</td></tr>
+          <tr><td>right</td><td class="lifted">lifted · 56 ticks</td><td class="lifted">lifted · 59 ticks</td><td class="held">refused · tick 12</td></tr>
+          <tr><td>near</td><td class="lifted">lifted · 55 ticks</td><td class="lifted">lifted · 57 ticks</td><td class="held">refused · tick 12</td></tr>
+          <tr><td>far</td><td class="lifted">lifted · 55 ticks</td><td class="lifted">lifted · 55 ticks</td><td class="held">refused · tick 12</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section class="section shell">
+      <div class="section__head">
+        <h2>The boundary is part of the proof.</h2>
+        <p>
+          This is software-in-the-loop. The site says exactly what the evidence
+          establishes—and what remains downstream—because a green check without
+          a visible boundary is not evidence.
+        </p>
+      </div>
+      <div class="boundary">
+        <div class="done">
+          <h3>Performed</h3>
+          <ul>
+            <li>Rust contract and unit checks</li>
+            <li>Lock-step bridge protocol checks</li>
+            <li>Robosuite / MuJoCo simulated robot scenarios</li>
+            <li>Executable digest binding</li>
+            <li>Real Incredibuild path on both runner phases</li>
+          </ul>
+        </div>
+        <div class="not">
+          <h3>Not performed</h3>
+          <ul>
+            <li>Hardware-in-the-loop</li>
+            <li>Physical robot validation</li>
+            <li>Trained vision—the cube pose is simulator state</li>
+            <li>A controlled speedup benchmark</li>
+            <li>A claim that 250 ms is a hardware safety limit</li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="mantra shell">
+      <p>Burn the runner.<br>Keep the proof.<br>Spare the robot.</p>
+      <small class="mono">run ec2-e2e-20260923-160725 · robosuite 1.5.2 · MuJoCo 3.9.0</small>
+    </section>
+  </main>
+
+  <footer class="shell">
+    <span>Rust China Conf demo · software-in-the-loop</span>
+    <a href="demo/">Interactive replay</a>
+    <a href="https://github.com/zozo123/rust-china-conf">Repository</a>
+  </footer>
+</body>
+</html>

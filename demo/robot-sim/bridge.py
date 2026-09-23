@@ -20,6 +20,7 @@ observation lags — a real historical observation, not a paused clock.
 
 import argparse
 import json
+import os
 import sys
 import time
 
@@ -299,6 +300,10 @@ def run_episode(args, scenario: dict, backend: BackendBase) -> None:
         )
 
     def end_episode(success: bool, reason: str) -> None:
+        # Finish optional media before announcing the terminal protocol
+        # message. The Rust session tears down the bridge after episode_end.
+        if hasattr(backend, "finalize_video"):
+            backend.finalize_video()
         emit(
             {
                 "type": "episode_end",
@@ -308,8 +313,6 @@ def run_episode(args, scenario: dict, backend: BackendBase) -> None:
                 "ticks": backend.tick,
             }
         )
-        if hasattr(backend, "finalize_video"):
-            backend.finalize_video()
 
     for segment in SEGMENTS:
         tick = backend.tick
@@ -394,8 +397,14 @@ def main() -> None:
     parser.add_argument("--backend", choices=["mock", "robosuite"], default="mock")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--episode-id", required=True)
-    parser.add_argument("--video-dir", default=None)
+    parser.add_argument(
+        "--video-dir",
+        default=os.environ.get("ROBOT_DEMO_VIDEO_DIR"),
+        help="write episode.mp4 here (or set ROBOT_DEMO_VIDEO_DIR)",
+    )
     args = parser.parse_args()
+    if args.video_dir:
+        log(f"video output enabled: {args.video_dir}")
 
     with open(args.scenario, "r", encoding="utf-8") as f:
         scenario = json.load(f)

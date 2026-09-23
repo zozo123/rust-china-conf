@@ -12,6 +12,10 @@ fsspec==2026.9.0
     # via etils
 glfw==2.10.2
     # via mujoco
+imageio==2.37.0
+    # via robot-sim video recording
+imageio-ffmpeg==0.6.0
+    # via imageio
 iniconfig==2.3.0
     # via pytest
 llvmlite==0.49.0
