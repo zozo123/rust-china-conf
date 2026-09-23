@@ -1,84 +1,85 @@
 # Six-minute stage runbook
 
-[简体中文](runbook-6min.md) · [25-minute talk](talk-25min.en.md) · [Slides](slides.en.md)
+[简体中文](runbook-6min.md) · [Talk](talk-25min.en.md)
 
-Allocations are rehearsal budgets, not claimed runtimes. One complete
-six-minute recording stays available locally; if network or rendering fails,
-play the recording — visibly labeled — rather than debugging live.
+## Before the session
 
-Automation: `scripts/robot-demo/rehearse.sh <run-id>` performs the whole arc
-(`ROBOT_DEMO_BACKEND=robosuite` for the real SIL path). On stage, run the
-phases individually so narration stays in charge of pacing.
+Commit the intended source revision. Runner scripts execute that committed
+revision; `python3 scripts/robot-demo/check.py` checks edits before committing.
 
-Fallback if the grid is unreachable: `docs/demo/index.html` replays the
-recorded run with no network, no server and no build step. It is labeled as a
-replay on its face, so showing it is not a misrepresentation — but say
-"this is the recorded run" out loud anyway.
+On the Linux initiator, select the real simulator and require IB:
 
-| Time | Stage action | Command / artifact | Number to say |
-|---|---|---|---|
-| 0:00–0:30 | Show Panda/cube; introduce the stale observation | simulator view; `demo/robot-sim/config/scenarios/stale_600ms.json` | "600 milliseconds" |
-| 0:30–1:15 | Runner A cold build + the failing episode | `scripts/robot-demo/cold.sh <run>-runner-a` | 21426 ms, `ib: true`; 4 dispatches at ticks 12/22/32/48 |
-| 1:15–2:05 | Agent produces bounded patch from failure context (cap ≈45 s) | work order: `evidence/<run>-runner-a/agent-context/work-order.md` | — |
-| 2:05–2:30 | Show the diff, export context, **destroy A** | `demo/fallback-patch.diff` | 49 lines, 4 of intent |
-| 2:30–3:15 | Fresh runner B builds through IB, runs checks | `scripts/robot-demo/warm.sh <run>-runner-b` | 21948 ms, `ib: true`; 10/10 tests |
-| 3:15–4:00 | Patched executable refuses the stale episode; show **zero** dispatches | matrix row `center-f600` → `rejected_stale` | refused at tick 12, 0 dispatches |
-| 4:00–4:40 | Fresh episode lifts the cube | matrix rows `*-f0` → `cube_lifted` | 4 permits, cube 0.9978 m |
-| 4:40–5:20 | Evidence pack + build comparison | `evidence/<run>-runner-b/`, `build-metrics.jsonl` | 17 episodes; 88/88; digest f358e898 |
-| 5:20–5:40 | Simulation scope; downstream hardware gate | scope statement in every manifest | — |
-| 5:40–6:00 | Buffer | — | — |
+```bash
+export REQUIRE_IB=1
+export ROBOT_DEMO_BACKEND=robosuite
+export ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3"
+scripts/robot-demo/preflight.sh
+scripts/robot-demo/rehearse.sh rehearsal-unique-id
+```
 
-## The one beat that carries the talk
+Retain the full 17-case evidence, executable and verifier report. Confirm
+the simulator initializes and the result meets the contract. Do three timed
+rehearsals under 5:30. A script's printed stage labels are not elapsed timings.
 
-At 0:30–1:15, do not rush past the seeded failure. The episode reports
-`success=true` and lifts the cube to 0.9985 m. Say that the run is *green*
-and let the room sit with it for a beat before revealing that all four
-dispatches acted on a 600 ms-old observation. The demo's argument is not
-"the build broke" — it is "the build passed and was wrong."
+Keep the local site, media and a complete labeled recording on the Mac.
+The historical replay is `docs/demo/index.html?play=seeded&lang=en`.
 
-If you are using the stage visual, `docs/demo/index.html?play=seeded` opens
-straight into this episode. Keys `1`/`2`/`3` switch between the stale, fresh
-and seeded episodes without a pointer.
+## The visible sequence
 
-## Hard rules for the live run
+| Time | Action | Narration |
+| --- | --- | --- |
+| 0:00–0:45 | Seeded lift; show task and freshness verdicts together | “The cube lifted. The freshness contract failed.” |
+| 0:45–1:30 | Inspect the bounded patch; external agent attempt if configured | “The candidate cannot redefine acceptance.” |
+| 1:30–2:00 | Export patch and base; show workspace A removed | “Keep the change and evidence. Remove the workspace.” |
+| 2:00–3:00 | B builds from the recorded base with fresh outputs | “Build this candidate, then execute its checks again.” |
+| 3:00–4:30 | Patched stale refusal, then fresh lift | “Zero stale dispatches; the fresh task still completes.” |
+| 4:30–5:30 | Evidence receipt, scope and actual timings | “These results belong to this executable and this run.” |
+| 5:30–6:00 | Contingency | Switch to the labeled recording if needed. |
 
-- The live agent attempt is capped at ~45 s. If it misses, apply the
-  reviewed fallback patch **visibly**. No silent substitution of scripted
-  agent output, cached test verdicts, or recorded timings for live results.
-- If the cold build does not fit the budget on the day, show a labeled
-  recording or a measured prior result for that phase; keep the warm build
-  and the simulated behavior live.
-- Runner B must start with no prior compilation outputs in any configured
-  location. Tests and scenario assertions re-execute; verdicts are never
-  restored from cache.
-- Start the measured runner instances only when their phases begin.
-- Three consecutive rehearsals must complete within 5:30, preserving 30 s
-  of contingency inside the six-minute slot.
-- **Never state a speedup.** The two build phases are 21426 ms and 21948 ms;
-  the warm one was slower. If asked live, say: "I measured that the
-  distributed path ran on both phases. I have not measured a speedup, and
-  the benchmark to do it properly is specified in the repo."
+If only two selected cases run live, label the completed 17-case matrix as
+**rehearsal coverage**. Do not imply that it just ran.
 
-## If someone asks about the machines
+## Driving the recorded replay
 
-Answer plainly: a real Incredibuild 4.31.0 grid — one coordinator, one
-initiator, two helpers, on our own Linux hosts. The islo sandbox path is in
-the 25-minute script as the honest version: five resource limits, then the
-account ran out of credit. Do not present the verified run as having
-happened on islo; the run IDs, manifests and evidence README in the repo all
-record EC2, and the contradiction is one `ls` away.
+- **1:** seeded defect on stale input.
+- **2:** repaired gate on stale input.
+- **3:** repaired gate on fresh input.
+- **Space:** play/pause when focus is on the page.
+- **Right arrow:** next decision, then final result.
+- **R:** reset to a paused start.
+- **Show result:** jump to the final verdicts.
 
-The architectural point survives either answer, which is exactly the point:
-a fresh worktree, a fresh `CARGO_TARGET_DIR`, a directory of evidence files
-and a digest-bound verdict moved between two unrelated infrastructures
-without a line changing.
+The arm poses are schematic; the event data comes from the recorded run.
+For real simulator footage, use the landing page's separately labeled video.
 
-## Presenter view
+## Running individual phases
 
-Simulator as the main visual; one restrained adjacent terminal. Show only:
-robot/cube scene and episode type; observation age, policy decision, and
-task-action dispatch count; runner identity and clean-output confirmation;
-actual IB cache/remote/local work and elapsed time; candidate identity and
-test/scenario result. Colors map to real states: failure, hold/rejection,
-success. The rendering follows actual simulation state — never a separate
-animation.
+Use unique IDs; existing evidence directories are intentionally rejected.
+
+```bash
+scripts/robot-demo/cold.sh stage-a
+# cold.sh exports the evidence and removes A before returning.
+# Use an external agent here if available; cap it at approximately 45 seconds.
+# Otherwise explicitly select the reviewed fallback:
+export ROBOT_DEMO_PATCH_FILE="$PWD/demo/fallback-patch.diff"
+export ROBOT_DEMO_BASE_REVISION="$(cat evidence/stage-a/agent-context/base-revision.txt)"
+scripts/robot-demo/warm.sh stage-b
+scripts/robot-demo/validate.sh stage-b
+```
+
+The default script uses the reviewed patch, not an automated LLM call.
+The allowlist checks the candidate before it is applied.
+The full matrix runs in B; if that does not fit the stage budget, show the
+completed rehearsal and label it, rather than claiming a smaller live run is
+the full suite.
+
+## What to say accurately
+
+- Today's runner is a temporary worktree on an EC2-backed Linux host.
+  Removing it does not destroy the host. Islo integration is planned.
+- New run results and historical results have different IDs and may have
+  different check counts. The old 10/10 and 88/88 describe the archived revision.
+- Historical build observations were 21.426 s and 21.948 s. B was 522 ms slower.
+  There is no measured speedup or controlled cache-reuse claim.
+- This is software-in-the-loop with segment-level authorization.
+  Physical robot validation and continuous control-step supervision are outside scope.

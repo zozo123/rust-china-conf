@@ -1,44 +1,61 @@
-# 舞台画面
+# 安全门的已记录回放
 
 [English](README.en.md)
 
-`index.html` 是单页、自包含的安全门已记录裁决回放。用浏览器直接打开——无需服务器、无需构建，可离线（Noto Sans SC 与 IBM Plex Mono 随站点自托管）。默认简体中文，右上角可切 EN。
+`index.html` 提出一个问题：**任务完成了吗？新鲜度契约通过了吗？** 这是两个独立的结果。方块可以被举起，而安全门同时违反其策略。
 
-## 它展示什么
+直接用浏览器打开页面即可，无需构建、服务器、机器人连接或网络。字体与已记录数据均随站点提供。默认简体中文，右上角可切换 **EN**，也可使用 `?lang=en`。
 
-三个回合，各自从 `docs/examples` 里已提交的事件日志回放：
+## 按顺序比较
 
-| 按钮 | 来源 | 要点 |
-| --- | --- | --- |
-| 陈旧回合 · 600 ms | `ec2-runner-b/events-center-f600.jsonl` | 补丁后门拒绝 600 ms 陈旧观测，什么都不派发。 |
-| 新鲜回合 · 0 ms | `ec2-runner-b/events-center-f0.jsonl` | 同一构建在当前信息下允许全部四段并举起方块。 |
-| 植入构建 · 同一陈旧输入 | `ec2-runner-a/events-stale_600ms.jsonl` | 植入构建在同一陈旧观测上允许全部四段并报告成功。 |
+回放首先展示植入缺陷的构建，然后比较相同陈旧输入下的修复后构建，最后检查新鲜输入：
 
-第三个值得停住：回合「通过了」。方块到 0.9985 m，仿真器报告 `success=true`。运行里看起来没有错，所以必须有受保护断言。
+| 按键 / 回合 | 任务完成？ | 新鲜度契约通过？ | 已提交事件日志 |
+| --- | --- | --- | --- |
+| **1 · 植入缺陷 · 600 ms** | **是** — 4 次派发，方块到 0.9985 m | **失败** — 观测年龄超过 250 ms 策略 | [`ec2-runner-a/events-stale_600ms.jsonl`](../examples/ec2-runner-a/events-stale_600ms.jsonl) |
+| **2 · 修复后 · 600 ms** | **否** — 机械臂保持，0 次派发 | **通过** — 拒绝陈旧输入 | [`ec2-runner-b/events-center-f600.jsonl`](../examples/ec2-runner-b/events-center-f600.jsonl) |
+| **3 · 修复后 · 0 ms** | **是** — 4 次派发，方块到 0.9978 m | **通过** — 使用当前观测 | [`ec2-runner-b/events-center-f0.jsonl`](../examples/ec2-runner-b/events-center-f0.jsonl) |
 
-回放下方的矩阵是补丁构建的全部 17 回合——五个方块位置对三种观测年龄，外加急停与协议超时——证据条带带着校验器结果和做出这些裁决的可执行文件摘要。
+第一个回合在 tick 65 以 `success=true` 结束，却一直使用 600 ms 前的观测。这正是受保护断言必须独立于仿真器任务成功标志的原因。修复后的陈旧回合在 tick 12 结束；新鲜回合在 tick 54 结束。
 
-## 怎么开
+下方表格展示修复后构建的全部 17 个已记录回合：五个方块位置 × 三种观测年龄，加上急停与超时。证据条带描述该次已记录的修复后构建，包括校验器结果与可执行文件摘要；打开页面不会重新运行仿真器。
 
-按 `1`、`2` 或 `3` 切换回合，不需要指针。幻灯也可以用 `index.html?play=seeded`（`stale`、`fresh`、`seeded`）直接链进去。
+## 演示与检查
 
-## 出处
+- **1 / 2 / 3** 按上表顺序选择回合。
+- **空格** 在页面获得焦点时播放或暂停；按钮获得焦点时，空格保留正常的按钮操作。
+- **右箭头** 暂停并显示下一个已记录裁决；最后再按一次显示回合结果。
+- **R** 将当前回合重置到暂停的起点。
+- **查看结果** 立即显示全部裁决与两个最终结果。
+- 切换浏览器标签页会暂停播放。启用“减少动态效果”时，每个回合默认暂停，仍可播放或逐步检查。
+- 切换语言会保留当前回合与播放位置，并翻译当前裁决、控制和轨迹说明。
 
-每个 tick、观测年龄、裁决、派发计数和方块高度都从 run `ec2-e2e-20260923-160725` 抄录。要重新推导：
+可直接链接到某个回合，例如 [`index.html?play=seeded&lang=zh`](index.html?play=seeded&lang=zh)。`play` 接受 `seeded`、`stale` 或 `fresh`，无效值默认选择植入缺陷回合。选择回合会更新链接，不会重新加载页面。
+
+## 哪些是真实记录，哪些是示意
+
+tick、观测年龄、安全门裁决、派发计数、回合结果和最终方块高度来自 run `ec2-e2e-20260923-160725`。协议面板是可读摘要，来源链接打开原始 JSONL。机械臂姿态和播放节奏是示意，**不是已记录的关节坐标或 MuJoCo 录像**；那次运行没有录像。
+
+在仓库根目录可检查原始消息：
 
 ```sh
 python3 - <<'PY'
 import json
-for l in open('docs/examples/ec2-runner-a/events-stale_600ms.jsonl'):
-    e = json.loads(l); m = json.loads(e['line'])
-    if m.get('type') == 'proposal':
-        age = (m['simulation_time_ns'] - m['observation']['capture_time_ns']) // 10**6
-        print(m['simulation_tick'], m['proposed_action']['segment'], f'{age}ms')
-    elif e['dir'] == 'out':
-        print('   ->', m.get('decision'), m.get('reason', ''))
+from pathlib import Path
+path = Path('docs/examples/ec2-runner-a/events-stale_600ms.jsonl')
+for line in path.read_text().splitlines():
+    event = json.loads(line)
+    message = json.loads(event['line'])
+    if message.get('type') == 'proposal':
+        age = (message['simulation_time_ns']
+               - message['observation']['capture_time_ns']) // 10**6
+        print(message['simulation_tick'],
+              message['proposed_action']['segment'], f'{age} ms')
+    elif event['dir'] == 'out':
+        print('  ->', message.get('decision'), message.get('reason', ''))
+    elif message.get('type') == 'episode_end':
+        print(message)
 PY
 ```
 
-机械臂图是示意，不是 MuJoCo 帧截取——那次运行没有录像。页面上有标明。方块高度和全部裁决数据是真的。
-
-页面故意不声称的一件事：两个构建阶段测得 21.4 s 和 21.9 s，说明加速路径两边都跑了。那不是加速测量，页面也这么写，而不是暗示基准。
+250 ms 策略是演示值，不是实体机器人的安全限值。仿真不能替代硬件验证。两个构建阶段测得 21.4 s 与 21.9 s，证明加速路径运行过，并不是加速比测量。

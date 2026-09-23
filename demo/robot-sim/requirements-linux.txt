@@ -1,5 +1,5 @@
 # Candidate simulator environment: CPython 3.12, Linux x86_64
-# Resolved 2026-09-23; not installed or runtime-tested.
+# Pins used by the archived Linux SIL run; revalidate on each new host.
 # Keep separate from the factory Python environment.
 # robosuite 1.5.2 + MuJoCo 3.9.0 avoids the upstream documented >=3.10 incompatibility.
 absl-py==2.5.0

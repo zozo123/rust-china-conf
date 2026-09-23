@@ -88,15 +88,11 @@ body{
   <dl class="metrics">
     <div><dt>Build phase</dt><dd id="mPhase" class="pend">—</dd></div>
     <div><dt>Compile wall</dt><dd id="mWall" class="pend">—</dd></div>
-    <div><dt>Distributed</dt><dd id="mIb" class="pend">—</dd></div>
+    <div><dt>IB wrapper</dt><dd id="mIb" class="pend">—</dd></div>
     <div><dt>Stale dispatches</dt><dd id="mDisp" class="pend">—</dd></div>
   </dl>
 
-  <p class="note" id="note">
-    <b>Numbers are from run ec2-e2e-20260923-160725.</b>
-    Incredibuild accelerates compilation only; tests and simulator scenarios
-    always re-execute and are never restored from cache.
-  </p>
+  <p class="note" id="note"><b>Archived walkthrough / 历史走查。</b> Historical timings only; cache reuse, helper activity and VM destruction are unverified. 缓存复用、辅助节点执行与虚拟机销毁均未验证。 <a href="index.html">Current replay / 当前回放</a></p>
 </div>
 
 <script>
@@ -116,7 +112,7 @@ const STAGES = [
 const F = [
   { s:0, phase:"Runner A — disposable, empty cache", runner:["a","runner A"], add:[
     ["cmd","$ scripts/robot-demo/cold.sh ec2-e2e-20260923-160725-runner-a"],
-    ["dim","  fresh git worktree · fresh CARGO_TARGET_DIR · empty cache namespace"],
+    ["dim","  fresh git worktree · fresh CARGO_TARGET_DIR · fresh local target; remote cache unknown"],
   ]},
   { s:0, add:[
     ["","  ib_console: coordinator + initiator + 2 helpers"],
@@ -169,10 +165,10 @@ const F = [
     ["ok","           and the compilation work the parent revision warmed"],
   ]},
 
-  { s:4, phase:"Runner B — new instance, warm factory", runner:["b","runner B"], add:[
+  { s:4, phase:"Runner B — new worktree, same base", runner:["b","runner B"], add:[
     ["cmd","$ scripts/robot-demo/warm.sh ec2-e2e-20260923-160725-runner-b"],
     ["dim","  brand-new instance · no prior outputs · patch applied to exact base"],
-    ["","  cargo build --locked  (reusing parent-warmed cache namespace)"],
+    ["","  cargo build --locked  (cache reuse unverified)"],
   ], m:{phase:"warm", wall:"…", ib:"running", disp:null} },
   { s:4, add:[
     ["ok","  Finished dev profile — 21948 ms"],

@@ -2,219 +2,156 @@
 marp: true
 title: A Million Compiles. One Robot Hour.
 paginate: true
+style: |
+  section { background: #10171d; color: #edf2f4; font-family: sans-serif; font-size: 28px; }
+  h1, h2 { color: #edf2f4; }
+  a { color: #f0b85d; }
+  table { font-size: 24px; }
 ---
-
-[简体中文幻灯](slides.md)
 
 # A Million Compiles. One Robot Hour.
 
-**Disposable Runners, Warm Cargo Factory**
+Disposable workspaces and independently checked robot behavior
 
-Burn the runner. Keep the proof. Spare the robot.
+[简体中文](slides.md)
 
----
-
-## The stakes
-
-- Your team has **one hour** booked on a robot tomorrow
-- Agents produce **many** candidate changes overnight
-- Which change deserves that hour?
-
-> Today the robot is simulated, so we can repeat failures cheaply.
+<!-- Title expresses motivation, not a measured conversion. 25-minute talk with six-minute demo and five minutes of questions. -->
 
 ---
 
-## The task (deliberately boring)
+## The robot succeeded
 
-- Simulated Panda arm, one cube, robosuite `Lift`
-- Success = the environment's own check + explicit height condition
-- The interesting part is **around** the arm:
-  who authorizes motion, on what information, built by which runner
+![bg right:42% contain](../assets/robot-lift-poster.png)
 
----
+| Check | Recorded seeded result |
+| --- | --- |
+| Cube lifted | Yes |
+| Observation age | 600 ms |
+| Freshness contract | Failed |
 
-## The safety gate (pure Rust)
-
-1. Simulated emergency stop beats **everything**
-2. Future/invalid observation timestamps → reject
-3. Observation age ≤ 250 ms at dispatch → permit, else **StalePerception**
-
-*250 ms is an illustrative demo policy, not a safe hardware threshold.*
+<!-- The image illustrates the simulator task from a separate fresh episode. Use the seeded replay for its decision data. Source: ../examples/ec2-runner-a/events-stale_600ms.jsonl -->
 
 ---
 
-## The seeded defect
+## The Rust contract
 
-Freshness check missing. Observation stream delayed 600 ms — real
-historical observations, simulated time still advancing.
+1. Simulated stop takes precedence
+2. Future observation timestamps are invalid
+3. At segment dispatch, observation age must be ≤ 250 ms
 
-Four proposals, ticks **12 / 22 / 32 / 48**. All four **permitted**.
+The seeded implementation omits rule 3.
 
----
-
-## And the episode passed
-
-```
-episode_end  success=true  reason=cube_lifted  cube=0.9985 m
-```
-
-The cube came up. The simulator said success. In a CI summary,
-this run is **green**.
-
-Only the protected assertion caught it:
-*a stale episode must have zero task-action dispatches.* This one had four.
+<!-- Boundary tests cover 250/251 ms. This is a demo threshold; authorizations occur at segment boundaries, not every control step. -->
 
 ---
 
-## Architecture
+## Agent changes and acceptance criteria
 
-agents → disposable runners → warm Cargo factory **[IB]** → retained
-evidence → simulation → *future HIL / robot gate (not performed)*
+| Agent may propose | Protected from candidate edits |
+| --- | --- |
+| Gate implementation patch | Contract tests |
+| Explanation and test output | Simulator and scenario fixtures |
+| | Verifier and runner scripts |
 
-- IB accelerates **compilation only**
-- Tests and simulator checks always re-execute
-- Verdicts are never restored from cache
+The default rehearsal uses a reviewed fallback patch.
 
----
-
-## Where this was supposed to run
-
-Ephemeral sandboxes. Rent a runner for ninety seconds, throw it away.
-
-- Asked for 8 vCPU — **over quota**
-- Asked for 8192 MB memory — **over quota**
-- Asked for 40 GB disk — **over quota**
-- IB helper cache wanted 10 GB; sandbox had **9 GB** free
-- Moved to Debian 12 — coordinator **does not support it**
-
-> `insufficient credit balance to create a sandbox`
+<!-- The checked-in script does not invoke an LLM. If presenting an external agent, show that separate attempt and identify fallback use. -->
 
 ---
 
-## So it ran somewhere else
+## Candidate validation stack
 
-A real Incredibuild 4.31.0 grid: coordinator + initiator + 2 helpers.
+| Component | Responsibility |
+| --- | --- |
+| Temporary workspace | Candidate checkout and fresh outputs |
+| Incredibuild | Compilation distribution/reuse integration |
+| Rust + Python | Decision protocol and simulator execution |
+| Protected verifier | Required cases, ordered traces, artifact identity |
 
-**Nothing in the architecture changed.**
-
-A fresh worktree. A fresh `CARGO_TARGET_DIR`. A directory of evidence
-files. A digest-bound verdict.
-
-> If your validation loop only works on one vendor's sandbox, you don't
-> have a disposable runner. You have a pet with a short life expectancy.
-
----
-
-## DEMO (protected six minutes)
-
-runbook: `docs/talk/runbook-6min.md` — automation: `scripts/robot-demo/rehearse.sh`
-
-replay, offline: `docs/demo/index.html`
+<!-- The intended IB benefits need helper/cache telemetry. The observed build path alone does not prove reuse. -->
 
 ---
 
-## "The runner is gone."
+## Runner lifecycle
 
-- Runner A: fresh worktree, empty outputs, empty cache namespace
-- Export: patch, base revision, context packet
-- **Destroy A.**
+Workspace A exports the failure and base revision.
 
-> The change, the investigation, and the reusable compilation work survive.
+Workspace B applies the candidate and rebuilds with fresh outputs.
 
----
+**EC2-backed workspaces today. Islo provider planned.**
 
-## Runner B: fresh machine, warm factory
-
-- New instance, same base image, fresh filesystem
-- Patch applied to the **exact** base revision
-- Compilation reuse from the parent-warmed cache
-- Protected checks re-run against the actual built executable
-
-Rust tests: **10 / 10** (8 contract + 2 unit). On the seeded build, 3 failed.
+<!-- A local Git worktree is not a VM security boundary. We remove workspaces, not EC2 machines. Tests rerun. -->
 
 ---
 
-## Behavioral payoff
+## Six-minute demonstration
 
-| episode | result | dispatches |
-|---|---|---|
-| stale 600 ms | `rejected_stale` at tick 12 | **0** |
-| fresh 0 ms | `cube_lifted`, 0.9978 m | 4 |
-| e-stop | `emergency_stop` at tick 10 | 1 |
-| dead bridge | explicit `timeout` | 0 |
+Seeded failure · bounded patch · remove A
 
-17 episodes total: 10 lifted, 5 refused, 1 stopped, 1 timed out.
+Fresh build in B · stale refusal · fresh lift
 
----
+Evidence receipt for the actual executable
 
-## What I measured
-
-| phase | wall | distributed |
-|---|---|---|
-| cold (runner A) | 21426 ms | `ib: true` |
-| warm (runner B) | 21948 ms | `ib: true` |
-
-The warm build was **522 ms slower**.
+<!-- Switch to the runbook. Label replay and live runs separately. Full17-case rehearsal coverage must not be presented as two live selected cases. -->
 
 ---
 
-## Which is not a speedup
+## The patched behavior
 
-Different runners, different phases, **one run each**, a workspace small
-enough that distribution overhead plausibly exceeds the work distributed.
+| Observation | Task dispatches | Outcome |
+| --- | --- | --- |
+| Stale, 600 ms | 0 | Rejected at tick 12 |
+| Fresh, 0 ms | 4 | Cube lifted |
 
-What these two numbers establish: the accelerated path really ran, on a
-real grid, on both sides of destroying the runner. **Workflow continuity.**
+Same patched executable in the recorded Linux run
 
-That is all they establish.
-
----
-
-## The benchmark I still owe you
-
-- Same fixed source revision in every comparable row
-- Native cargo baseline / IB cold / IB warm-from-parent
-- **≥5 runs per mode**; medians *and* ranges; run order and contention disclosed
-- Cache hit rate names its denominator
-- Separately: runner startup, checkout, artifact transfer, agent latency
-
-Wall-time ≠ CPU-hours ≠ cost ≠ robot hours — unless measured.
+<!-- Source: ../examples/ec2-runner-b/events-center-f600.jsonl and events-center-f0.jsonl -->
 
 ---
 
-## Evidence pack
+## Build observations
 
-`manifest.json` · `events-*.jsonl` · `scenario-results.json` ·
-`build-metrics.jsonl` · `agent-context/` · exported artifact + sha256
+| Historical phase | Wall time |
+| --- | --- |
+| Runner A | 21.426 s |
+| Runner B | 21.948 s |
 
-**88 / 88** protected checks, bound to
-`f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326`
+B took **522 ms longer**. No measured speedup.
 
-A digest identifies an artifact; the **protected verifier** binds results
-to the actual artifact.
-
----
-
-## Scope honesty
-
-Performed: Rust contract checks, bridge checks, simulated robot scenarios.
-
-**Not** performed: hardware HIL, physical validation, trained vision
-(cube pose is simulator state; camera feed is for the audience).
-No speedup measured.
-
-> An evidence pack whose boundary you can't see isn't evidence.
-> It's a green checkmark with better production values.
+<!-- Both records indicate IB use. Different candidates, one sample per phase, uncontrolled cache states. No proof of helper work or cache reuse in those metrics. -->
 
 ---
 
-## Close
+## The evidence receipt
 
-> Every candidate needs another check. It does not need every dependency
-> compiled from scratch.
+17 recorded simulator episodes:
 
-The seeded run in this demo was green. That's the whole lesson.
+**10 lifts · 5 stale rejections · 1 stop · 1 timeout**
 
-**Burn the runner. Keep the proof. Spare the robot.**
+Source, patch, executable identity and event traces
 
-Repo: github.com/zozo123/rust-china-conf
+<!-- Run ec2-e2e-20260923-160725. Original verifier reported88/88; the strengthened current suite has different checks. Archived executable is not committed; new rehearsals export theirs. A digest is identity, not an execution attestation. -->
+
+---
+
+## Demonstrated scope
+
+Software-in-the-loop with segment-level authorization
+
+Simulator state supplies cube position
+
+Physical hardware and performance benefits need separate validation
+
+<!-- Also outside scope: trained vision, continuous control-step supervision, islo execution. Keep this concise and direct. -->
+
+---
+
+## Every candidate needs fresh checks
+
+Temporary execution and reusable compilation have different lifetimes.
+
+The robot’s behavior determines whether the repair satisfies its contract.
+
+[Source, replay and evidence](https://github.com/zozo123/rust-china-conf)
+
+<!-- Close, then questions. Controlled benchmark: same fixed candidate, native/IB empty/IB parent-warmed, ≥5 samples per mode, medians+ranges, disclosed contention. -->

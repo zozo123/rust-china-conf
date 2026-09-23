@@ -24,6 +24,8 @@ jobs:
           python-version: '3.12'
       - name: Install pinned Rust
         run: rustup toolchain install 1.92.0 --profile minimal --component rustfmt --component clippy
+      - name: Check generated bilingual pages
+        run: python3 scripts/site/build.py --check
       - name: Check Rust formatting
         run: cargo fmt --manifest-path rust/Cargo.toml -p swf-app -p swf-cli --check
       - name: Lint Rust

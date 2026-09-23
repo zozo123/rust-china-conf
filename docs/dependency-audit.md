@@ -1,5 +1,7 @@
 # Demo dependencies: Rust, Incredibuild, and robot simulation
 
+> Historical pre-implementation audit. For current integrated capabilities and validation scope, see [the readiness plan](plan.md) and [recorded evidence](examples/README.en.md).
+
 Source snapshot: [`59339a3dc9d66403d95b3a2dd2129df90bbd3cc4`](https://github.com/zozo123/ariflow-swfactory/commit/59339a3dc9d66403d95b3a2dd2129df90bbd3cc4). Fetched directly from the GitHub API and raw files on 2026-09-23. These are repository versions, not a claim that every package is the newest available release.
 
 The user selected a simulator, so the proposed demo is software-in-the-loop (SIL). The selected simulation baseline is robosuite 1.5.2 with MuJoCo 3.9.0, alongside a proposed Rust supervisor. The factory inventory below is an audited existing repository snapshot; the robot bridge and supervisor are proposed additions, not existing integrated capabilities. Package resolution has been checked, but no simulator execution or IB acceleration benchmark was performed during this audit.

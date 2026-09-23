@@ -1,56 +1,86 @@
-# Stage visual
+# Recorded safety-gate replay
 
 [简体中文](README.md)
 
-`index.html` is a single self-contained page that replays the safety gate's recorded
-decisions. Open it directly in a browser — no server, no build step, and it works
-offline (the IBM Plex webfonts degrade to a system stack if there is no network).
+`index.html` presents one question: **did the task complete, and did the freshness
+contract pass?** These are separate results. A cube can lift while the gate violates
+its policy.
 
-## What it shows
+Open the page directly in a browser; there is no build step, server, robot connection
+or network requirement. Fonts and recorded data are bundled with the site. The page
+defaults to Simplified Chinese; choose **EN** or use `?lang=en`.
 
-Three episodes, each replayed from the committed event logs in `docs/examples`:
+## Follow the comparison
 
-| Button | Source | Point it makes |
-| --- | --- | --- |
-| Stale episode · 600 ms | `ec2-runner-b/events-center-f600.jsonl` | The patched gate refuses a 600 ms old observation and dispatches nothing. |
-| Fresh episode · 0 ms | `ec2-runner-b/events-center-f0.jsonl` | With current information the same build permits all four segments and lifts the cube. |
-| Seeded build · same stale input | `ec2-runner-a/events-stale_600ms.jsonl` | The seeded build permits all four segments on that same stale observation and reports success. |
+The replay opens with the seeded defect, then offers the repaired gate under the same
+stale input, followed by the repaired gate with current input:
 
-The third one is the one worth pausing on: the episode "passes". The cube reaches
-0.9985 m and the simulator reports `success=true`. Nothing in the run looks wrong,
-which is the reason the protected assertion has to exist.
+| Key / episode | Task completed? | Freshness contract passed? | Committed event log |
+| --- | --- | --- | --- |
+| **1 · Seeded defect · 600 ms** | **Yes** — 4 dispatches, cube at 0.9985 m | **Failed** — observations exceeded the 250 ms policy | [`ec2-runner-a/events-stale_600ms.jsonl`](../examples/ec2-runner-a/events-stale_600ms.jsonl) |
+| **2 · Repaired · 600 ms** | **No** — arm held, 0 dispatches | **Passed** — stale input was refused | [`ec2-runner-b/events-center-f600.jsonl`](../examples/ec2-runner-b/events-center-f600.jsonl) |
+| **3 · Repaired · 0 ms** | **Yes** — 4 dispatches, cube at 0.9978 m | **Passed** — observations were current | [`ec2-runner-b/events-center-f0.jsonl`](../examples/ec2-runner-b/events-center-f0.jsonl) |
 
-Below the replay, the matrix shows all 17 episodes from the patched build — five cube
-placements against three observation ages, plus the emergency-stop and protocol-timeout
-cases — and the evidence strip carries the verifier result and the digest of the
-executable that produced these decisions.
+The first episode ends with `success=true` at tick 65, even though it acts on
+600 ms old observations. This is the reason for a protected assertion independent
+of simulator task success. The repaired stale episode ends at tick 12; the fresh
+episode ends at tick 54.
 
-## Driving it
+Below the replay, the table shows all 17 recorded episodes from the repaired build:
+five cube placements × three observation ages, plus emergency-stop and timeout cases.
+The evidence strip describes that recorded repaired build, including its verifier
+result and executable digest; it does not claim a new simulator run occurred when
+you opened this page.
 
-Press `1`, `2` or `3` to switch episodes without a pointer. A slide can also link
-straight into one with `index.html?play=seeded` (`stale`, `fresh`, `seeded`).
+## Presenting and inspecting
 
-## Provenance
+- **1 / 2 / 3** select the episodes in the order above.
+- **Space** plays or pauses when focus is on the page. On a focused button, Space
+  retains its normal button action.
+- **Right arrow** pauses and shows the next recorded decision; one final step shows
+  the episode result.
+- **R** resets the current episode to its paused starting point.
+- **Show result** immediately displays all decisions and both final verdicts.
+- Switching browser tabs pauses playback. A reduced-motion preference starts each
+  episode paused; Play and Next step remain available.
+- Switching languages preserves the episode and playback position, and translates
+  the current verdicts, controls and trace explanations.
 
-Every tick number, observation age, decision, dispatch count and cube height is
-transcribed from run `ec2-e2e-20260923-160725`. To re-derive them:
+Deep links select an episode, for example
+[`index.html?play=seeded&lang=en`](index.html?play=seeded&lang=en).
+The accepted values of `play` are `seeded`, `stale` and `fresh`; unknown values fall
+back to the seeded episode. Selecting an episode updates the link without reloading.
+
+## What is recorded, and what is schematic
+
+Ticks, observation ages, gate decisions, dispatch counts, episode outcomes and final
+cube heights are transcribed from run `ec2-e2e-20260923-160725`. The protocol panel is
+a readable summary; the source link opens the original JSONL. The arm poses and
+playback pacing are illustrative. They are **not recorded joint coordinates or a
+MuJoCo video**; no video was recorded for this run.
+
+To inspect the underlying messages from the repository root:
 
 ```sh
 python3 - <<'PY'
 import json
-for l in open('docs/examples/ec2-runner-a/events-stale_600ms.jsonl'):
-    e = json.loads(l); m = json.loads(e['line'])
-    if m.get('type') == 'proposal':
-        age = (m['simulation_time_ns'] - m['observation']['capture_time_ns']) // 10**6
-        print(m['simulation_tick'], m['proposed_action']['segment'], f'{age}ms')
-    elif e['dir'] == 'out':
-        print('   ->', m.get('decision'), m.get('reason', ''))
+from pathlib import Path
+path = Path('docs/examples/ec2-runner-a/events-stale_600ms.jsonl')
+for line in path.read_text().splitlines():
+    event = json.loads(line)
+    message = json.loads(event['line'])
+    if message.get('type') == 'proposal':
+        age = (message['simulation_time_ns']
+               - message['observation']['capture_time_ns']) // 10**6
+        print(message['simulation_tick'],
+              message['proposed_action']['segment'], f'{age} ms')
+    elif event['dir'] == 'out':
+        print('  ->', message.get('decision'), message.get('reason', ''))
+    elif message.get('type') == 'episode_end':
+        print(message)
 PY
 ```
 
-The arm drawing is a schematic, not a MuJoCo frame capture — the run did not record
-video. It is labelled as such on the page. Cube heights and all decision data are real.
-
-One thing the page deliberately does not claim: the two build phases measured 21.4 s
-and 21.9 s, which shows the accelerated path ran on both. That is not a speedup
-measurement, and the page says so rather than implying a benchmark.
+The 250 ms policy is a demonstration value, not a physical robot limit. Simulation
+is not hardware validation. Build phases measured 21.4 s and 21.9 s; they demonstrate
+that the Incredibuild build path ran, not a measured speedup.

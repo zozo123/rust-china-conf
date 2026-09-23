@@ -1,5 +1,8 @@
 # Committed example evidence
 
+> Archived evidence from the original revision. The 88 checks describe the original verifier, not a fresh run of today’s stricter verifier. Executables are omitted from this archive; regenerate full evidence with the current rehearsal. Workspace cleanup does not destroy an EC2 machine. Grid topology does not prove helper execution or cache reuse.
+
+
 [简体中文](README.md)
 
 Captured from a full local rehearsal (`scripts/robot-demo/rehearse.sh`,

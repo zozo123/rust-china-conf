@@ -77,14 +77,11 @@ body{
   <dl class="metrics">
     <div><dt>构建阶段</dt><dd id="mPhase" class="pend">—</dd></div>
     <div><dt>编译墙钟</dt><dd id="mWall" class="pend">—</dd></div>
-    <div><dt>分布式</dt><dd id="mIb" class="pend">—</dd></div>
+    <div><dt>IB 包装器</dt><dd id="mIb" class="pend">—</dd></div>
     <div><dt>陈旧派发</dt><dd id="mDisp" class="pend">—</dd></div>
   </dl>
 
-  <p class="note" id="note">
-    <b>数字来自 run ec2-e2e-20260923-160725。</b>
-    Incredibuild 只加速编译；测试与仿真场景始终重跑，从不从缓存恢复结论。
-  </p>
+  <p class="note" id="note"><b>Archived walkthrough / 历史走查。</b> Historical timings only; cache reuse, helper activity and VM destruction are unverified. 缓存复用、辅助节点执行与虚拟机销毁均未验证。 <a href="index.html">Current replay / 当前回放</a></p>
 </div>
 
 <script>
@@ -157,7 +154,7 @@ const F = [
   { s:4, phase:"运行器 B — 新实例，热工厂", runner:["b","运行器 B"], add:[
     ["cmd","$ scripts/robot-demo/warm.sh ec2-e2e-20260923-160725-runner-b"],
     ["dim","  全新实例 · 无先前产物 · 补丁打在精确基线上"],
-    ["","  cargo build --locked  (reusing parent-warmed cache namespace)"],
+    ["","  cargo build --locked  (cache reuse unverified)"],
   ], m:{phase:"warm", wall:"…", ib:"running", disp:null} },
   { s:4, add:[
     ["ok","  Finished dev profile — 21948 ms"],

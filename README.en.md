@@ -1,147 +1,139 @@
-# rust-china-conf
+# A Million Compiles. One Robot Hour.
 
-[简体中文](README.md) · this file is the English README.
+[简体中文](README.md) · [English website](https://zozo123.github.io/rust-china-conf/en/) · [Recorded replay](https://zozo123.github.io/rust-china-conf/demo/index.html?play=seeded&lang=en)
 
-**A Million Compiles. One Robot Hour.** — Disposable Runners, Warm Cargo Factory.
+**The robot succeeded. The freshness contract failed.**
 
-> Burn the runner. Keep the proof. Spare the robot.
+A simulated Panda arm lifts a cube using observations that are 600 ms old.
+The seeded Rust gate permits the motion even though its policy requires
+observations no older than 250 ms. A repaired candidate rejects that stale
+request and still completes the task with fresh observations.
 
-[![Real robosuite Panda arm lifting the cube](docs/assets/robot-lift.gif)](https://zozo123.github.io/rust-china-conf/)
+This repository demonstrates the surrounding validation loop: retain the
+failure, review a bounded patch, remove the first workspace, rebuild in a
+fresh workspace, and execute independent checks against the resulting binary.
 
-**[Open the website](https://zozo123.github.io/rust-china-conf/)** ·
-**[Replay the evidence](https://zozo123.github.io/rust-china-conf/demo/?play=seeded)** ·
-**[Read the 25-minute talk](docs/talk/talk-25min.en.md)** ·
-**[简体中文讲稿](docs/talk/talk-25min.md)**
+[Talk and speaker cues](docs/talk/talk-25min.en.md) ·
+[Six-minute runbook](docs/talk/runbook-6min.en.md) ·
+[Slide outline](docs/talk/slides.en.md) · [Architecture and readiness](docs/plan.md)
 
-Real robosuite / MuJoCo frames, recorded while the Rust gate authorized each
-of the four motion segments. Not a separately animated robot.
+## Run the local checks
 
-## The loop
-
-![The validation loop, end to end](docs/assets/validation-loop.en.gif)
-
-Cold distributed build on a disposable runner → three failing contract tests →
-four dispatches permitted on a 600 ms-old observation → bounded agent patch →
-**runner destroyed** → new runner rebuilds warm → 10/10 tests → zero stale
-dispatches → 88/88 protected checks bound to the executable's digest.
-
-Both build phases ran through Incredibuild (`ib: true` in the evidence). Cold
-measured 21426 ms and warm 21948 ms, so **the warm phase was 522 ms slower.**
-That demonstrates the accelerated path survived the runner being destroyed; it
-is not a speedup measurement, and no speedup is claimed anywhere in this repo.
-The controlled benchmark that would support such a claim is specified in
-[`docs/talk/talk-25min.md`](docs/talk/talk-25min.md) and has not been run.
-
-Regenerate either GIF from the pinned environment:
+Requires the pinned Rust **1.92.0** toolchain and Python **3.10+**.
+The mock backend needs no third-party Python packages.
 
 ```bash
-scripts/robot-demo/record-gif.sh        # real simulator footage
-scripts/robot-demo/record-loop-gif.sh   # the loop walkthrough
+python3 scripts/robot-demo/check.py
 ```
 
-An end-to-end **software-in-the-loop (SIL)** demonstration: a simulated Panda
-arm lifts a cube (robosuite `Lift`). A deliberately seeded bug in a Rust
-supervisor permits pickup actions from stale observations. A coding agent
-repairs the bug. A fresh, isolated runner rebuilds the candidate and the
-**actual resulting executable** rejects the stale case and completes the
-fresh case in the simulator.
+This checks the current checkout, including uncommitted source, in a disposable
+copy. It requires exactly the three intentional seeded contract failures,
+reproduces the stale-dispatch defect, confirms that verification rejects it,
+then applies the reviewed patch only in the copy. The patched workspace tests,
+negative protocol/verifier tests, and all 17 mock scenarios must pass.
 
-Full plan: [`docs/plan.md`](docs/plan.md) · Website:
-[`docs/index.html`](docs/index.html) · Talk script:
-[`docs/talk/talk-25min.en.md`](docs/talk/talk-25min.en.md) · Stage runbook:
-[`docs/talk/runbook-6min.en.md`](docs/talk/runbook-6min.en.md)
+Logs and exported artifacts remain under `evidence/check-<timestamp>/`.
+Mock results demonstrate protocol and software behavior, **not MuJoCo physics**.
 
-## The story in one minute
+## Rehearse the runner lifecycle
 
-1. `robot-safety-gate` is a pure Rust decision contract: simulated
-   emergency stop first, invalid/future timestamps rejected, task actions
-   permitted only when the observation is ≤ 250 ms old at dispatch.
-2. **The seeded defect** (a labeled conference fixture): the freshness check
-   is omitted. A 600 ms-delayed observation stream gets permitted pickups.
-   Nothing crashes — a *protected assertion* catches it.
-3. An agent gets a bounded work order and produces a 49-line patch
-   (reviewed fallback: [`demo/fallback-patch.diff`](demo/fallback-patch.diff),
-   branch `agent/fix-stale-observation`).
-4. Runner A (isolated sandbox) is **destroyed**. Runner B — a new isolated
-   sandbox — applies the patch to the exact base, rebuilds, and re-runs the
-   protected checks.
-5. The patched executable: stale episode → `rejected_stale`, **zero** task
-   dispatches; fresh episode → `cube_lifted`. Protected verifier: 88/88.
-
-## Quickstart
+Runner scripts use the **committed revision**. Commit your intended source
+before rehearsing; use `check.py` while editing.
 
 ```bash
-# 1. Rust toolchain (1.78+) and Python 3.10+ for the mock backend
-cargo build --manifest-path rust/Cargo.toml --locked
-
-# 2. Run the failing acceptance case on the seeded revision (mock backend)
-./rust/target/debug/swf-cli robot-demo run --scenario stale_600ms --backend mock --run-id demo
-
-# 3. Full arc: runner A (cold, failing) → patch → runner B (warm) → verdict
 scripts/robot-demo/rehearse.sh my-rehearsal
 ```
 
-### Real simulator backend (SIL)
+A and B receive separate run IDs and fresh Cargo outputs. B consumes A's
+exported base revision. The default candidate is `demo/fallback-patch.diff`;
+the script **does not invoke an LLM**. To use an externally produced patch:
+
+```bash
+ROBOT_DEMO_PATCH_FILE=/absolute/path/candidate.patch \
+  scripts/robot-demo/rehearse.sh agent-rehearsal
+```
+
+The allowlist permits changes only to the gate implementation. Protected tests,
+scenario fixtures, simulator, and verifier remain outside the candidate patch.
+Failed runs retain partial evidence and clean up their temporary worktrees.
+
+Validate an existing complete matrix with:
+
+```bash
+scripts/robot-demo/validate.sh my-rehearsal-runner-b
+# A deliberately selected single scenario:
+scripts/robot-demo/validate.sh one-run --scenario fresh_lift
+```
+
+## Real simulator on the Linux IB initiator
 
 ```bash
 uv venv --python 3.12 demo/robot-sim/.venv
 uv pip install -p demo/robot-sim/.venv -r demo/robot-sim/requirements-linux.txt
-ROBOT_DEMO_BACKEND=robosuite \
-ROBOT_DEMO_PYTHON=$PWD/demo/robot-sim/.venv/bin/python3 \
-  scripts/robot-demo/rehearse.sh sil-run
+REQUIRE_IB=1 ROBOT_DEMO_BACKEND=robosuite \
+ROBOT_DEMO_PYTHON="$PWD/demo/robot-sim/.venv/bin/python3" \
+  scripts/robot-demo/rehearse.sh linux-rehearsal
 ```
 
-Verified on CPython 3.12 / robosuite 1.5.2 / MuJoCo 3.9.0. The pinned
-requirements target Linux x86-64; the rehearsal also runs on macOS arm64.
+The archived Linux run used CPython 3.12.14, robosuite 1.5.2 and MuJoCo 3.9.0.
+The dependency file targets Linux x86-64. Keep Rust and the Python simulator
+together on that host; the presenter laptop displays their evidence.
 
-## Seeded defect (conference fixture)
+## Stack and scope
 
-`main` intentionally carries the regression: `tests/contract.rs` fails on
-the stale-observation cases **by design** — that failure is the demo. The
-reviewed fix ships as `demo/fallback-patch.diff` and on branch
-`agent/fix-stale-observation`. Do not "repair" main outside the scripted
-agent workflow. The 250 ms threshold is an illustrative demo policy, **not**
-an established safe threshold for physical robots.
+| Component | Responsibility |
+| --- | --- |
+| Coding agent, when supplied externally | Propose a bounded implementation change |
+| Rust gate | Simulated stop precedence, timestamp validity, segment-dispatch freshness |
+| Rust application / CLI | Subprocess protocol, identity and ordering, timeouts, evidence |
+| Python + robosuite / MuJoCo | Scripted Panda Lift task using simulator-provided state |
+| Incredibuild | Compilation integration through `ib_console` and the `rustc` profile |
+| Protected verifier | Complete scenario coverage, chronological trace checks, artifact identity |
+| Runner scripts | Temporary Git worktrees, fresh outputs, export and cleanup |
 
-## Architecture
+The current implementation deletes **workspaces**, not Linux machines.
+The verified deployment used EC2-backed hosts. **Islo is a planned provider**;
+an islo credential does not enable remote dispatch in the checked-in scripts.
 
+The gate checks before each motion segment; a segment contains multiple
+simulator control steps. This does not establish continuous supervision,
+physical emergency-stop behavior, hardware-in-the-loop, or robot safety.
+The 250 ms threshold is an illustrative policy, not a hardware limit.
+
+## What the historical evidence says
+
+Run `ec2-e2e-20260923-160725` contains 17 simulator episodes:
+10 lifts, 5 stale rejections, 1 simulated stop, and 1 timeout.
+Its original revision reported 10/10 gate tests and 88/88 verifier checks.
+Those counts do not describe the strengthened current suite.
+
+Build phase A measured **21.426 s**, phase B **21.948 s**. B was **522 ms slower**.
+Both metrics records indicate IB use. They do not establish helper execution,
+controlled cache state, cache reuse, or a speedup. New metrics explicitly mark
+cache reuse as unverified. The controlled benchmark remains outstanding.
+
+The historical executable is not committed. Its digest identifies the recorded
+artifact, but cloning the logs cannot independently recheck that binary.
+A new rehearsal exports its executable for verification.
+[Evidence notes](docs/examples/README.en.md)
+
+## Website maintenance
+
+Chinese and English landing pages are static, including their titles and share
+metadata. Edit the shared template and translations under `scripts/site/`:
+
+```bash
+python3 scripts/site/build.py
+python3 scripts/site/build.py --check
+python3 -m http.server 8765 --directory docs
 ```
-agents → disposable runners → warm Cargo factory [IB] → retained evidence
-       → simulation → future HIL / robot gate (not performed)
-```
 
-| Component | Owns |
-|---|---|
-| `rust/crates/robot-safety-gate` | Pure decision contract; controlled clock inputs; typed rejections |
-| `rust/crates/swf-app` / `swf-cli` | Scenario identity, bridge subprocess protocol, decision logging, timeouts |
-| `demo/robot-sim/bridge.py` | Sim state, proposal generation, authorization enforcement, stepping |
-| `demo/robot-sim/scripted_controller.py` | Rehearsed approach/grasp/lift proposals (no learning) |
-| `demo/robot-sim/acceptance/verify_run.py` | **Protected** verifier: trace assertions, artifact identity |
-| `scripts/robot-demo/*.sh` | Runner A/B lifecycle: isolated git-worktree sandboxes, fresh outputs, export, teardown |
-| `evidence/<run-id>/` | Manifest, events, results, build metrics, agent context, artifact digest |
+Open `docs/index.html` or `docs/en/index.html` directly for offline use.
+The matrix is generated from the committed results. The robot video has native
+play/pause controls and starts paused. The replay also supports manual stepping.
 
-Protocol invariants: one task action outstanding at a time; approvals valid
-only for the exact action + tick; malformed/timed-out bridge → explicit
-episode failure, never default authorization; rejections produce no
-dispatch; hold steps are labeled and may still advance physics.
+## Deliberate seeded defect
 
-## Honest scope
-
-- Performed: Rust contract checks, bridge checks, simulated robot scenarios.
-- **Not** performed: hardware HIL, physical validation, trained vision
-  (cube pose is simulator state; camera feed is for the audience).
-- The `mock` backend is a kinematic stand-in for CI/dev, labeled in every
-  message; mock results are not simulation results.
-- Incredibuild accelerates **compilation only**; tests and scenario checks
-  always re-execute. Where no IB wrapper is present, scripts say so and
-  report a labeled native baseline instead of claiming acceleration.
-- Runners are isolated local git worktrees with fresh `CARGO_TARGET_DIR`s.
-  A remote sandbox provider (islo) can be configured via a gitignored
-  `.env.local` (`ISLO_SANDBOX_KEY`) — never committed.
-
-## Coverage matrix
-
-5 reachable placements × 3 freshness scenarios (0 / 50 / 600 ms) + simulated
-e-stop + protocol-timeout = 17 episodes, all validated by the protected
-verifier against the actual built artifact. Example evidence from a real
-robosuite rehearsal: [`docs/examples/`](docs/examples/README.md).
+Do not remove the missing freshness check from `main`: its failure is the
+conference fixture. Apply the fallback or candidate patch inside the validation
+workflow. The current checkout remains a useful red-to-green demonstration.

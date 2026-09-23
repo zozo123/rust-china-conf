@@ -8,9 +8,9 @@
 <style>
 /* ---------------------------------------------------------------
    Stage visual for "A Million Compiles. One Robot Hour."
-   Every number is read from the committed evidence of run
-   ec2-e2e-20260923-160725 (docs/examples/ec2-runner-*). Nothing here
-   is illustrative: the traces below are the recorded protocol messages.
+   Decision data is transcribed from committed evidence of run
+   ec2-e2e-20260923-160725 (docs/examples/ec2-runner-*). Arm poses
+   and playback pacing are schematic; the trace is a readable summary.
    Self-contained and offline-capable; fonts degrade to a system stack.
    --------------------------------------------------------------- */
 :root{
@@ -21,12 +21,12 @@
   --rule:#2a343e;
   --rule-bright:#3a4855;
   --ink:#e9eef2;
-  --ink-dim:#8998a6;
-  --ink-faint:#5d6b78;
+  --ink-dim:#a6b3bf;
+  --ink-faint:#95a4b1;
   /* functional machine states — never used decoratively */
   --permit:#57a874;
   --hold:#e3982c;      /* amber: refused + holding, per interlock convention */
-  --estop:#c8412f;
+  --estop:#ef8172;
   --cube:#c8763c;
   --steel:#7d8b98;
 }
@@ -54,20 +54,20 @@ body{
 }
 .plate .sub{color:var(--ink-dim);font-size:15px}
 .plate .id{
-  margin-left:auto;color:var(--ink-faint);font-size:13.5px;
+  overflow-wrap:anywhere; margin-left:auto;color:var(--ink-faint);font-size:13.5px;
 }
 .lang{display:flex;gap:2px;margin-left:14px}
 .lang button{
   font:500 13px/1 "Noto Sans SC","PingFang SC",sans-serif;
   color:var(--ink-faint);background:transparent;border:0;padding:4px 7px;cursor:pointer;
 }
-.lang button[aria-pressed="true"]{color:var(--ink)}
+.lang button[aria-pressed="true"]{background:var(--ink);color:var(--panel)}
 .lang button:focus-visible{outline:2px solid var(--hold);outline-offset:2px}
 
 /* ---- main split ------------------------------------------------- */
 .split{display:grid;grid-template-columns:1.05fr .95fr;gap:18px;margin-top:18px}
 @media(max-width:1040px){.split{grid-template-columns:1fr}}
-.bay{background:var(--panel-raised);border:1px solid var(--rule);padding:18px 20px}
+.bay{min-width:0;background:var(--panel-raised);border:1px solid var(--rule);padding:18px 20px}
 .bay h2{
   margin:0 0 14px;font-size:14.5px;font-weight:600;color:var(--ink-dim);
   display:flex;justify-content:space-between;align-items:baseline;gap:12px;
@@ -108,7 +108,7 @@ body{
   width:19px;height:19px;border-radius:50%;flex:0 0 auto;
   background:var(--ink-faint);box-shadow:0 0 0 4px rgba(255,255,255,.04);
 }
-.verdict .word{font-size:41px;font-weight:700;line-height:1;letter-spacing:-.015em}
+.verdict .word{font-size:clamp(26px,4vw,38px);font-weight:700;line-height:1;letter-spacing:-.015em}
 .verdict .why{color:var(--ink-dim);font-size:15px;margin-top:5px}
 .verdict[data-state="permit"]{border-color:var(--permit)}
 .verdict[data-state="permit"] .lamp{background:var(--permit);box-shadow:0 0 16px var(--permit)}
@@ -175,36 +175,83 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
 .evidence{margin-top:18px;border:1px solid var(--rule);border-left:3px solid var(--permit);background:var(--panel-raised);padding:15px 19px}
 .evidence dl{display:grid;grid-template-columns:repeat(auto-fit,minmax(272px,1fr));gap:14px 30px;margin:0}
 .evidence dt{color:var(--ink-faint);font-size:12.5px;margin:0}
-.evidence dd{margin:2px 0 0;font-family:"IBM Plex Mono",monospace;font-size:14px;overflow-wrap:break-word}
+.evidence dd{margin:2px 0 0;font-family:"IBM Plex Mono",monospace;font-size:14px;overflow-wrap:anywhere}
 .evidence dd.hash{word-break:break-all}
 .evidence .pass{color:var(--permit);font-weight:600}
 .caveat{margin-top:14px;padding-top:13px;border-top:1px solid var(--rule);color:var(--ink-dim);font-size:14.5px;max-width:78ch}
 .caveat b{color:var(--ink);font-weight:600}
 
+a{color:var(--ink);text-underline-offset:4px}
+a:hover{color:var(--hold)}
+a:focus-visible{outline:2px solid var(--hold);outline-offset:4px}
+.skip-link{position:absolute;top:-100px;left:20px;padding:12px;background:var(--panel);z-index:10}
+.skip-link:focus{top:10px}
+.topnav{display:flex;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:18px;font-size:14px;color:var(--ink-dim)}
+.intro{max-width:82ch;margin:20px 0;color:var(--ink-dim);font-size:16px}
+.intro strong{color:var(--ink)}
+.outcomes{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:16px 0 0}
+.outcomes div{padding:12px;border:1px solid var(--rule-bright);background:var(--panel-sunk)}
+.outcomes dt{font-size:13px;color:var(--ink-dim)}
+.outcomes dd{font-size:21px;font-weight:700;margin:5px 0}
+.outcomes small{display:block;font-size:12px;color:var(--ink-dim)}
+.outcomes [data-state="pass"] dd{color:var(--permit)}
+.outcomes [data-state="fail"] dd{color:var(--estop)}
+.outcomes [data-state="held"] dd{color:var(--hold)}
+.playback{display:flex;flex-wrap:wrap;gap:8px;margin-top:14px;align-items:center}
+.playback button{font-size:14px;padding:8px 12px}
+button:disabled{opacity:.45;cursor:default}
+.playback-status,.keys{color:var(--ink-dim);font-size:13px;margin:10px 0 0}
+.source{font-size:13px;margin:12px 0 0;overflow-wrap:anywhere}
+.table-scroll{overflow-x:auto;border:1px solid var(--rule)}
+.matrix table{border-collapse:collapse;width:100%;min-width:660px;font-size:14px}
+.matrix caption{text-align:left;padding:12px;color:var(--ink-dim);background:var(--panel-sunk)}
+.matrix th,.matrix td{text-align:left;padding:11px 13px;border:1px solid var(--rule);background:var(--panel-raised)}
+.matrix thead th{font-size:13px;color:var(--ink-dim);background:var(--panel-sunk);font-weight:500}
+.matrix tbody th{font:13px "IBM Plex Mono",monospace}
+.matrix td b{display:block;color:var(--permit);font-weight:600}
+.matrix td.stale b{color:var(--hold)}
+.matrix td small{display:block;color:var(--ink-dim);font-size:12px;margin-top:3px}
+.sr-only{position:absolute;width:1px;height:1px;padding:0;margin:-1px;overflow:hidden;clip:rect(0,0,0,0);white-space:nowrap;border:0}
+@media(max-width:620px){
+  .wrap{padding:14px 14px 36px}.bay{padding:15px}.plate{padding:12px}
+  .plate h1{font-size:23px}.plate .id{margin-left:0;font-size:11px}.lang{margin-left:auto}
+  .readouts dd{font-size:16px}.readouts div{padding:10px 7px}
+  .controls{display:grid;grid-template-columns:1fr}.controls button{text-align:left}
+  .verdict{padding:16px 12px;gap:12px}.outcomes dd{font-size:18px}
+  .extra{grid-template-columns:1fr}.extra>div{flex-wrap:wrap}
+  .bay h2{flex-wrap:wrap}.matrix h2{flex-wrap:wrap}
+  .evidence dl{grid-template-columns:1fr}.trace{font-size:12px;padding:12px}
+}
 @media (prefers-reduced-motion:reduce){
   .gauge .fill{transition:none}
 }
 </style>
 </head>
 <body>
-<div class="wrap">
+<a class="skip-link" href="#replay" data-i18n="skip">跳到回放</a>
+<main class="wrap">
+  <nav class="topnav" aria-label="页面导航" data-i18n-attr="aria-label:navAria">
+    <a href="../index.html" data-i18n="back">← 返回演讲</a>
+    <span data-i18n="recorded">已记录证据 · 离线回放 · 无实时机器人连接</span>
+  </nav>
 
   <div class="plate">
     <h1 data-i18n="title">机器人安全门</h1>
     <div class="sub" data-i18n="sub">仿真 Panda 机械臂 · 观测新鲜度联锁</div>
     <div class="id mono">run ec2-e2e-20260923-160725</div>
-    <div class="lang" role="group" aria-label="语言">
+    <div class="lang" role="group" aria-label="语言" data-i18n-attr="aria-label:language">
       <button type="button" data-lang-btn="zh" aria-pressed="true">中文</button>
       <button type="button" data-lang-btn="en" aria-pressed="false">EN</button>
     </div>
   </div>
 
-  <div class="split">
+  <p class="intro" data-i18n-html="intro"><strong>方块举起来了，安全契约却失败了。</strong>先看植入缺陷的构建如何接受陈旧观测，再用相同输入比较修复后的构建，最后确认新鲜观测仍可完成任务。</p>
+  <div class="split" id="replay" tabindex="-1">
     <!-- LEFT: the decision -->
     <section class="bay">
       <h2><span data-i18n="gateH">派发时的门裁决</span> <span id="segLabel">idle</span></h2>
 
-      <div class="gauge" id="gauge">
+      <div class="gauge" id="gauge" role="meter" aria-valuemin="0" aria-valuemax="600" aria-valuenow="0" aria-label="观测年龄（毫秒）" data-i18n-attr="aria-label:ageAria">
         <div class="fill" id="gaugeFill"></div>
         <div class="limit"></div>
         <div class="val mono" id="gaugeVal">—</div>
@@ -216,7 +263,7 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
       </div>
 
       <div class="verdict" id="verdict" data-state="idle">
-        <div class="lamp"></div>
+        <div class="lamp" aria-hidden="true"></div>
         <div>
           <div class="word" id="verdictWord">待机</div>
           <div class="why" id="verdictWhy">选择一个回合，回放其已记录轨迹。</div>
@@ -229,11 +276,25 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
         <div><dt data-i18n="dtH">方块高度</dt><dd id="rHeight">—</dd></div>
       </dl>
 
-      <div class="controls">
-        <button id="btnStale" aria-pressed="false" data-i18n="btnStale">陈旧回合 · 600 ms</button>
-        <button id="btnFresh" aria-pressed="false" data-i18n="btnFresh">新鲜回合 · 0 ms</button>
-        <button id="btnSeeded" aria-pressed="false" data-i18n="btnSeeded">植入构建 · 同一陈旧输入</button>
+      <dl class="outcomes" aria-label="两个独立结果" data-i18n-attr="aria-label:outcomesAria">
+        <div id="taskOutcome"><dt data-i18n="taskResult">任务完成？</dt><dd id="taskValue">—</dd><small id="taskDetail">success=…</small></div>
+        <div id="contractOutcome"><dt data-i18n="contractResult">新鲜度契约通过？</dt><dd id="contractValue">—</dd><small id="contractDetail">age ≤ 250 ms</small></div>
+      </dl>
+      <div class="controls" role="group" aria-label="选择回合" data-i18n-attr="aria-label:episodeAria">
+        <button type="button" id="btnSeeded" aria-pressed="true" aria-keyshortcuts="1" data-i18n="btnSeeded">1 · 植入缺陷 · 600 ms</button>
+        <button type="button" id="btnStale" aria-pressed="false" aria-keyshortcuts="2" data-i18n="btnStale">2 · 修复后 · 600 ms</button>
+        <button type="button" id="btnFresh" aria-pressed="false" aria-keyshortcuts="3" data-i18n="btnFresh">3 · 修复后 · 0 ms</button>
       </div>
+      <div class="playback" role="group" aria-label="回放控制" data-i18n-attr="aria-label:playbackAria">
+        <button type="button" id="btnPlay" aria-keyshortcuts="Space" data-i18n="play">播放</button>
+        <button type="button" id="btnStep" aria-keyshortcuts="ArrowRight" data-i18n="step">下一步</button>
+        <button type="button" id="btnRestart" aria-keyshortcuts="R" data-i18n="restart">重置</button>
+        <button type="button" id="btnResult" data-i18n="result">查看结果</button>
+      </div>
+      <p class="playback-status" id="playbackStatus"></p>
+      <p class="keys" data-i18n="keys">快捷键：1–3 选择回合 · 空格 播放/暂停 · → 下一步 · R 重置</p>
+      <p class="source"><a id="sourceLink" href="../examples/ec2-runner-a/events-stale_600ms.jsonl" data-i18n="source">查看此回合的原始事件日志 ↗</a></p>
+      <p id="announcement" class="sr-only" role="status" aria-live="polite" aria-atomic="true"></p>
     </section>
 
     <!-- RIGHT: the scene -->
@@ -280,7 +341,7 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
         </g>
       </svg>
       <p class="scene-note" id="sceneNote" data-i18n="sceneNote">
-        位置来自已记录事件日志，方块高度是仿真器报告值；这不是 MuJoCo 帧截取。陈旧性通过回放更早的真实观测注入，仿真时间仍在前进，方块本身不动——过期的是门拿到的信息，不是场景。
+        机械臂姿态与播放节奏是示意，不是 MuJoCo 录像。tick、观测年龄、裁决和最终方块高度来自已提交日志。陈旧观测通过回放更早的真实观测注入。
       </p>
     </section>
   </div>
@@ -288,8 +349,8 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
   <!-- TRACE -->
   <section class="bay trace-bay" style="margin-top:18px">
     <h2><span data-i18n="traceH">协议轨迹</span> <span data-i18n="traceS">观测 → 门裁决 → 派发或保持</span></h2>
-    <div class="trace" id="trace" aria-live="polite">
-      <p data-i18n="traceReady">就绪。下面每一行都从已提交事件日志回放。</p>
+    <div class="trace" id="trace" tabindex="0" role="region" aria-label="协议轨迹摘要" data-i18n-attr="aria-label:traceAria">
+      <p data-i18n="traceReady">就绪。下方是已提交事件日志的可读摘要。</p>
     </div>
   </section>
 
@@ -299,11 +360,17 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
       <span data-i18n="matH">全部 17 个已记录回合</span>
       <span style="font-size:13px;color:var(--ink-faint)" data-i18n="matS">补丁构建 · 每个格子都是一次完成的仿真运行</span>
     </h2>
-    <div class="grid" id="mgrid">
-      <div class="hd" data-i18n="hdPlace">方块位置</div>
-      <div class="hd" data-i18n="hd0">观测 0 ms</div>
-      <div class="hd" data-i18n="hd50">观测 50 ms</div>
-      <div class="hd" data-i18n="hd600">观测 600 ms</div>
+    <div class="table-scroll" tabindex="0" role="region" aria-label="17 个回合的结果矩阵" data-i18n-attr="aria-label:matrixAria">
+      <table>
+        <caption data-i18n="matrixCaption">15 个位置 × 年龄组合，加上下方的急停与超时回合。</caption>
+        <thead><tr>
+          <th scope="col" data-i18n="hdPlace">方块位置</th>
+          <th scope="col" data-i18n="hd0">观测 0 ms</th>
+          <th scope="col" data-i18n="hd50">观测 50 ms</th>
+          <th scope="col" data-i18n="hd600">观测 600 ms</th>
+        </tr></thead>
+        <tbody id="mgrid"></tbody>
+      </table>
     </div>
     <div class="extra">
       <div><b class="estop" data-i18n="estop">急停</b><span data-i18n="estopS">1 次派发后在 tick 10 保持 — 停止压过其余所有规则</span></div>
@@ -312,48 +379,63 @@ button[aria-pressed="true"]{background:var(--ink);color:var(--panel);border-colo
   </section>
 
   <!-- EVIDENCE -->
-  <section class="evidence">
+  <section class="evidence" aria-label="补丁构建的验证证据" data-i18n-attr="aria-label:evidenceAria">
     <dl>
       <div><dt data-i18n="evV">受保护校验器</dt><dd class="pass" data-i18n="evVV">88 / 88 项检查通过</dd></div>
       <div><dt data-i18n="evSim">仿真器</dt><dd>robosuite 1.5.2 · MuJoCo 3.9.0</dd></div>
       <div><dt data-i18n="evB">构建</dt><dd data-i18n="evBB">Incredibuild 4.31.0 · 两个阶段</dd></div>
-      <div><dt data-i18n="evT">补丁构建上的 Rust 测试</dt><dd>10 / 10 · 8 contract + 2 unit</dd></div>
+      <div><dt data-i18n="evT">历史补丁构建的 Rust 测试</dt><dd>10 / 10 · 8 contract + 2 unit</dd></div>
       <div><dt data-i18n="evHsh">被测可执行文件 sha256</dt><dd class="hash">f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326</dd></div>
       <div><dt data-i18n="evP">新鲜度策略</dt><dd data-i18n="evPP">250 ms — 演示值，不是硬件限</dd></div>
     </dl>
     <p class="caveat" data-i18n-html="caveat">
-      <b>这说明什么。</b> Rust 契约检查、桥接检查与仿真机器人场景，用摘要绑定到做出这些裁决的可执行文件。未做硬件在环与实体验证；方块位姿来自仿真器状态，不是训练视觉。构建阶段测得 21.4 s 与 21.9 s；这证明加速路径跑过，不是加速测量。
+      <b>这说明什么。</b> Rust 契约检查、桥接检查与仿真机器人场景，用摘要绑定到做出这些裁决的可执行文件。未做硬件在环与实体验证；方块位姿来自仿真器状态，不是训练视觉。构建阶段测得 21.4 s 与 21.9 s；这表明 Incredibuild 构建路径已运行；辅助节点参与、缓存复用与加速效果仍未验证。
     </p>
   </section>
-</div>
+  <noscript><p>此回放需要 JavaScript。 / This replay requires JavaScript. <a href="../examples/ec2-runner-b/scenario-results.json">Recorded scenario results</a></p></noscript>
+</main>
 
 <script src="../assets/lang.js"></script>
 <script>
 "use strict";
 const COPY = {
   zh: {
+    skip:"跳到回放", back:"← 返回演讲", navAria:"页面导航", language:"语言",
+    recorded:"已记录证据 · 离线回放 · 无实时机器人连接",
+    intro:"<strong>方块举起来了，安全契约却失败了。</strong>先看植入缺陷的构建如何接受陈旧观测，再用相同输入比较修复后的构建，最后确认新鲜观测仍可完成任务。",
+    ageAria:"观测年龄（毫秒）", outcomesAria:"两个独立结果", taskResult:"任务完成？", contractResult:"新鲜度契约通过？",
+    episodeAria:"选择回合", playbackAria:"回放控制", play:"播放", pause:"暂停", replay:"重新播放", step:"下一步", restart:"重置", result:"查看结果",
+    keys:"快捷键：1–3 选择回合 · 空格 播放/暂停 · → 下一步 · R 重置",
+    source:"查看此回合的原始事件日志 ↗", traceAria:"协议轨迹摘要", matrixAria:"17 个回合的结果矩阵",
+    matrixCaption:"15 个位置 × 年龄组合，加上下方的急停与超时回合。", evidenceAria:"修复后构建的验证证据",
+    pending:"待揭晓", taskYes:"是 · 已举起", taskNo:"否 · 已保持", contractPass:"通过", contractFail:"失败",
+    contractRule:"只允许 age ≤ 250 ms 的观测派发", contractBroken:"600 ms > 250 ms，仍然派发", contractHeld:"拒绝 600 ms 观测，0 次派发", contractFresh:"4 次派发均使用当前观测",
+    taskPending:"等待 episode_end", waitingAge:"等待观测", seededRun:"植入缺陷 · 同一陈旧输入", staleRun:"修复后 · 同一陈旧输入", freshRun:"修复后 · 新鲜输入",
+    readyStatus:"已就绪 · 播放或逐步查看", playingStatus:"回放中", pausedStatus:"已暂停", finishedStatus:"回放结束", progress:"{n}/{total} 个裁决", reducedStatus:"减少动态效果：默认暂停，可逐步查看。",
+    waitingDecision:"等待已记录裁决。", heldWhy:"按契约拒绝陈旧观测，任务未派发。", ended:"回合结束",
+    placement_center:"中间", placement_left:"左侧", placement_right:"右侧", placement_near:"近端", placement_far:"远端",
     title:"机器人安全门", sub:"仿真 Panda 机械臂 · 观测新鲜度联锁",
     gateH:"派发时的门裁决", lim:"250 ms 限",
     dtDisp:"任务派发", dtTick:"仿真 tick", dtH:"方块高度",
-    btnStale:"陈旧回合 · 600 ms", btnFresh:"新鲜回合 · 0 ms", btnSeeded:"植入构建 · 同一陈旧输入",
+    btnStale:"2 · 修复后 · 600 ms", btnFresh:"3 · 修复后 · 0 ms", btnSeeded:"1 · 植入缺陷 · 600 ms",
     armH:"机械臂与方块", armS:"按已记录遥测的示意回放",
     sceneAria:"机械臂与方块的侧面示意，按已记录回合遥测回放。",
-    sceneNote:"位置来自已记录事件日志，方块高度是仿真器报告值；这不是 MuJoCo 帧截取。陈旧性通过回放更早的真实观测注入，仿真时间仍在前进，方块本身不动——过期的是门拿到的信息，不是场景。",
-    traceH:"协议轨迹", traceS:"观测 → 门裁决 → 派发或保持",
-    traceReady:"就绪。下面每一行都从已提交事件日志回放。",
+    sceneNote:"机械臂姿态与播放节奏是示意，不是 MuJoCo 录像。tick、观测年龄、裁决和最终方块高度来自已提交日志。陈旧观测通过回放更早的真实观测注入。",
+    traceH:"协议轨迹", traceS:"日志摘要 · 观测 → 裁决 → 派发或保持",
+    traceReady:"就绪。下方是已提交事件日志的可读摘要。",
     matH:"全部 17 个已记录回合", matS:"补丁构建 · 每个格子都是一次完成的仿真运行",
     hdPlace:"方块位置", hd0:"观测 0 ms", hd50:"观测 50 ms", hd600:"观测 600 ms",
     estop:"急停", estopS:"1 次派发后在 tick 10 保持 — 停止压过其余所有规则",
     timeout:"桥接超时", timeoutS:"tick 0 显式失败 — 缺失的批准永远不是同意",
-    evV:"受保护校验器", evVV:"88 / 88 项检查通过", evSim:"仿真器",
+    evV:"历史校验器 · 原始版本", evVV:"88 / 88 项检查通过", evSim:"仿真器",
     evB:"构建", evBB:"Incredibuild 4.31.0 · 两个阶段",
-    evT:"补丁构建上的 Rust 测试", evHsh:"被测可执行文件 sha256",
+    evT:"历史补丁构建的 Rust 测试", evHsh:"被测可执行文件 sha256",
     evP:"新鲜度策略", evPP:"250 ms — 演示值，不是硬件限",
-    caveat:"<b>这说明什么。</b> Rust 契约检查、桥接检查与仿真机器人场景，用摘要绑定到做出这些裁决的可执行文件。未做硬件在环与实体验证；方块位姿来自仿真器状态，不是训练视觉。构建阶段测得 21.4 s 与 21.9 s；这证明加速路径跑过，不是加速测量。",
+    caveat:"<b>这说明什么。</b> Rust 契约检查、桥接检查与仿真机器人场景，用摘要绑定到做出这些裁决的可执行文件。未做硬件在环与实体验证；方块位姿来自仿真器状态，不是训练视觉。构建阶段测得 21.4 s 与 21.9 s；这表明 Incredibuild 构建路径已运行；辅助节点参与、缓存复用与加速效果仍未验证。",
     standby:"待机", choose:"选择一个回合，回放其已记录轨迹。",
     replaying:"回放中…", permit:"允许", reject:"拒绝",
     complete:"任务完成", completeWhy:"在当前信息下举起方块。",
-    undetected:"未检出",
+    undetected:"契约失败",
     heldTitle:"机械臂保持", heldSub:"未发出运动指令",
     lifted:"举起", refused:"拒绝",
     liftSmall:"4 次派发 · {n} tick", refuseSmall:"0 次派发 · 在 tick {n} 保持",
@@ -367,28 +449,42 @@ const COPY = {
     alarm:"任务在陈旧数据上“成功”。只有受保护断言抓住这一点。"
   },
   en: {
+    skip:"Skip to replay", back:"← Back to the talk", navAria:"Page navigation", language:"Language",
+    recorded:"Recorded evidence · offline replay · no live robot connection",
+    intro:"<strong>The cube lifts. The freshness contract fails.</strong>Start with the seeded defect accepting stale observations, compare the repaired build on the same input, then confirm that fresh observations still complete the task.",
+    ageAria:"Observation age in milliseconds", outcomesAria:"Two independent outcomes", taskResult:"Task completed?", contractResult:"Freshness contract passed?",
+    episodeAria:"Choose an episode", playbackAria:"Playback controls", play:"Play", pause:"Pause", replay:"Replay", step:"Next step", restart:"Reset", result:"Show result",
+    keys:"Keys: 1–3 choose episode · Space play/pause · → next step · R reset",
+    source:"Open this episode’s original event log ↗", traceAria:"Protocol trace summary", matrixAria:"Results of all 17 recorded episodes",
+    matrixCaption:"15 placement × age combinations, plus the emergency-stop and timeout episodes below.", evidenceAria:"Validation evidence for the repaired build",
+    pending:"Pending", taskYes:"Yes · cube lifted", taskNo:"No · arm held", contractPass:"Passed", contractFail:"Failed",
+    contractRule:"Dispatch only when age ≤ 250 ms", contractBroken:"600 ms > 250 ms, yet dispatched", contractHeld:"600 ms refused; 0 dispatches", contractFresh:"All 4 dispatches used current observations",
+    taskPending:"Awaiting episode_end", waitingAge:"Awaiting observation", seededRun:"Seeded defect · same stale input", staleRun:"Repaired · same stale input", freshRun:"Repaired · fresh input",
+    readyStatus:"Ready · play or step through", playingStatus:"Replaying", pausedStatus:"Paused", finishedStatus:"Replay complete", progress:"{n}/{total} decisions", reducedStatus:"Reduced motion: starts paused; step through at your own pace.",
+    waitingDecision:"Awaiting recorded decision.", heldWhy:"The contract refused stale input. No task motion was dispatched.", ended:"Episode ended",
+    placement_center:"center", placement_left:"left", placement_right:"right", placement_near:"near", placement_far:"far",
     title:"Robot safety gate", sub:"simulated Panda arm · observation freshness interlock",
     gateH:"Gate decision at dispatch", lim:"250 ms limit",
     dtDisp:"Task dispatches", dtTick:"Simulation tick", dtH:"Cube height",
-    btnStale:"Stale episode · 600 ms", btnFresh:"Fresh episode · 0 ms", btnSeeded:"Seeded build · same stale input",
+    btnStale:"2 · Repaired · 600 ms", btnFresh:"3 · Repaired · 0 ms", btnSeeded:"1 · Seeded defect · 600 ms",
     armH:"Arm and cube", armS:"schematic replay of recorded telemetry",
     sceneAria:"Schematic side view of the arm and cube, replayed from recorded episode telemetry.",
-    sceneNote:"Positions are drawn from the recorded event log and cube heights are the values the simulator reported; this is not a MuJoCo frame capture. Staleness is injected by replaying a real earlier observation while simulated time keeps advancing, so the cube itself stays put — what is old is the gate's information, not the scene.",
-    traceH:"Protocol trace", traceS:"observation → gate decision → dispatch or hold",
-    traceReady:"Ready. Every line below is replayed from the committed event log.",
+    sceneNote:"Arm poses and playback pacing are schematic, not a MuJoCo video. Ticks, observation ages, decisions and final cube heights come from committed logs. Staleness is injected by replaying an earlier real observation.",
+    traceH:"Protocol trace", traceS:"log summary · observation → decision → dispatch or hold",
+    traceReady:"Ready. This is a readable summary of the committed event log.",
     matH:"All 17 recorded episodes", matS:"patched build · every cell is a completed simulator run",
     hdPlace:"cube placement", hd0:"observation 0 ms", hd50:"observation 50 ms", hd600:"observation 600 ms",
     estop:"Emergency stop", estopS:"held at tick 10 after 1 dispatch — stop outranks every other rule",
     timeout:"Bridge timeout", timeoutS:"failed explicitly at tick 0 — a missing approval is never a yes",
-    evV:"Protected verifier", evVV:"88 / 88 checks passed", evSim:"Simulator",
+    evV:"Historical verifier · original revision", evVV:"88 / 88 checks passed", evSim:"Simulator",
     evB:"Build", evBB:"Incredibuild 4.31.0 · both phases",
-    evT:"Rust tests on patched build", evHsh:"Tested executable sha256",
+    evT:"Historical patched Rust tests", evHsh:"Tested executable sha256",
     evP:"Freshness policy", evPP:"250 ms — demo value, not a hardware limit",
-    caveat:"<b>What this shows.</b> Rust contract checks, bridge checks and simulated robot scenarios, bound by digest to the executable that made these decisions. Hardware-in-the-loop and physical validation were not performed, and the cube pose comes from simulator state rather than a trained vision system. Build phases measured 21.4 s and 21.9 s; that demonstrates the accelerated path ran, and is not a speedup measurement.",
+    caveat:"<b>What this shows.</b> Rust contract checks, bridge checks and simulated robot scenarios, bound by digest to the executable that made these decisions. Hardware-in-the-loop and physical validation were not performed, and the cube pose comes from simulator state rather than a trained vision system. Build phases measured 21.4 s and 21.9 s; the Incredibuild build path ran, but helper activity, cache reuse and speedup remain unverified.",
     standby:"Standby", choose:"Choose an episode to replay its recorded trace.",
     replaying:"Replaying…", permit:"Permit", reject:"Reject",
     complete:"Task complete", completeWhy:"Cube lifted with current information.",
-    undetected:"Undetected",
+    undetected:"Contract failed",
     heldTitle:"Arm held", heldSub:"no motion command issued",
     lifted:"lifted", refused:"refused",
     liftSmall:"4 dispatches · {n} ticks", refuseSmall:"0 dispatches · held at tick {n}",
@@ -406,32 +502,32 @@ function t(key){ return (COPY[rccLang.current()] || COPY.zh)[key]; }
 
 const RUNS = {
   stale: {
-    labelKey:"btnStale", build:"patched", note:"center-f600 · patched build",
+    labelKey:"btnStale", nameKey:"staleRun", source:"ec2-runner-b/events-center-f600.jsonl", build:"patched", note:"center-f600",
     steps:[
       {tick:12, seg:"approach", age:600, decision:"reject", reason:"StalePerception",
        dispatched:false, whyKey:"whyStale"}
     ],
-    end:{success:false, reason:"rejected_stale", height:0.8209, dispatches:0}
+    end:{success:false, reason:"rejected_stale", height:0.8209, dispatches:0, ticks:12}
   },
   fresh: {
-    labelKey:"btnFresh", build:"patched", note:"center-f0 · patched build",
+    labelKey:"btnFresh", nameKey:"freshRun", source:"ec2-runner-b/events-center-f0.jsonl", build:"patched", note:"center-f0",
     steps:[
       {tick:0,  seg:"approach", age:0, decision:"permit", dispatched:true, whyKey:"whyFresh"},
       {tick:11, seg:"descend",  age:0, decision:"permit", dispatched:true, whyKey:"whyFresh"},
       {tick:21, seg:"grasp",    age:0, decision:"permit", dispatched:true, whyKey:"whyFresh"},
       {tick:37, seg:"lift",     age:0, decision:"permit", dispatched:true, whyKey:"whyFresh"}
     ],
-    end:{success:true, reason:"cube_lifted", height:0.9978, dispatches:4}
+    end:{success:true, reason:"cube_lifted", height:0.9978, dispatches:4, ticks:54}
   },
   seeded: {
-    labelKey:"btnSeeded", build:"seeded", note:"stale_600ms · seeded build (runner A)",
+    labelKey:"btnSeeded", nameKey:"seededRun", source:"ec2-runner-a/events-stale_600ms.jsonl", build:"seeded", note:"stale_600ms · runner A",
     steps:[
       {tick:12, seg:"approach", age:600, decision:"permit", dispatched:true, whyKey:"whySeed"},
       {tick:22, seg:"descend",  age:600, decision:"permit", dispatched:true, whyKey:"whyStill"},
       {tick:32, seg:"grasp",    age:600, decision:"permit", dispatched:true, whyKey:"whyStill"},
       {tick:48, seg:"lift",     age:600, decision:"permit", dispatched:true, whyKey:"whyStill"}
     ],
-    end:{success:true, reason:"cube_lifted", height:0.9985, dispatches:4, alarmKey:"alarm"}
+    end:{success:true, reason:"cube_lifted", height:0.9985, dispatches:4, ticks:65, alarmKey:"alarm"}
   }
 };
 
@@ -453,9 +549,12 @@ const rDispatch=$("rDispatch"), rTick=$("rTick"), rHeight=$("rHeight");
 const cube=$("cube"), heldBadge=$("heldBadge");
 const gripBody=$("gripBody"), gripL=$("gripL"), gripR=$("gripR");
 const link2=$("link2"), joint2=$("joint2");
-const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const motionPreference = matchMedia("(prefers-reduced-motion: reduce)");
 const MAX_MS = 600;                       // gauge full scale
 let timer = null;
+const ORDER = ["seeded", "stale", "fresh"];
+const BTN = {seeded:$("btnSeeded"), stale:$("btnStale"), fresh:$("btnFresh")};
+const state = {key:"seeded", cursor:0, finished:false, running:false};
 
 function line(text, cls){
   const p=document.createElement("p");
@@ -470,9 +569,11 @@ function setGauge(age){
   gFill.style.width = pct+"%";
   gauge.classList.toggle("over", age>250);
   gVal.textContent = age+" ms";
+  gauge.setAttribute("aria-valuenow", age);
+  gauge.setAttribute("aria-valuetext", age+" ms");
 }
 
-/* Arm pose per rehearsed segment. Cube only rises when a lift was dispatched. */
+/* Illustrative segment poses, not recorded joint coordinates. */
 function pose(seg, lifted){
   const P = {
     idle:    {x:268,y:168,open:true},
@@ -497,142 +598,172 @@ function pose(seg, lifted){
   }
 }
 
-function reset(){
-  if(timer){clearTimeout(timer); timer=null;}
-  trace.innerHTML="";
-  setGauge(0); gVal.textContent="—"; gFill.style.width="0";
-  gauge.classList.remove("over");
-  verdict.dataset.state="idle";
-  vWord.textContent=t("standby"); vWhy.textContent=t("replaying");
-  rDispatch.textContent="0"; rDispatch.className="";
-  rTick.textContent="—"; rHeight.textContent="—";
-  heldBadge.setAttribute("opacity","0");
-  cube.setAttribute("y",228);
+/* One timer owns the whole timeline. Switching episodes cancels every pending
+   update, so a decision from an old run cannot dispatch into the new replay. */
+function stop(){
+  clearTimeout(timer);
+  timer = null;
+  state.running = false;
+}
+function schedule(){
+  clearTimeout(timer);
+  timer = setTimeout(advance, 1250);
+}
+function advance(){
+  timer = null;
+  const run = RUNS[state.key];
+  if(state.cursor < run.steps.length) state.cursor++;
+  else {state.finished = true; state.running = false;}
+  render();
+  if(state.running) schedule();
+}
+function select(key, autoplay){
+  stop();
+  state.key = key; state.cursor = 0; state.finished = false;
+  // Keep direct links shareable; file:// and restrictive contexts may reject history.
+  try {
+    const url = new URL(location.href);
+    url.searchParams.set("play", key);
+    history.replaceState(null, "", url);
+  } catch (_) {}
+  render();
+  if(autoplay) togglePlayback();
+}
+function togglePlayback(){
+  if(state.running){stop(); render(); return;}
+  if(state.finished){state.cursor = 0; state.finished = false;}
+  state.running = true;
+  advance();
+}
+function stepOnce(){
+  stop();
+  if(!state.finished) advance();
+}
+function showResult(){
+  stop();
+  state.cursor = RUNS[state.key].steps.length;
+  state.finished = true;
+  render();
+}
+
+function render(){
+  const run = RUNS[state.key], seen = run.steps.slice(0, state.cursor);
+  const last = seen[seen.length-1];
+  const dispatched = seen.filter(s=>s.dispatched).length;
+  const violated = seen.some(s=>s.dispatched && s.age>250);
+  for(const key of ORDER) BTN[key].setAttribute("aria-pressed", String(key===state.key));
+  segLabel.textContent = t(run.nameKey);
+  $("sourceLink").href = "../examples/" + run.source;
+  rDispatch.textContent = dispatched;
+  rDispatch.className = last && !last.dispatched ? "flag" : "";
+  rTick.textContent = state.finished ? run.end.ticks : last ? last.tick : "—";
+  rHeight.textContent = state.finished ? run.end.height.toFixed(4)+" m" : "—";
+  heldBadge.setAttribute("opacity", last && last.decision==="reject" ? "1" : "0");
   pose("idle",false);
-  segLabel.textContent="";
-}
+  if(last){
+    setGauge(last.age);
+    verdict.dataset.state = last.decision;
+    vWord.textContent = t(last.decision);
+    vWhy.textContent = t(last.whyKey);
+    if(last.dispatched) pose(last.seg,true);
+  } else {
+    setGauge(0); gVal.textContent = "—";
+    gauge.setAttribute("aria-valuetext", t("waitingAge"));
+    verdict.dataset.state = "idle";
+    vWord.textContent = t("standby"); vWhy.textContent = t("waitingDecision");
+  }
+  if(state.finished){
+    if(violated){
+      verdict.dataset.state = "estop";
+      vWord.textContent = t("undetected"); vWhy.textContent = t("alarm");
+    } else if(run.end.success){
+      vWord.textContent = t("complete"); vWhy.textContent = t("completeWhy");
+    } else vWhy.textContent = t("heldWhy");
+  }
 
-function play(key, btn){
-  reset();
-  [$("btnStale"),$("btnFresh"),$("btnSeeded")].forEach(b=>b.setAttribute("aria-pressed", b===btn?"true":"false"));
-  const run = RUNS[key];
-  segLabel.textContent = run.note;
-  line("# "+run.note);
+  $("taskOutcome").dataset.state = state.finished ? (run.end.success ? "pass" : "held") : "pending";
+  $("taskValue").textContent = state.finished ? t(run.end.success ? "taskYes" : "taskNo") : t("pending");
+  $("taskDetail").textContent = state.finished ? "success="+run.end.success : t("taskPending");
+  $("contractOutcome").dataset.state = violated ? "fail" : state.finished ? "pass" : "pending";
+  $("contractValue").textContent = violated ? t("contractFail") : state.finished ? t("contractPass") : t("pending");
+  $("contractDetail").textContent = t(violated ? "contractBroken" : state.finished ? (run.end.success ? "contractFresh" : "contractHeld") : "contractRule");
+
+  trace.replaceChildren();
+  line("# "+run.note+" · "+t(run.nameKey));
   if(run.build==="seeded") line(t("seededNote"), "reject");
-
-  let i=0, dispatched=0;
-  const gap = reduce ? 240 : 1150;
-
-  (function step(){
-    if(i >= run.steps.length){
-      const e=run.end;
-      rHeight.textContent = e.height.toFixed(4)+" m";
-      line("");
-      line(`episode_end  success=${e.success}  reason=${e.reason}  cube=${e.height.toFixed(4)} m`,"end");
-      if(e.alarmKey){
-        verdict.dataset.state="estop";
-        vWord.textContent=t("undetected");
-        vWhy.textContent=t(e.alarmKey);
-        line("!! "+t(e.alarmKey),"estop");
-      }else if(e.success){
-        vWord.textContent=t("complete");
-        vWhy.textContent=t("completeWhy");
-      }
-      return;
-    }
-    const s=run.steps[i++];
-    rTick.textContent = s.tick;
-    setGauge(s.age);
-
+  for(const s of seen){
     line(`tick ${String(s.tick).padStart(3," ")}  proposal  ${s.seg.padEnd(9," ")} observation_age=${String(s.age).padStart(3," ")}ms`);
-
-    setTimeout(()=>{
-      if(s.decision==="permit"){
-        verdict.dataset.state="permit";
-        vWord.textContent=t("permit");
-        vWhy.textContent=t(s.whyKey);
-        line(`          decision  PERMIT    → dispatch ${s.seg}`,"permit");
-        dispatched++; rDispatch.textContent=dispatched;
-        pose(s.seg, true);
-      }else{
-        verdict.dataset.state="reject";
-        vWord.textContent=t("reject");
-        vWhy.textContent=t(s.whyKey);
-        line(t("rejectLine"),"reject");
-        line(t("dispZero"),"reject");
-        rDispatch.textContent="0"; rDispatch.className="flag";
-        heldBadge.setAttribute("opacity","1");
-      }
-      timer=setTimeout(step, gap*0.55);
-    }, reduce ? 120 : 520);
-  })();
+    if(s.decision==="permit") line(`          decision  PERMIT    → dispatch ${s.seg}`, "permit");
+    else {line(t("rejectLine"),"reject"); line(t("dispZero"),"reject");}
+  }
+  if(state.finished){
+    const e=run.end;
+    line(`episode_end  tick=${e.ticks}  success=${e.success}  reason=${e.reason}  cube=${e.height.toFixed(4)} m`,"end");
+    if(e.alarmKey) line("!! "+t(e.alarmKey),"estop");
+  }
+  $("btnPlay").textContent = t(state.running ? "pause" : state.finished ? "replay" : "play");
+  $("btnStep").disabled = state.finished;
+  $("btnResult").disabled = state.finished;
+  const status = t(state.finished ? "finishedStatus" : state.running ? "playingStatus" : state.cursor ? "pausedStatus" : "readyStatus");
+  const progress = t("progress").replace("{n}",state.cursor).replace("{total}",run.steps.length);
+  $("playbackStatus").textContent = status+" · "+progress+(motionPreference.matches ? " · "+t("reducedStatus") : "");
+  $("announcement").textContent = t(run.nameKey)+". "+status+". "+progress+". "+
+    (state.finished ? t("taskResult")+" "+$("taskValue").textContent+". "+t("contractResult")+" "+$("contractValue").textContent : last ? t(last.decision) : "");
 }
 
-/* build the matrix */
-(function(){
+function renderMatrix(){
   const g=$("mgrid");
-  for(const p of PLACEMENTS){
-    const lab=document.createElement("div");
-    lab.className="rowlab"; lab.textContent=p;
-    g.appendChild(lab);
+  g.replaceChildren();
+  for(const placement of PLACEMENTS){
+    const row=document.createElement("tr"), lab=document.createElement("th");
+    lab.scope="row"; lab.textContent=t("placement_"+placement); row.appendChild(lab);
     for(const age of [0,50,600]){
-      const [ok,ticks]=MATRIX[p][age];
-      const c=document.createElement("div");
-      c.className="cell "+(ok?"lift":"stale");
-      c.innerHTML = ok
-        ? `<b>${t("lifted")}</b><small>${t("liftSmall").replace("{n}", ticks)}</small>`
-        : `<b>${t("refused")}</b><small>${t("refuseSmall").replace("{n}", ticks)}</small>`;
-      g.appendChild(c);
+      const [ok,ticks]=MATRIX[placement][age], cell=document.createElement("td");
+      cell.className=ok ? "lift" : "stale";
+      const outcome=document.createElement("b"), detail=document.createElement("small");
+      outcome.textContent=t(ok ? "lifted" : "refused");
+      detail.textContent=t(ok ? "liftSmall" : "refuseSmall").replace("{n}",ticks);
+      cell.append(outcome,detail); row.appendChild(cell);
     }
+    g.appendChild(row);
   }
-})();
-
-const BTN={stale:$("btnStale"), fresh:$("btnFresh"), seeded:$("btnSeeded")};
-for(const k of Object.keys(BTN)) BTN[k].addEventListener("click",()=>play(k,BTN[k]));
-
-/* Number keys 1-3 switch episode, so the deck can be driven without a pointer. */
-addEventListener("keydown",ev=>{
-  const k={"1":"stale","2":"fresh","3":"seeded"}[ev.key];
-  if(k && !/^(INPUT|TEXTAREA)$/.test(document.activeElement.tagName)) play(k,BTN[k]);
-});
-
-pose("idle",false);
-
+}
 function paintChrome(){
-  rccLang.apply(COPY, function(){
-    $("heldTitle").textContent = t("heldTitle");
-    $("heldSub").textContent = t("heldSub");
-    const idle = !trace.querySelector("p.permit, p.reject, p.end");
-    if(idle){
-      vWord.textContent = t("standby");
-      vWhy.textContent = t("choose");
-    }
-  });
+  $("heldTitle").textContent = t("heldTitle");
+  $("heldSub").textContent = t("heldSub");
+  document.title = t("title")+" — "+t("recorded");
+  renderMatrix();
+  render();
 }
-paintChrome();
-rccLang.bind(COPY, function(){
-  paintChrome();
-  const g=$("mgrid");
-  g.querySelectorAll(".cell").forEach(n=>n.remove());
-  g.querySelectorAll(".rowlab").forEach(n=>n.remove());
-  for(const p of PLACEMENTS){
-    const lab=document.createElement("div");
-    lab.className="rowlab"; lab.textContent=p;
-    g.appendChild(lab);
-    for(const age of [0,50,600]){
-      const [ok,ticks]=MATRIX[p][age];
-      const c=document.createElement("div");
-      c.className="cell "+(ok?"lift":"stale");
-      c.innerHTML = ok
-        ? `<b>${t("lifted")}</b><small>${t("liftSmall").replace("{n}", ticks)}</small>`
-        : `<b>${t("refused")}</b><small>${t("refuseSmall").replace("{n}", ticks)}</small>`;
-      g.appendChild(c);
-    }
-  }
+for(const key of ORDER) BTN[key].addEventListener("click",()=>select(key,!motionPreference.matches));
+$("btnPlay").addEventListener("click",togglePlayback);
+$("btnStep").addEventListener("click",stepOnce);
+$("btnRestart").addEventListener("click",()=>select(state.key,false));
+$("btnResult").addEventListener("click",showResult);
+
+addEventListener("keydown",ev=>{
+  if(ev.defaultPrevented || ev.repeat || ev.ctrlKey || ev.metaKey || ev.altKey) return;
+  const target=ev.target;
+  if(target instanceof Element && target.closest("input,textarea,select,[contenteditable]:not([contenteditable='false'])")) return;
+  const key={"1":"seeded","2":"stale","3":"fresh"}[ev.key];
+  if(key){ev.preventDefault(); select(key,!motionPreference.matches);}
+  else if(ev.code==="Space" && !(target instanceof Element && target.closest("button,a,summary"))){ev.preventDefault(); togglePlayback();}
+  else if(ev.key==="ArrowRight"){ev.preventDefault(); stepOnce();}
+  else if(ev.key.toLowerCase()==="r"){ev.preventDefault(); select(state.key,false);}
+});
+// Avoid silently skipping evidence while the presenter is on another tab.
+document.addEventListener("visibilitychange",()=>{
+  if(document.hidden && state.running){stop(); render();}
+});
+motionPreference.addEventListener("change",()=>{
+  if(motionPreference.matches) stop();
+  render();
 });
 
-const want=new URLSearchParams(location.search).get("play");
-if(want && BTN[want]) play(want, BTN[want]);
+rccLang.apply(COPY,paintChrome);
+rccLang.bind(COPY,paintChrome);
+const requestedRun=new URLSearchParams(location.search).get("play");
+select(ORDER.includes(requestedRun) ? requestedRun : "seeded", !motionPreference.matches);
 </script>
 </body>
 </html>
