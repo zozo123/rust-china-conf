@@ -206,13 +206,13 @@ class RobosuiteBackend(BackendBase):
         self._step([0.0] * 6 + [-1.0])  # zero arm delta, gripper open
 
     def apply(self, segment: str, target: dict) -> None:
-        max_steps = {"approach": 60, "descend": 60, "grasp": 20, "lift": 80}[segment]
-        for _ in range(max_steps):
+        max_steps = {"approach": 60, "descend": 60, "grasp": 25, "lift": 80}[segment]
+        for step in range(max_steps):
             action = osc_action(self._eef_pos(), target)
             self._step(action)
             err = max(abs(t - e) for t, e in zip(target["eef"], self._eef_pos()))
             if segment == "grasp":
-                if self.tick % 10 == 0:
+                if step >= 15:  # hold the close command for 15 control steps
                     break
             elif err < 0.005:
                 break
