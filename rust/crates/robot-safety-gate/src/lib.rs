@@ -5,17 +5,9 @@
 //! was computed from; the gate permits or rejects dispatch. Hold steps are
 //! explicitly unguarded and never pass through here.
 //!
-//! ┌────────────────────────────────────────────────────────────────────┐
-//! │ CONFERENCE FIXTURE — SEEDED REGRESSION                             │
-//! │                                                                    │
-//! │ This revision intentionally omits the observation-freshness check  │
-//! │ at the final dispatch decision (see `decide`, step 3). The         │
-//! │ contract requires: observations older than 250 ms must be          │
-//! │ rejected with `StalePerception`. `tests/contract.rs` encodes the   │
-//! │ required behavior and FAILS on this revision — that failure is     │
-//! │ the demonstration. Do not repair it outside the scripted agent     │
-//! │ workflow; the reviewed fix ships as `demo/fallback-patch.diff`.    │
-//! └────────────────────────────────────────────────────────────────────┘
+//! The contract: observations older than the configured threshold (250 ms
+//! by default) are rejected with `StalePerception` at the final dispatch
+//! decision. `tests/contract.rs` encodes the required behavior.
 
 use serde::{Deserialize, Serialize};
 use std::fmt;
@@ -136,15 +128,14 @@ pub fn decide(proposal: &Proposal, policy: &Policy) -> Decision {
     let age_ms =
         (proposal.simulation_time_ns - proposal.observation.capture_time_ns) / NS_PER_MS;
 
-    // 3. Freshness at the final dispatch decision.
-    //
-    //    SEEDED REGRESSION (conference fixture): the check is intentionally
-    //    omitted on this revision. The required contract is:
-    //      age_ms <= policy.max_observation_age_ms  ->  Permit
-    //      age_ms >  policy.max_observation_age_ms  ->  Reject(StalePerception)
-    //    Boundary behavior at exactly 250 / 251 ms is pinned by
-    //    `tests/contract.rs`.
-    let _ = (age_ms, policy);
+    // 3. Freshness at the final dispatch decision: observations older than
+    //    the configured threshold are rejected as stale. Boundary: exactly
+    //    `max_observation_age_ms` permits; one millisecond beyond rejects.
+    if age_ms > policy.max_observation_age_ms {
+        return Decision::Reject {
+            reason: RejectionReason::StalePerception { age_ms },
+        };
+    }
     Decision::Permit
 }
 
