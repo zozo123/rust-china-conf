@@ -17,3 +17,24 @@ Regenerate a verifiable artifact any time with `scripts/robot-demo/rehearse.sh`.
 
 Scope reminder: these are Rust contract checks, bridge checks and simulated
 robot scenarios. Hardware HIL and physical validation were not performed.
+
+## Linux / Incredibuild grid run
+
+`ec2-runner-a/` and `ec2-runner-b/` were captured from run
+`ec2-e2e-20260923-160725` on an Ubuntu 20.04 x86-64 Initiator connected to
+an Incredibuild 4.31.0 grid (one Coordinator and two Helpers):
+
+- both Cargo phases executed under `ib_console` with the checked-in
+  `rust/ib_profile.xml`;
+- Runner A reproduced the seeded defect: a 600 ms stale episode dispatched
+  four task actions;
+- Runner B applied the reviewed patch to the exact base revision, passed all
+  10 Rust checks, and completed the 17-episode robosuite matrix;
+- the protected verifier passed **88/88 checks** against the exported
+  executable identity.
+
+Observed build-phase wall times were 21.426 s cold and 21.948 s warm. This
+proves the Incredibuild integration path, but it does **not** demonstrate a
+speedup: the warm observation was slightly slower. Do not present these two
+workflow-continuity timings as a controlled performance benchmark. The
+planned same-candidate, minimum-five-run benchmark remains separate.

@@ -1,0 +1,13 @@
+[
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "stale_600ms",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 65,
+    "wall_time_ms": 13469
+  }
+]

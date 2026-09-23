@@ -1,0 +1,2 @@
+{"ts_unix_ms":1790168955855,"dir":"in","scenario":"protocol_timeout","line":"{\"type\": \"hello\", \"backend\": \"robosuite\", \"backend_label\": \"robosuite 1.5.2 / mujoco 3.9.0\", \"version\": 1, \"simulation_tick_ns\": 50000000}"}
+{"ts_unix_ms":1790168963855,"dir":"session","scenario":"protocol_timeout","line":"{\"session\":\"proposal_timeout\"}"}

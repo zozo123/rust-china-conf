@@ -1,0 +1,201 @@
+[
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "center-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 54,
+    "wall_time_ms": 2759
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "center-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 56,
+    "wall_time_ms": 2796
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "center-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 2202
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "left-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 52,
+    "wall_time_ms": 2701
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "left-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 53,
+    "wall_time_ms": 2739
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "left-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 2183
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "right-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 56,
+    "wall_time_ms": 2773
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "right-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 59,
+    "wall_time_ms": 2841
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "right-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 2217
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "near-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 55,
+    "wall_time_ms": 2751
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "near-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 57,
+    "wall_time_ms": 2795
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "near-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 2250
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "far-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 55,
+    "wall_time_ms": 2791
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "far-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 55,
+    "wall_time_ms": 2736
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "far-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 2205
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 2,
+    "outcome": "emergency_stop",
+    "rejections": [
+      "reject/emergency_stop"
+    ],
+    "scenario": "estop_descend",
+    "success": false,
+    "task_dispatches": 1,
+    "ticks": 10,
+    "wall_time_ms": 2168
+  },
+  {
+    "backend": "robosuite 1.5.2 / mujoco 3.9.0",
+    "decisions": 0,
+    "outcome": "timeout",
+    "rejections": [],
+    "scenario": "protocol_timeout",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 0,
+    "wall_time_ms": 9999
+  }
+]
