@@ -249,19 +249,40 @@ REJECTION_TO_OUTCOME = {
 }
 
 
-def read_decision(expected_action_id: str, expected_tick: int) -> dict:
+def read_decision(
+    expected_run_id: str,
+    expected_episode_id: str,
+    expected_action_id: str,
+    expected_tick: int,
+) -> dict:
     line = sys.stdin.readline()
     if not line:
         log("gate closed stdin; exiting")
         sys.exit(2)
-    decision = json.loads(line)
-    # Approvals are valid only for the exact action and tick.
+    try:
+        decision = json.loads(line)
+    except (ValueError, TypeError):
+        return {"type": "mismatch"}
+    # Only an explicit, fully bound permit can authorize dispatch. JSON
+    # scalars, unknown decisions and another episode's approvals fail closed.
     if (
-        decision.get("type") != "decision"
+        not isinstance(decision, dict)
+        or decision.get("type") != "decision"
+        or decision.get("run_id") != expected_run_id
+        or decision.get("episode_id") != expected_episode_id
         or decision.get("action_id") != expected_action_id
+        or type(decision.get("simulation_tick")) is not int
         or decision.get("simulation_tick") != expected_tick
+        or decision.get("decision") not in ("permit", "reject")
+        or (
+            decision.get("decision") == "reject"
+            and (
+                not isinstance(decision.get("reason"), str)
+                or decision.get("reason") not in REJECTION_TO_OUTCOME
+            )
+        )
     ):
-        return {"type": "mismatch", "raw": decision}
+        return {"type": "mismatch"}
     return decision
 
 
@@ -334,7 +355,7 @@ def run_episode(args, scenario: dict, backend: BackendBase) -> None:
         }
         emit(proposal)
 
-        decision = read_decision(action_id, tick)
+        decision = read_decision(run_id, episode_id, action_id, tick)
         if decision.get("type") == "mismatch":
             emit(
                 {

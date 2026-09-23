@@ -6,7 +6,7 @@ cd "$ROOT"
 
 PYTHON="${ROBOT_DEMO_PYTHON:-$ROOT/demo/robot-sim/.venv/bin/python3}"
 OUTPUT="${1:-$ROOT/docs/assets/robot-lift.gif}"
-RUN_ID="website-gif"
+RUN_ID="website-gif-$(date +%s)-$$"
 
 for command in cargo ffmpeg; do
   command -v "$command" >/dev/null || {
@@ -24,14 +24,16 @@ done
 "$PYTHON" -c "import imageio, mujoco, robosuite" >/dev/null
 
 TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"; rm -rf "$ROOT/evidence/website-gif"' EXIT
+trap 'rm -rf "$TMP"; rm -rf "$ROOT/evidence/$RUN_ID"' EXIT
 
 mkdir -p "$(dirname "$OUTPUT")"
+export CARGO_TARGET_DIR="${CARGO_TARGET_DIR:-$ROOT/rust/target}"
+if [[ "$CARGO_TARGET_DIR" != /* ]]; then CARGO_TARGET_DIR="$ROOT/$CARGO_TARGET_DIR"; fi
 cargo build --manifest-path rust/Cargo.toml --locked
 
 ROBOT_DEMO_PYTHON="$PYTHON" \
 ROBOT_DEMO_VIDEO_DIR="$TMP" \
-  ./rust/target/debug/swf-cli robot-demo run \
+  "$CARGO_TARGET_DIR/debug/swf-cli" robot-demo run \
     --scenario fresh_lift \
     --backend robosuite \
     --run-id "$RUN_ID" \

@@ -7,10 +7,18 @@ cd "$(dirname "$0")/../.."
 
 echo "== preflight =="
 
-command -v cargo >/dev/null && echo "ok   cargo $(cargo --version | awk '{print $2}')" || { echo "FAIL cargo missing"; exit 1; }
+if command -v cargo >/dev/null; then
+  echo "ok   cargo $(cargo --version | awk '{print $2}')"
+else
+  echo "FAIL cargo missing"; exit 1
+fi
 
 PYTHON="${ROBOT_DEMO_PYTHON:-python3}"
-command -v "$PYTHON" >/dev/null && echo "ok   python: $("$PYTHON" --version 2>&1)" || { echo "FAIL python missing"; exit 1; }
+if command -v "$PYTHON" >/dev/null; then
+  echo "ok   python: $("$PYTHON" --version 2>&1)"
+else
+  echo "FAIL python missing"; exit 1
+fi
 
 if [ -x demo/robot-sim/.venv/bin/python3 ]; then
   echo "ok   sim venv present (demo/robot-sim/.venv)"
@@ -27,11 +35,11 @@ if [ ! -f rust/ib_profile.xml ]; then
   echo "FAIL rust/ib_profile.xml missing — refusing an unprofiled Incredibuild run"
   exit 1
 fi
-python3 -c 'import xml.etree.ElementTree as ET; ET.parse("rust/ib_profile.xml")'
+"$PYTHON" -c 'import xml.etree.ElementTree as ET; ET.parse("rust/ib_profile.xml")'
 echo "ok   rust/ib_profile.xml is well-formed (project-level profile)"
 
 if command -v ib_console >/dev/null 2>&1; then
-  echo "ok   ib_console detected — Cargo builds use rust/ib_profile.xml"
+  echo "ok   ib_console detected — runner invokes it; cache configuration/reuse must be verified separately"
 else
   if [ "${REQUIRE_IB:-0}" = "1" ]; then
     echo "FAIL REQUIRE_IB=1 but ib_console is unavailable"
@@ -41,7 +49,7 @@ else
 fi
 
 if [ -n "${ISLO_SANDBOX_KEY:-}" ]; then
-  echo "ok   islo sandbox key present (remote runner dispatch enabled when configured)"
+  echo "info islo credentials present; these scripts still use local worktrees (no remote dispatcher implemented)"
 else
   echo "info no islo sandbox key — runners use local isolated git worktrees"
 fi

@@ -1,0 +1,40 @@
+name: Validate demo
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  mock-demo:
+    name: Seeded failure and patched acceptance (${{ matrix.os }})
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Install pinned Rust
+        run: rustup toolchain install 1.92.0 --profile minimal --component rustfmt --component clippy
+      - name: Check Rust formatting
+        run: cargo fmt --manifest-path rust/Cargo.toml -p swf-app -p swf-cli --check
+      - name: Lint Rust
+        run: cargo clippy --manifest-path rust/Cargo.toml --workspace --all-targets --locked -- -D warnings
+      - name: Validate checkout, expected seed failures and patched matrix
+        run: python3 scripts/robot-demo/check.py
+      - name: Retain logs and evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mock-evidence-${{ matrix.os }}
+          path: evidence/check-*/
+          retention-days: 14
+          if-no-files-found: ignore

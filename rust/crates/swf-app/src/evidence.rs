@@ -37,7 +37,7 @@ impl EventLog {
         })
     }
 
-    pub fn record(&mut self, dir: &'static str, line: &str) {
+    pub fn record(&mut self, dir: &'static str, line: &str) -> io::Result<()> {
         let event = Event {
             ts_unix_ms: std::time::SystemTime::now()
                 .duration_since(std::time::UNIX_EPOCH)
@@ -47,11 +47,9 @@ impl EventLog {
             scenario: self.scenario.clone(),
             line: line.to_string(),
         };
-        if let Ok(mut s) = serde_json::to_string(&event) {
-            s.push('\n');
-            let _ = self.writer.write_all(s.as_bytes());
-            let _ = self.writer.flush();
-        }
+        serde_json::to_writer(&mut self.writer, &event)?;
+        self.writer.write_all(b"\n")?;
+        self.writer.flush()
     }
 }
 
@@ -73,10 +71,11 @@ pub fn append_scenario_result(evidence_dir: &Path, result: &ScenarioResult) -> i
     fs::create_dir_all(evidence_dir)?;
     let path = evidence_dir.join("scenario-results.json");
     let mut results: Vec<serde_json::Value> = match File::open(&path) {
-        Ok(f) => serde_json::from_reader(f).unwrap_or_default(),
-        Err(_) => Vec::new(),
+        Ok(f) => serde_json::from_reader(f)?,
+        Err(e) if e.kind() == io::ErrorKind::NotFound => Vec::new(),
+        Err(e) => return Err(e),
     };
-    results.push(serde_json::to_value(result).unwrap_or_default());
+    results.push(serde_json::to_value(result)?);
     let f = File::create(path)?;
     serde_json::to_writer_pretty(f, &results)?;
     Ok(())
