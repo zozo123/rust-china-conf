@@ -110,13 +110,26 @@ def main() -> int:
     expect = scenario_expectations(evidence_dir)
 
     # Artifact identity: digest in the manifest must match the executable.
+    # Runner paths are ephemeral by design ("burn the runner"); when the
+    # recorded path is gone, bind to the exported artifact instead.
     exe_path = Path(manifest["executable"]["path"])
+    if not exe_path.exists():
+        exported = evidence_dir / "artifact" / exe_path.name
+        print(f"  info  runner executable gone (expected); binding to {exported}")
+        exe_path = exported
     if exe_path.exists():
         digest = hashlib.sha256(exe_path.read_bytes()).hexdigest()
         check(
             digest == manifest["executable"]["sha256"],
             "artifact identity: executable digest matches manifest",
         )
+        sha_file = exe_path.with_suffix(exe_path.suffix + ".sha256")
+        if sha_file.exists():
+            recorded = sha_file.read_text().split()[0]
+            check(
+                recorded == digest,
+                "artifact identity: exported .sha256 matches artifact",
+            )
     else:
         check(False, f"artifact identity: executable missing at {exe_path}")
 
