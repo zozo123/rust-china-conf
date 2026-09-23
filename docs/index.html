@@ -3,10 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="description" content="已核验的软件在环机器人演示：Rust 安全门、robosuite Panda 机械臂、一次性运行器、摘要绑定的证据。">
+  <meta id="metaDesc" name="description" content="已核验的软件在环机器人演示：Rust 安全门、robosuite Panda 机械臂、一次性运行器、摘要绑定的证据。">
   <meta name="theme-color" content="#10171d">
-  <meta property="og:title" content="百万次编译，一小时机器人">
-  <meta property="og:description" content="烧掉运行器。留下证据。放过机器人。">
+  <meta id="ogTitle" property="og:title" content="百万次编译，一小时机器人">
+  <meta id="ogDesc" property="og:description" content="烧掉运行器。留下证据。放过机器人。">
   <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-lift.gif">
   <title>百万次编译，一小时机器人</title>
   <link rel="stylesheet" href="assets/fonts/fonts.css">
@@ -609,7 +609,10 @@ episode outcome  rejected_stale
         not3:"训练视觉——方块位姿来自仿真器状态", not4:"受控加速基准测试",
         not5:"把 250 ms 说成硬件安全限",
         mantra:"烧掉运行器。<br>留下证据。<br>放过机器人。",
-        foot:"Rust China Conf 演示 · 软件在环", navReplay2:"交互回放", repo:"仓库"
+        foot:"Rust China Conf 演示 · 软件在环", navReplay2:"交互回放", repo:"仓库",
+        docTitle:"百万次编译，一小时机器人",
+        docDesc:"已核验的软件在环机器人演示：Rust 安全门、robosuite Panda 机械臂、一次性运行器、摘要绑定的证据。",
+        ogDesc:"烧掉运行器。留下证据。放过机器人。"
       },
       en: {
         skip:"Skip to main content", navAria:"Main navigation", brand:"Rust China Conf demo",
@@ -648,10 +651,21 @@ episode outcome  rejected_stale
         not3:"Trained vision—the cube pose is simulator state", not4:"A controlled speedup benchmark",
         not5:"A claim that 250 ms is a hardware safety limit",
         mantra:"Burn the runner.<br>Keep the proof.<br>Spare the robot.",
-        foot:"Rust China Conf demo · software-in-the-loop", navReplay2:"Interactive replay", repo:"Repository"
+        foot:"Rust China Conf demo · software-in-the-loop", navReplay2:"Interactive replay", repo:"Repository",
+        docTitle:"A Million Compiles. One Robot Hour.",
+        docDesc:"A verified software-in-the-loop robotics demo: Rust safety gate, robosuite Panda arm, disposable runners, and digest-bound evidence.",
+        ogDesc:"Burn the runner. Keep the proof. Spare the robot."
       }
     };
     function updateLanguageLinks(lang) {
+      // The tab title and share metadata live outside [data-i18n], so they
+      // stayed Chinese in the English view until set here.
+      var strings = COPY[lang] || COPY.zh;
+      document.title = strings.docTitle;
+      document.getElementById("metaDesc").content = strings.docDesc;
+      document.getElementById("ogTitle").content = strings.docTitle;
+      document.getElementById("ogDesc").content = strings.ogDesc;
+
       document.getElementById("talkLink").href =
         lang === "en" ? "talk/talk-25min.en.md" : "talk/talk-25min.md";
       var video = document.getElementById("loopVideo");
