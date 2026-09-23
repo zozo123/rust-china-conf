@@ -141,10 +141,13 @@
     .film img {
       display: block;
       width: 100%;
+      height: auto;
       aspect-ratio: 4 / 3;
       object-fit: cover;
       background: #0a1014;
     }
+    /* The loop walkthrough is a wide terminal capture; show it whole. */
+    #loop .film img { aspect-ratio: 880 / 585; object-fit: contain; }
     .film figcaption {
       padding: 11px 13px 13px;
       border-top: 1px solid var(--line);
@@ -336,6 +339,7 @@
   <header class="shell">
     <nav class="nav" aria-label="Main navigation">
       <a class="nav__brand" href="#">Rust China Conf demo</a>
+      <a href="#loop">The loop</a>
       <a href="#evidence">Evidence</a>
       <a href="demo/">Interactive replay</a>
       <a href="https://github.com/zozo123/rust-china-conf">GitHub</a>
@@ -412,6 +416,33 @@ episode outcome  rejected_stale
 <span class="good">protected assertion: PASS</span></pre>
         </article>
       </div>
+    </section>
+
+    <section class="section shell" id="loop">
+      <div class="section__head">
+        <h2>One loop, start to proof.</h2>
+        <p>
+          A cold distributed build on a throwaway runner, the seeded failure,
+          a bounded agent patch, the runner destroyed, then a brand-new runner
+          rebuilding from the cache the parent warmed. Recorded numbers
+          throughout, including the one that did not go our way.
+        </p>
+      </div>
+
+      <figure class="film">
+        <div class="film__bar mono">
+          <span><i class="lamp"></i>recorded loop</span>
+          <span>Incredibuild 4.31.0 · compile stage only</span>
+        </div>
+        <img src="assets/validation-loop.gif" width="880" height="585"
+             alt="Animated walkthrough of the validation loop: cold distributed build on runner A, three failing contract tests, four permitted dispatches on a stale observation, the agent patch, runner A destroyed, runner B rebuilding warm, ten of ten tests, zero stale dispatches, and 88 of 88 protected checks.">
+        <figcaption>
+          Both build phases ran through Incredibuild. The warm phase measured
+          21948 ms against 21426 ms cold, so it was 522 ms slower — this shows
+          the accelerated path stayed engaged across a destroyed runner, not
+          that caching made it faster.
+        </figcaption>
+      </figure>
     </section>
 
     <section class="section shell" id="evidence">

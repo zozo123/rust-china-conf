@@ -10,8 +10,31 @@
 **[Replay the evidence](https://zozo123.github.io/rust-china-conf/demo/?play=seeded)** ·
 **[Read the 25-minute talk](docs/talk/talk-25min.md)**
 
-The GIF is made from real robosuite / MuJoCo frames recorded while the Rust
-gate authorized the fresh episode. It is not a separately animated robot.
+Real robosuite / MuJoCo frames, recorded while the Rust gate authorized each
+of the four motion segments. Not a separately animated robot.
+
+## The loop
+
+![The validation loop, end to end](docs/assets/validation-loop.gif)
+
+Cold distributed build on a disposable runner → three failing contract tests →
+four dispatches permitted on a 600 ms-old observation → bounded agent patch →
+**runner destroyed** → new runner rebuilds warm → 10/10 tests → zero stale
+dispatches → 88/88 protected checks bound to the executable's digest.
+
+Both build phases ran through Incredibuild (`ib: true` in the evidence). Cold
+measured 21426 ms and warm 21948 ms, so **the warm phase was 522 ms slower.**
+That demonstrates the accelerated path survived the runner being destroyed; it
+is not a speedup measurement, and no speedup is claimed anywhere in this repo.
+The controlled benchmark that would support such a claim is specified in
+[`docs/talk/talk-25min.md`](docs/talk/talk-25min.md) and has not been run.
+
+Regenerate either GIF from the pinned environment:
+
+```bash
+scripts/robot-demo/record-gif.sh        # real simulator footage
+scripts/robot-demo/record-loop-gif.sh   # the loop walkthrough
+```
 
 An end-to-end **software-in-the-loop (SIL)** demonstration: a simulated Panda
 arm lifts a cube (robosuite `Lift`). A deliberately seeded bug in a Rust
