@@ -572,9 +572,8 @@ fn parse_build_number(record: &serde_json::Map<String, serde_json::Value>) -> Re
         .with_context(|| {
             format!("buildId {raw:?} does not end in a numeric build-number segment")
         })?;
-    tail.parse::<u64>().with_context(|| {
-        format!("buildId {raw:?} has an unparsable build-number segment {tail:?}")
-    })
+    tail.parse::<u64>()
+        .with_context(|| format!("buildId {raw:?} has an unparsable build-number segment {tail:?}"))
 }
 
 fn parse_ib_history(document: &serde_json::Value, caption: &str) -> Result<IbHistory> {
