@@ -25,7 +25,7 @@
 <h1>Measurements</h1>
 <p class="note">Every figure below was measured on 2026-09-24, one machine per comparison,
 n=5 per mode with rotating run order unless stated. Evidence is committed —
-<a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">447 files</a> — so a clone
+<a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 files</a> — so a clone
 re-derives all of it. Three numbers here replaced numbers we withdrew; the corrections ship with
 the measurements that forced them.</p>
 <p><a href="../">← back to the talk</a> · <a href="../talk/slides.en.md">deck</a> ·
@@ -48,7 +48,7 @@ the measurements that forced them.</p>
 </table>
 
 <h2>2 · Build Cache — both rows</h2>
-<svg viewBox="0 0 900 144" role="img" width="100%"><g transform="translate(0,0)"><text x="0" y="17" class="lbl">empty workspace · cargo</text><rect x="210" y="2" width="560" height="18" rx="3" fill="#8b5a5a"/><text x="775" y="17" class="val">12,149 ms</text></g><g transform="translate(0,36)"><text x="0" y="17" class="lbl">empty workspace · cache</text><rect x="210" y="2" width="160" height="18" rx="3" fill="#4d8b6a"/><text x="375" y="17" class="val">3,485 ms  ← 3.49× faster</text></g><g transform="translate(0,72)"><text x="0" y="17" class="lbl">warm workspace · cargo</text><rect x="210" y="2" width="45" height="18" rx="3" fill="#4d8b6a"/><text x="260" y="17" class="val">980 ms  ← cargo wins</text></g><g transform="translate(0,108)"><text x="0" y="17" class="lbl">warm workspace · cache</text><rect x="210" y="2" width="182" height="18" rx="3" fill="#8b5a5a"/><text x="397" y="17" class="val">3,951 ms</text></g></svg>
+<svg viewBox="0 0 900 144" role="img" width="100%"><g transform="translate(0,0)"><text x="0" y="17" class="lbl">empty workspace · cargo</text><rect x="210" y="2" width="560" height="18" rx="3" fill="#8b5a5a"/><text x="775" y="17" class="val">11,515 ms</text></g><g transform="translate(0,36)"><text x="0" y="17" class="lbl">empty workspace · cache</text><rect x="210" y="2" width="160" height="18" rx="3" fill="#4d8b6a"/><text x="375" y="17" class="val">3,706 ms  ← 3.13× faster</text></g><g transform="translate(0,72)"><text x="0" y="17" class="lbl">warm workspace · cargo</text><rect x="210" y="2" width="45" height="18" rx="3" fill="#4d8b6a"/><text x="260" y="17" class="val">939 ms  ← cargo wins</text></g><g transform="translate(0,108)"><text x="0" y="17" class="lbl">warm workspace · cache</text><rect x="210" y="2" width="182" height="18" rx="3" fill="#8b5a5a"/><text x="397" y="17" class="val">4,048 ms</text></g></svg>
 <p><code>HIT 52 / MISS 0 · 9 tasks of 58 executed · helpers 0 · max_initiator_cores 0</code></p>
 <p><strong>The cache does not make your build faster. It makes throwing your workspace away
 cheap.</strong> Which is the operation a sandboxed agent loop performs on every candidate.</p>

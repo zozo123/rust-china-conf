@@ -1,0 +1,30 @@
+# warm-target control: does the Build Cache beat plain cargo when target/ is KEPT?
+host AL6555I10  2026-09-24T17:09:58Z  rev f721855
+profile: type="allow_remote"
+both modes share ONE persistent CARGO_TARGET_DIR; deps fetched outside timing
+
+native_warmtarget_rep1=989
+ib_warmtarget_rep1=3992
+native_warmtarget_rep2=937
+ib_warmtarget_rep2=4068
+native_warmtarget_rep3=939
+ib_warmtarget_rep3=4048
+
+VERIFIED FROM THE COORDINATOR (not from a grep of the profile file, which matched a comment):
+  builds.db rows for this run --
+    cache-warmtarget-20260924T170958Z-ib-1  tasks=3  helpers=0  max_initiator_cores=0
+    cache-warmtarget-20260924T170958Z-ib-2  tasks=3  helpers=0  max_initiator_cores=0
+    cache-warmtarget-20260924T170958Z-ib-3  tasks=3  helpers=0  max_initiator_cores=0
+  rust/ib_profile.cache-only.xml declares: <process filename="rustc" type="local_only">
+  So: Build Cache only, zero distribution.
+
+MEDIANS
+  native, persistent target, one-file rebuild : 939 ms  (937-989, n=3)
+  Build Cache, same persistent target         : 4048 ms (3992-4068, n=3)
+  => plain cargo is 4.3x faster when the target directory is kept.
+
+WHY THIS RUN EXISTS
+  The site previously published 980 / 3951 ms for this comparison. Those were real
+  measurements but were never retained as evidence, so nobody could re-derive them -- the exact
+  defect this project spent the day closing in its own verifier. This run replaces them with
+  numbers that are committed.

@@ -50,7 +50,7 @@ throw your workspace away.</p>
 <div class="big">
   <div><b>30</b><span>control periods stale<br>(20 ms each)</span></div>
   <div><b>4</b><span>fabrications our own<br>verifier certified</span></div>
-  <div><b>3.49×</b><span>cache, from an<br>empty workspace</span></div>
+  <div><b>3.13×</b><span>cache, from an<br>empty workspace</span></div>
   <div><b>1.08×</b><span>parallelism left in<br>the rebuild loop</span></div>
 </div>
 
@@ -81,8 +81,8 @@ efficiency</em> figure that divided one machine's CPU-seconds by another machine
 <h2>4 · What the build cache actually does</h2>
 <table>
 <tr><th>your situation</th><th>plain cargo</th><th>Build Cache</th><th></th></tr>
-<tr><td><strong>empty workspace</strong> — a fork, a CI runner, an agent loop</td><td>12,149 ms</td><td class="win"><strong>3,485 ms</strong></td><td class="win">3.49× faster</td></tr>
-<tr><td>warm workspace — you, rebuilding</td><td class="win"><strong>980 ms</strong></td><td>3,951 ms</td><td class="lose">cargo wins</td></tr>
+<tr><td><strong>empty workspace</strong> — a fork, a CI runner, an agent loop</td><td>11,515 ms</td><td class="win"><strong>3,706 ms</strong></td><td class="win">3.13× faster</td></tr>
+<tr><td>warm workspace — you, rebuilding</td><td class="win"><strong>939 ms</strong></td><td>4,048 ms</td><td class="lose">cargo wins</td></tr>
 </table>
 <p><code>HIT 52 / MISS 0 · 9 tasks of 58 · helpers 0</code></p>
 <p class="quote">The cache does not make your build faster.<br>
@@ -118,7 +118,7 @@ self-reported signal that is confidently wrong.</p>
 
 <div class="foot">
 <p>Every number measured 2026-09-24, one machine per comparison, n=5 with rotating order.
-<a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">451 evidence files</a>
+<a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 evidence files</a>
 are committed, so a clone re-derives all of it. Three numbers here replaced numbers we withdrew.</p>
 <p><a href="../results/">All measurements, with charts</a> ·
 <a href="../talk/presentation.md">The full talk</a> ·

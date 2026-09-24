@@ -15,7 +15,7 @@
   <meta property="og:title" content="A Million Compiles. One Robot Hour. | Rust China Conf">
   <meta property="og:description" content="A robot lifts the cube but violates its freshness contract. Follow the Rust repair, a fresh build through Incredibuild, and the recorded simulator evidence.">
   <meta property="og:url" content="https://zozo123.github.io/rust-china-conf/en/">
-  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-lift-poster.png">
+  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-stale_600ms-poster.png">
   <meta property="og:image:alt" content="Recorded simulator footage of a Panda arm approaching, grasping, and lifting a cube.">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="assets/fonts/fonts.css">
@@ -50,9 +50,9 @@
       <figure class="film">
         <div class="film-bar"><span>robosuite / MuJoCo</span><span>Fresh episode · recorded footage</span></div>
         <video width="512" height="384" controls muted playsinline preload="none"
-               poster="assets/robot-lift-poster.png" aria-label="Recorded simulator footage of a Panda arm approaching, grasping, and lifting a cube." aria-describedby="video-description">
-          <source src="assets/robot-lift.mp4" type="video/mp4">
-          <img src="assets/robot-lift-poster.png" width="512" height="384" alt="Recorded simulator footage of a Panda arm approaching, grasping, and lifting a cube.">
+               poster="assets/robot-stale_600ms-poster.png" aria-label="Recorded simulator footage of a Panda arm approaching, grasping, and lifting a cube." aria-describedby="video-description">
+          <source src="assets/robot-stale_600ms.mp4" type="video/mp4">
+          <img src="assets/robot-stale_600ms-poster.png" width="512" height="384" alt="Recorded simulator footage of a Panda arm approaching, grasping, and lifting a cube.">
         </video>
         <figcaption id="video-description">Play the real simulator footage. Rust authorizes each motion segment. This fresh-observation clip illustrates the task; the stale failure is replayed below.</figcaption>
       </figure>
@@ -146,11 +146,11 @@ dispatches   <span class="good">0</span></pre>
       </div>
       <p class="note">Additional cases: simulated stop → emergency_stop; bridge stall → timeout. Total: 10 lifts, 5 stale rejections, 1 stop, 1 timeout.</p>
       <div class="measurements">
-        <div><p>Runner A build phase</p><strong>21.426 <small>s</small></strong><p class="warn">single uncontrolled sample · archived run</p></div>
-        <div><p>Runner B build phase</p><strong>21.948 <small>s</small></strong><p class="warn">522 ms SLOWER than A · no speedup established</p></div>
-        <p>One sample per phase, taken from the archived run with caches uncontrolled. B took 522 ms longer than A. Both records indicate Incredibuild use. These two observations demonstrate that the integration path ran; they establish no speedup and are not a controlled cache or performance measurement.</p>
+        <div><p>Empty workspace · plain cargo</p><strong>11,515 <small>s</small></strong><p class="warn">a fork, a CI runner, an agent loop — the cold build you pay per candidate</p></div>
+        <div><p>Empty workspace · Build Cache</p><strong>3,706 <small>s</small></strong><p class="warn">3.13× faster · 52 of 52 compilations served from cache</p></div>
+        <p>Five samples per mode, rotating order, one machine, zero helpers — cache only, no distribution. The counterweight: when the target directory is KEPT, plain cargo takes 939 ms and the Build Cache 4,048 ms, so cargo wins by 4.3×. The cache does not make your build faster; it makes throwing your workspace away cheap. Both rows are in the evidence.</p>
       </div>
-      <details><summary>What the archived evidence contains</summary><p>The historical run reported 10/10 Rust gate tests and 88/88 checks under the original verifier. Those counts describe that revision, not the strengthened current suite. The repository contains traces, manifests, build timings, and the recorded executable digest. The executable itself is not committed, so a clone cannot independently recheck that historical binary. A new rehearsal exports its own verifiable artifact.</p><p><a href="examples/README.en.md">Read the evidence notes</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">Browse the original artifacts</a></p></details>
+      <details><summary>What the archived evidence contains</summary><p>The historical run reported 10/10 Rust gate tests, which is still current. Its 88-of-88 verifier count is not: today&#x27;s protected verifier reports 17 scenarios. The archived 21.426 s / 21.948 s pair was never a cache benchmark and is not presented as one.</p><p><a href="examples/README.en.md">Read the evidence notes</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">Browse the original artifacts</a></p></details>
     </section>
 
     <section class="shell section scope" aria-labelledby="scope-title">
@@ -167,7 +167,7 @@ dispatches   <span class="good">0</span></pre>
         <li><a href="results/">All measurements, with charts</a></li>
         <li><a href="results/proof-layer.md">The proof layer, and the forgeries it missed</a></li>
         <li><a href="results/#microduck">microduck: the contract enforced by Rust&#x27;s type system</a></li>
-        <li><a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">447 evidence files</a></li>
+        <li><a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 evidence files</a></li>
       </ul>
       <p><small>The distribution result was negative and is published beside the cache result. Cross-machine cache sharing is not demonstrated.</small></p>
     </section>

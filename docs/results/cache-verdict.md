@@ -8,8 +8,8 @@ absent every time: Build History reports 0 helpers and `max_initiator_cores=0`.*
 
 | scenario | plain cargo | IB cache-only | winner |
 |---|---|---|---|
-| **target directory kept** (a developer rebuilding) | **980 ms** | 3,951 ms | **cargo, 4.0x** |
-| **target directory empty** (fresh workspace / fork / CI) | 12,149 ms | **3,485 ms** | **cache, 3.49x** |
+| **target directory kept** (a developer rebuilding) | **939 ms** | 4,048 ms | **cargo, 4.3x** |
+| **target directory empty** (fresh workspace / fork / CI) | 11,515 ms | **3,706 ms** | **cache, 3.13x** |
 
 Cache participation is not inferred. `--build-cache-report-all-miss` wrote
 `/etc/incredibuild/log/2026-Sep-24/local-95/ib_hm.log`:
@@ -29,7 +29,7 @@ cheap.**
 
 On a machine with an intact `target/`, cargo's own incremental state already holds the answer,
 and the cache only adds interception overhead — 4x worse. Start from nothing, and cargo must
-recompile all 52 units while the cache serves them — 3.49x better.
+recompile all 52 units while the cache serves them — 3.13x better.
 
 That is precisely the claim the project's third pillar makes: *disposable workspaces, reusable
 compilation.* The workspace is disposable; the compilation is not. An agentic loop that forks
