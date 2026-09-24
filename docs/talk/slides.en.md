@@ -55,7 +55,7 @@ The seeded implementation omits rule 3.
 
 The default rehearsal uses a reviewed fallback patch.
 
-<!-- The checked-in script does not invoke an LLM. If presenting an external agent, show that separate attempt and identify fallback use. -->
+<!-- The checked-in script does not invoke an LLM. If presenting an external agent, show that separate attempt and identify fallback use. Cap a live attempt at ~45 s. -->
 
 ---
 
@@ -162,7 +162,7 @@ Report medians + ranges only after Rust verifies helper and cache counters.
 
 Source, patch, executable identity and event traces
 
-<!-- Run ec2-e2e-20260923-160725. Original verifier reported88/88; the strengthened current suite has different checks. Archived executable is not committed; new rehearsals export theirs. A digest is identity, not an execution attestation. -->
+<!-- Run ec2-e2e-20260923-160725. Original verifier reported88/88; the strengthened current suite has different checks. Archived executable is not committed; new rehearsals export theirs. A digest is identity, not an execution attestation and not proof of general correctness. -->
 
 ---
 

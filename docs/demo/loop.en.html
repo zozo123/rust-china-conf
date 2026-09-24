@@ -116,7 +116,7 @@ const F = [
   ]},
   { s:0, add:[
     ["","  ib_console: coordinator + initiator + 2 helpers"],
-    ["","  cargo build --locked  (compile stage distributed)"],
+    ["","  cargo build --locked  (illustrative: distribution unverified)"],
   ], m:{phase:"cold", wall:"…", ib:"running", disp:null} },
   { s:0, add:[
     ["ok","  Finished dev profile — 21426 ms"],
@@ -160,7 +160,7 @@ const F = [
 
   { s:3, phase:"Burn the runner", runner:["gone","runner A destroyed"], add:[
     ["cmd","$ teardown runner A"],
-    ["bad","  worktree removed · target dir removed · instance gone"],
+    ["bad","  worktree removed · target dir removed · instance teardown unverified"],
     ["ok","  survives: the patch, the base revision, the context packet,"],
     ["ok","           and the compilation work the parent revision warmed"],
   ]},
@@ -190,7 +190,7 @@ const F = [
     ["cmd","$ swf-cli robot-demo validate --run-id ec2-e2e-...-runner-b"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },
   { s:5, phase:"Proof bound to the artifact", add:[
-    ["ok","  protected verifier: 88 / 88 PASS"],
+    ["ok","  protected verifier: 88 / 88 PASS  (historical revision, not the current verifier)"],
     ["dim","  sha256 f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326"],
     ["ok","  the verdict is bound to the executable that made these decisions"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },

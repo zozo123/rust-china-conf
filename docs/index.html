@@ -146,9 +146,9 @@ dispatches   <span class="good">0</span></pre>
       </div>
       <p class="note">其他场景：仿真停止 → emergency_stop；桥接停顿 → timeout。合计：10 次举起、5 次陈旧拒绝、1 次停止、1 次超时。</p>
       <div class="measurements">
-        <div><p>运行器 A 构建阶段</p><strong>21.426 <small>s</small></strong></div>
-        <div><p>运行器 B 构建阶段</p><strong>21.948 <small>s</small></strong></div>
-        <p>B 比 A 多用了 522 ms。两个记录均标明使用了 Incredibuild。这些观测说明集成路径已运行，不能作为受控缓存实验或加速测量。</p>
+        <div><p>运行器 A 构建阶段</p><strong>21.426 <small>s</small></strong><p class="warn">单次未受控采样 · 归档历史运行</p></div>
+        <div><p>运行器 B 构建阶段</p><strong>21.948 <small>s</small></strong><p class="warn">比 A 慢 522 ms · 未确立任何加速</p></div>
+        <p>每个阶段各只有一次采样，来自归档运行，缓存未受控。B 比 A 多用了 522 ms。两个记录均标明使用了 Incredibuild。这些观测只能说明集成路径已运行；它们不能确立任何加速，也不是受控缓存实验或性能测量。</p>
       </div>
       <details><summary>归档证据包含什么</summary><p>历史运行在原校验器下报告了 10/10 项 Rust 决策门测试与 88/88 项检查。这些数字属于当时的修订，不代表当前加强后的测试套件。仓库保留轨迹、清单、构建计时和可执行文件摘要；没有提交可执行文件本体，因此仅克隆仓库无法重新核对该历史二进制。新彩排会导出自己的可核验产物。</p><p><a href="examples/README.md">阅读证据说明</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">查看原始记录</a></p></details>
     </section>

@@ -5,8 +5,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$ROOT"
 # An explicit caller pin takes precedence over local configuration.
 REQUESTED_BASE_REVISION="${ROBOT_DEMO_BASE_REVISION:-}"
-# shellcheck disable=SC1091
-if [ -f .env.local ]; then set -a; . ./.env.local; set +a; fi
+# .env.local fills unset values only; the caller's own environment wins.
+# shellcheck source=scripts/robot-demo/env-local.sh
+. "$ROOT/scripts/robot-demo/env-local.sh"
 PYTHON="${ROBOT_DEMO_PYTHON:-python3}"
 PYTHON="$("$PYTHON" -c 'import sys; print(sys.executable)')"
 export ROBOT_DEMO_PYTHON="$PYTHON"

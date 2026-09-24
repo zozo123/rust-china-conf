@@ -8,8 +8,10 @@
 # (the real SIL path; requires demo/robot-sim/.venv per README).
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-# shellcheck disable=SC1091
-if [ -f .env.local ]; then set -a; . ./.env.local; set +a; fi
+# .env.local fills unset values only; the operator's own environment wins,
+# so an exported ROBOT_DEMO_BACKEND/REQUIRE_IB survives into the runners.
+# shellcheck source=scripts/robot-demo/env-local.sh
+. scripts/robot-demo/env-local.sh
 BACKEND="${ROBOT_DEMO_BACKEND:-mock}"
 RUN_ID="${1:-rehearsal-$(date +%s)}"
 PATCH="${ROBOT_DEMO_PATCH_FILE:-demo/fallback-patch.diff}"

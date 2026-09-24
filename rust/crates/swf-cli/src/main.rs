@@ -98,10 +98,38 @@ enum RobotDemoCommands {
         caption: String,
         #[arg(long)]
         source_revision: String,
+        /// Wall clock at which the timed build started, ms since the epoch.
+        /// Recorded by the runner; used to prove a cache clear preceded it.
+        #[arg(long)]
+        started_at_ms: u64,
+        /// Transcript of a cache-clearing operation the runner actually
+        /// performed (see scripts/robot-demo/cache-clear.sh). Repeat for
+        /// several. Required for every Incredibuild mode: swf-cli never
+        /// asserts a cache state that it did not observe.
+        #[arg(long = "cache-clear")]
+        cache_clear: Vec<PathBuf>,
+        /// Build History response covering this sample's own build
         #[arg(long, requires = "cache")]
         history: Option<PathBuf>,
+        /// Cache-statistics output for this sample's own build
         #[arg(long, requires = "history")]
         cache: Option<PathBuf>,
+        /// Build History response for the parent-revision seed build that
+        /// warmed the cache. Required for ib-parent-warm.
+        #[arg(long, requires_all = ["parent_seed_cache", "parent_seed_caption", "parent_seed_revision", "parent_seed_started_at_ms"])]
+        parent_seed_history: Option<PathBuf>,
+        /// Cache-statistics output for the parent-revision seed build
+        #[arg(long, requires = "parent_seed_history")]
+        parent_seed_cache: Option<PathBuf>,
+        /// Unique build caption of the parent-revision seed build
+        #[arg(long, requires = "parent_seed_history")]
+        parent_seed_caption: Option<String>,
+        /// Source revision the seed build compiled
+        #[arg(long, requires = "parent_seed_history")]
+        parent_seed_revision: Option<String>,
+        /// Wall clock at which the seed build started, ms since the epoch
+        #[arg(long, requires = "parent_seed_history")]
+        parent_seed_started_at_ms: Option<u64>,
     },
     /// Assemble normalized JSONL samples into a Rust-verifiable receipt
     BuildReceipt {
@@ -118,6 +146,69 @@ enum RobotDemoCommands {
     },
 }
 
+/// On-disk build-proof schema. Version 1 carried three top-level booleans that
+/// asserted the cache scope and the cache-clearing procedure. Nothing produced
+/// them but the assembling process itself, so the validator that "checked" them
+/// was checking its own literals. Version 2 removes them: cache state is now
+/// carried per sample, transcribed from operations the runner actually
+/// performed, and a sample that carries no such transcript does not validate.
+const BUILD_PROOF_SCHEMA_VERSION: u32 = 2;
+
+/// Header line every cache-clear transcript must start with.
+const CACHE_CLEAR_MARKER: &str = "# swf-cache-clear v1";
+
+/// The cache namespace a clearing operation acted on, as reported by the
+/// Incredibuild cache-management tool. There is deliberately no `Default` and
+/// no inference: a transcript whose argv swf-cli does not recognize yields
+/// `Unknown`, and `Unknown` never validates.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize, Serialize)]
+#[serde(rename_all = "kebab-case")]
+enum CacheScope {
+    LocalUser,
+    Shared,
+    Unknown,
+}
+
+impl std::fmt::Display for CacheScope {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.write_str(match self {
+            CacheScope::LocalUser => "local-user",
+            CacheScope::Shared => "shared",
+            CacheScope::Unknown => "unknown",
+        })
+    }
+}
+
+/// One cache-clearing operation the runner performed, transcribed from the
+/// cache tool's own output and exit status. swf-cli only ever parses these; it
+/// has no code path that constructs one.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct CacheClear {
+    scope: CacheScope,
+    argv: String,
+    exit_code: i32,
+    started_at_ms: u64,
+    completed_at_ms: u64,
+    transcript_path: String,
+    transcript_sha256: String,
+}
+
+/// The parent-revision build that warmed the cache for an `ib-parent-warm`
+/// sample. Its counters come from the same Build History and cache-statistics
+/// tools as a measured sample's, so "the cache was warmed by the parent" is an
+/// observation rather than an assertion.
+#[derive(Debug, Clone, Deserialize, Serialize)]
+#[serde(deny_unknown_fields)]
+struct ParentSeed {
+    build_caption: String,
+    source_revision: String,
+    started_at_ms: u64,
+    remote_tasks: u64,
+    cache_hits: u64,
+    cache_misses: u64,
+}
+
 #[derive(Debug, Deserialize, Serialize)]
 #[serde(deny_unknown_fields)]
 struct BuildProof {
@@ -125,9 +216,6 @@ struct BuildProof {
     run_id: String,
     candidate_revision: String,
     parent_revision: String,
-    cache_scope: String,
-    cache_cleared_before_each_cold_sample: bool,
-    cache_cleared_before_each_parent_seed: bool,
     samples: Vec<BuildSample>,
 }
 
@@ -139,11 +227,44 @@ struct BuildSample {
     wall_ms: u64,
     build_caption: String,
     source_revision: String,
+    /// Wall clock at which the timed build started, ms since the epoch.
+    started_at_ms: u64,
+    /// Cache clears the runner performed for this sample, in the order it
+    /// performed them. Empty means "nothing was observed", not "nothing
+    /// happened"; the validator rejects an empty list for IB modes.
+    #[serde(default)]
+    cache_clears: Vec<CacheClear>,
+    /// Present only for ib-parent-warm.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    parent_seed: Option<ParentSeed>,
     remote_tasks: Option<u64>,
     local_tasks: Option<u64>,
     remote_core_time_s: Option<f64>,
     cache_hits: Option<u64>,
     cache_misses: Option<u64>,
+}
+
+/// Everything `build-sample` needs for one sample. Grouped so that adding an
+/// evidence source does not grow a positional argument list.
+struct BuildSampleRequest {
+    mode: String,
+    repetition: usize,
+    wall_ms: u64,
+    caption: String,
+    source_revision: String,
+    started_at_ms: u64,
+    cache_clear: Vec<PathBuf>,
+    history: Option<PathBuf>,
+    cache: Option<PathBuf>,
+    parent_seed: Option<ParentSeedRequest>,
+}
+
+struct ParentSeedRequest {
+    caption: String,
+    revision: String,
+    started_at_ms: u64,
+    history: PathBuf,
+    cache: PathBuf,
 }
 
 #[derive(Debug, Serialize)]
@@ -292,19 +413,138 @@ fn parse_cache_counters(text: &str) -> Result<(u64, u64)> {
     Ok((counter(text, "hits")?, counter(text, "misses")?))
 }
 
-#[allow(clippy::too_many_arguments)]
-fn make_build_sample(
-    mode: String,
-    repetition: usize,
-    wall_ms: u64,
-    caption: String,
-    source_revision: String,
-    history: Option<PathBuf>,
-    cache: Option<PathBuf>,
-) -> Result<BuildSample> {
+/// Read one `key=value` header out of a cache-clear transcript, refusing a
+/// missing or repeated key rather than taking the first or the last.
+fn clear_header<'a>(headers: &'a BTreeMap<String, Vec<&'a str>>, key: &str) -> Result<&'a str> {
+    match headers.get(key).map(Vec::as_slice) {
+        Some([only]) => Ok(only),
+        Some(many) => bail!("cache-clear transcript repeats {key} {} times", many.len()),
+        None => bail!("cache-clear transcript has no {key}"),
+    }
+}
+
+/// Parse a transcript emitted by scripts/robot-demo/cache-clear.sh.
+///
+/// This is the only way a `CacheClear` can come into existence. Every field is
+/// read out of the transcript; nothing is defaulted and nothing is inferred. A
+/// scope swf-cli does not recognize becomes `CacheScope::Unknown`, which the
+/// validator rejects, so an unrecognized cache tool fails the proof instead of
+/// silently passing it.
+fn parse_cache_clear(text: &str, path: &Path, sha256: String) -> Result<CacheClear> {
+    let (header_block, _) = text
+        .split_once("\n--- transcript ---")
+        .context("cache-clear transcript has no '--- transcript ---' separator")?;
+    let mut lines = header_block.lines();
+    if lines.next().map(str::trim_end) != Some(CACHE_CLEAR_MARKER) {
+        bail!("cache-clear transcript does not start with {CACHE_CLEAR_MARKER:?}");
+    }
+    let mut headers: BTreeMap<String, Vec<&str>> = BTreeMap::new();
+    for line in lines {
+        if line.trim().is_empty() {
+            continue;
+        }
+        let (key, value) = line
+            .split_once('=')
+            .with_context(|| format!("cache-clear transcript has a non-header line {line:?}"))?;
+        headers
+            .entry(key.trim().to_string())
+            .or_default()
+            .push(value.trim());
+    }
+
+    let argv = clear_header(&headers, "argv")?.to_string();
+    let exit_code: i32 = clear_header(&headers, "exit_code")?
+        .parse()
+        .context("cache-clear exit_code is not an integer")?;
+    if exit_code != 0 {
+        bail!(
+            "cache clear {argv:?} exited {exit_code}; the cache state after it is unknown \
+             and swf-cli will not record it as cleared"
+        );
+    }
+    let started_at_ms: u64 = clear_header(&headers, "started_at_ms")?
+        .parse()
+        .context("cache-clear started_at_ms is not an unsigned integer")?;
+    let completed_at_ms: u64 = clear_header(&headers, "completed_at_ms")?
+        .parse()
+        .context("cache-clear completed_at_ms is not an unsigned integer")?;
+    if completed_at_ms < started_at_ms || started_at_ms == 0 {
+        bail!("cache clear {argv:?} has a nonsensical time range");
+    }
+
+    // Derived, never asserted: the scope follows from the arguments the runner
+    // actually passed to the cache tool.
+    let scope = match argv.split_whitespace().next() {
+        Some("user") => CacheScope::LocalUser,
+        Some("shared") | Some("service") | Some("all") | Some("global") => CacheScope::Shared,
+        _ => CacheScope::Unknown,
+    };
+
+    Ok(CacheClear {
+        scope,
+        argv,
+        exit_code,
+        started_at_ms,
+        completed_at_ms,
+        transcript_path: path.display().to_string(),
+        transcript_sha256: sha256,
+    })
+}
+
+fn load_cache_clear(path: &Path) -> Result<CacheClear> {
+    let sha256 = evidence::sha256_file(path)
+        .with_context(|| format!("hashing cache-clear transcript {}", path.display()))?;
+    let text = std::fs::read_to_string(path)
+        .with_context(|| format!("reading cache-clear transcript {}", path.display()))?;
+    parse_cache_clear(&text, path, sha256)
+        .with_context(|| format!("in cache-clear transcript {}", path.display()))
+}
+
+fn load_parent_seed(request: &ParentSeedRequest) -> Result<ParentSeed> {
+    let history = parse_ib_history(
+        &serde_json::from_str(&std::fs::read_to_string(&request.history)?)
+            .with_context(|| format!("parsing {}", request.history.display()))?,
+        &request.caption,
+    )?;
+    let (cache_hits, cache_misses) =
+        parse_cache_counters(&std::fs::read_to_string(&request.cache)?)?;
+    if request.started_at_ms == 0 {
+        bail!("parent seed {:?} has no start time", request.caption);
+    }
+    Ok(ParentSeed {
+        build_caption: request.caption.clone(),
+        source_revision: request.revision.clone(),
+        started_at_ms: request.started_at_ms,
+        remote_tasks: history.remote_tasks,
+        cache_hits,
+        cache_misses,
+    })
+}
+
+fn make_build_sample(request: BuildSampleRequest) -> Result<BuildSample> {
+    let BuildSampleRequest {
+        mode,
+        repetition,
+        wall_ms,
+        caption,
+        source_revision,
+        started_at_ms,
+        cache_clear,
+        history,
+        cache,
+        parent_seed,
+    } = request;
+
+    if started_at_ms == 0 {
+        bail!("--started-at-ms is required and must be a real wall clock reading");
+    }
+
     if mode == "native" {
-        if history.is_some() || cache.is_some() {
+        if history.is_some() || cache.is_some() || parent_seed.is_some() {
             bail!("native samples must not contain IB telemetry");
+        }
+        if !cache_clear.is_empty() {
+            bail!("native samples do not use the Incredibuild cache and must not claim a clear");
         }
         return Ok(BuildSample {
             mode,
@@ -312,6 +552,9 @@ fn make_build_sample(
             wall_ms,
             build_caption: caption,
             source_revision,
+            started_at_ms,
+            cache_clears: Vec::new(),
+            parent_seed: None,
             remote_tasks: None,
             local_tasks: None,
             remote_core_time_s: None,
@@ -319,6 +562,28 @@ fn make_build_sample(
             cache_misses: None,
         });
     }
+
+    // An IB sample without an observed cache operation is exactly the case the
+    // old schema papered over with a literal `true`. Refuse to emit it.
+    if cache_clear.is_empty() {
+        bail!(
+            "{mode} sample {repetition} requires at least one --cache-clear transcript; \
+             swf-cli will not record a cache state it did not observe"
+        );
+    }
+    if mode == "ib-parent-warm" && parent_seed.is_none() {
+        bail!("ib-parent-warm sample {repetition} requires the --parent-seed-* evidence");
+    }
+    if mode == "ib-cold" && parent_seed.is_some() {
+        bail!("ib-cold sample {repetition} must not carry a parent seed");
+    }
+
+    let cache_clears = cache_clear
+        .iter()
+        .map(|path| load_cache_clear(path))
+        .collect::<Result<Vec<_>>>()?;
+    let parent_seed = parent_seed.as_ref().map(load_parent_seed).transpose()?;
+
     let history_path = history.context("IB sample requires --history")?;
     let cache_path = cache.context("IB sample requires --cache")?;
     let history = parse_ib_history(
@@ -333,6 +598,9 @@ fn make_build_sample(
         wall_ms,
         build_caption: caption,
         source_revision,
+        started_at_ms,
+        cache_clears,
+        parent_seed,
         remote_tasks: Some(history.remote_tasks),
         local_tasks: Some(history.local_tasks),
         remote_core_time_s: Some(history.remote_core_time_s),
@@ -364,28 +632,233 @@ fn mode_stats(samples: &[&BuildSample]) -> ModeStats {
     }
 }
 
-fn validate_build_proof(
-    proof: &BuildProof,
-    min_samples: usize,
-) -> Result<BTreeMap<String, ModeStats>> {
-    if proof.schema_version != 1 {
+/// A cache-using build in this receipt, used to prove that nothing ran between
+/// a cache clear and the build it is claimed to have prepared.
+#[derive(Debug)]
+struct CacheBuild {
+    started_at_ms: u64,
+    label: String,
+}
+
+/// What the receipt's own records support about cache handling, derived rather
+/// than asserted. `print_build_proof` reports these instead of echoing a flag.
+#[derive(Debug)]
+struct CacheEvidence {
+    scope: CacheScope,
+    clears: usize,
+    warm_seeds: usize,
+}
+
+#[derive(Debug)]
+struct ProofSummary {
+    stats: BTreeMap<String, ModeStats>,
+    cache: CacheEvidence,
+}
+
+/// The latest clear that finished at or before `before_ms`.
+fn effective_clear(clears: &[CacheClear], before_ms: u64) -> Option<&CacheClear> {
+    clears
+        .iter()
+        .filter(|clear| clear.completed_at_ms <= before_ms)
+        .max_by_key(|clear| clear.completed_at_ms)
+}
+
+/// Any cache-using build that started strictly between the two instants. One of
+/// these means the clear cannot be attributed to the build that follows it.
+fn intervening_build(builds: &[CacheBuild], after_ms: u64, before_ms: u64) -> Option<&CacheBuild> {
+    builds
+        .iter()
+        .find(|build| build.started_at_ms > after_ms && build.started_at_ms < before_ms)
+}
+
+fn check_clear_usable(clear: &CacheClear, what: &str) -> Result<()> {
+    if clear.exit_code != 0 {
+        bail!(
+            "{what}: cache clear {:?} exited {}",
+            clear.argv,
+            clear.exit_code
+        );
+    }
+    match clear.scope {
+        CacheScope::LocalUser => {}
+        CacheScope::Shared => bail!(
+            "{what}: cache clear {:?} acted on a shared cache; this benchmark may only \
+             clear the invoking user's own cache",
+            clear.argv
+        ),
+        CacheScope::Unknown => bail!(
+            "{what}: cache clear {:?} has an unrecognized scope, so the cache namespace \
+             it emptied is unknown",
+            clear.argv
+        ),
+    }
+    if clear.transcript_sha256.len() != 64
+        || !clear
+            .transcript_sha256
+            .bytes()
+            .all(|b| b.is_ascii_digit() || (b'a'..=b'f').contains(&b))
+    {
+        bail!(
+            "{what}: cache clear {:?} has no retained transcript digest",
+            clear.argv
+        );
+    }
+    if clear.transcript_path.is_empty() {
+        bail!(
+            "{what}: cache clear {:?} has no retained transcript",
+            clear.argv
+        );
+    }
+    Ok(())
+}
+
+/// Verify, from records only, that every Incredibuild sample ran against the
+/// cache state it claims. Nothing here reads a field that swf-cli wrote from a
+/// literal: the clears are transcribed from the cache tool, the seed counters
+/// come from Incredibuild's own statistics, and the ordering is checked against
+/// timestamps the runner took around each build.
+fn verify_cache_chain(proof: &BuildProof) -> Result<CacheEvidence> {
+    let mut builds: Vec<CacheBuild> = Vec::new();
+    for sample in &proof.samples {
+        if sample.mode == "native" {
+            continue;
+        }
+        builds.push(CacheBuild {
+            started_at_ms: sample.started_at_ms,
+            label: format!("{} sample {}", sample.mode, sample.repetition),
+        });
+        if let Some(seed) = &sample.parent_seed {
+            builds.push(CacheBuild {
+                started_at_ms: seed.started_at_ms,
+                label: format!("parent seed {}", seed.build_caption),
+            });
+        }
+    }
+    let mut seen: BTreeMap<u64, &str> = BTreeMap::new();
+    for build in &builds {
+        if let Some(other) = seen.insert(build.started_at_ms, &build.label) {
+            bail!(
+                "{} and {} report the same start time {}ms; cache ordering cannot be \
+                 established",
+                other,
+                build.label,
+                build.started_at_ms
+            );
+        }
+    }
+
+    let mut scope: Option<CacheScope> = None;
+    let mut clears = 0usize;
+    let mut warm_seeds = 0usize;
+
+    for sample in &proof.samples {
+        if sample.mode == "native" {
+            continue;
+        }
+        let what = format!("{} sample {}", sample.mode, sample.repetition);
+        if sample.cache_clears.is_empty() {
+            bail!("{what} records no cache clear, so the cache it built against is unknown");
+        }
+        for clear in &sample.cache_clears {
+            clears += 1;
+            match scope {
+                None => scope = Some(clear.scope),
+                Some(previous) if previous != clear.scope => bail!(
+                    "{what}: cache clears disagree about scope ({previous} vs {})",
+                    clear.scope
+                ),
+                Some(_) => {}
+            }
+        }
+
+        // The instant the cache had to be empty: for a cold sample that is its
+        // own build; for a warm sample it is the parent seed that warms it.
+        let (target_ms, target_label) = match (&sample.mode[..], &sample.parent_seed) {
+            ("ib-cold", _) => (sample.started_at_ms, what.clone()),
+            ("ib-parent-warm", Some(seed)) => {
+                if seed.source_revision != proof.parent_revision {
+                    bail!(
+                        "{what}: parent seed built {}, expected parent {}",
+                        seed.source_revision,
+                        proof.parent_revision
+                    );
+                }
+                if seed.started_at_ms >= sample.started_at_ms {
+                    bail!("{what}: parent seed did not start before the measured build");
+                }
+                if seed.remote_tasks == 0 {
+                    bail!("{what}: parent seed has no verified remote tasks");
+                }
+                if seed.cache_hits != 0 {
+                    bail!(
+                        "{what}: parent seed reported {} cache hit(s), so it did not run \
+                         against an emptied cache",
+                        seed.cache_hits
+                    );
+                }
+                if seed.cache_misses == 0 {
+                    bail!("{what}: parent seed populated no cache entries");
+                }
+                if let Some(between) =
+                    intervening_build(&builds, seed.started_at_ms, sample.started_at_ms)
+                {
+                    bail!(
+                        "{what}: {} ran between the parent seed and the measured build, so \
+                         the warm cache cannot be attributed to the parent",
+                        between.label
+                    );
+                }
+                warm_seeds += 1;
+                (seed.started_at_ms, format!("parent seed for {what}"))
+            }
+            ("ib-parent-warm", None) => bail!(
+                "{what} records no parent seed, so its cache hits cannot be attributed to \
+                 the parent revision"
+            ),
+            (other, _) => bail!("unknown benchmark mode {other}"),
+        };
+
+        let clear = effective_clear(&sample.cache_clears, target_ms).with_context(|| {
+            format!("{target_label}: every recorded cache clear finished after the build started")
+        })?;
+        check_clear_usable(clear, &target_label)?;
+        if let Some(between) = intervening_build(&builds, clear.completed_at_ms, target_ms) {
+            bail!(
+                "{target_label}: {} ran between the cache clear and this build, so the clear \
+                 cannot be attributed to it",
+                between.label
+            );
+        }
+    }
+
+    let scope = scope.unwrap_or(CacheScope::Unknown);
+    if scope != CacheScope::LocalUser {
+        bail!("expected isolated local-user cache scope, observed {scope}");
+    }
+    Ok(CacheEvidence {
+        scope,
+        clears,
+        warm_seeds,
+    })
+}
+
+fn validate_build_proof(proof: &BuildProof, min_samples: usize) -> Result<ProofSummary> {
+    if proof.schema_version != BUILD_PROOF_SCHEMA_VERSION {
+        if proof.schema_version == 1 {
+            bail!(
+                "build-proof schema 1 asserted its cache scope and cache-clearing procedure as \
+                 literals that nothing observed; re-run scripts/robot-demo/ib-benchmark.sh to \
+                 produce a schema {BUILD_PROOF_SCHEMA_VERSION} receipt"
+            );
+        }
         bail!("unsupported build-proof schema {}", proof.schema_version);
     }
     parse_identifier(&proof.run_id).map_err(anyhow::Error::msg)?;
     if proof.candidate_revision.is_empty() || proof.parent_revision.is_empty() {
         bail!("candidate_revision and parent_revision are required");
     }
-    if proof.cache_scope != "local-user" {
-        bail!(
-            "expected isolated local-user cache scope, got {}",
-            proof.cache_scope
-        );
-    }
-    if !proof.cache_cleared_before_each_cold_sample {
-        bail!("cold cache was not cleared before every independent sample");
-    }
-    if !proof.cache_cleared_before_each_parent_seed {
-        bail!("cache was not cleared before every parent-seed sample");
+    if proof.candidate_revision == proof.parent_revision {
+        bail!("candidate_revision and parent_revision must differ");
     }
 
     let mut by_mode: BTreeMap<String, Vec<&BuildSample>> = BTreeMap::new();
@@ -396,6 +869,13 @@ fn validate_build_proof(
         if sample.wall_ms == 0 || sample.build_caption.is_empty() {
             bail!(
                 "sample {} / {} has no wall time or caption",
+                sample.mode,
+                sample.repetition
+            );
+        }
+        if sample.started_at_ms == 0 {
+            bail!(
+                "sample {} / {} has no recorded start time",
                 sample.mode,
                 sample.repetition
             );
@@ -413,6 +893,8 @@ fn validate_build_proof(
             if sample.remote_tasks.is_some()
                 || sample.remote_core_time_s.is_some()
                 || sample.cache_hits.is_some()
+                || sample.parent_seed.is_some()
+                || !sample.cache_clears.is_empty()
             {
                 bail!(
                     "native sample {} contains IB-only telemetry",
@@ -477,12 +959,13 @@ fn validate_build_proof(
         }
         stats.insert(mode.to_string(), mode_stats(samples));
     }
-    Ok(stats)
+    let cache = verify_cache_chain(proof)?;
+    Ok(ProofSummary { stats, cache })
 }
 
 fn print_build_proof(proof: &BuildProof, min_samples: usize) -> Result<()> {
-    let stats = validate_build_proof(proof, min_samples)?;
-    println!("BUILD PROOF PASS  run={}", proof.run_id);
+    let ProofSummary { stats, cache } = validate_build_proof(proof, min_samples)?;
+    println!("BUILD RECEIPT CONSISTENT  run={}", proof.run_id);
     println!(
         "candidate={} parent={}",
         proof.candidate_revision, proof.parent_revision
@@ -504,7 +987,21 @@ fn print_build_proof(proof: &BuildProof, min_samples: usize) -> Result<()> {
         );
     }
     println!(
-        "distribution verified for every IB sample; parent-warmed cache hits verified for every warm sample"
+        "cache scope observed in {} clear transcript(s): {}; {} parent-seed build(s) attributed",
+        cache.clears, cache.scope, cache.warm_seeds
+    );
+    println!(
+        "CHECKED FROM RECORDS: >={min_samples} independent samples per mode with distinct \
+         repetitions; one Build History record per caption reporting success; remote task and \
+         remote core-time counters present for every IB sample; cold-cache hits==0 and \
+         warm-cache hits>0 from the cache-statistics tool; every IB build preceded by a \
+         transcribed local-user cache clear that exited 0, with no other cache-using build \
+         between the clear and it."
+    );
+    println!(
+        "NOT CHECKED: this is a consistency check over a receipt, not a proof. It cannot \
+         detect a fabricated receipt, and it does not observe the cache itself. Re-verify the \
+         retained transcripts and Build History responses independently."
     );
     Ok(())
 }
@@ -792,18 +1289,47 @@ fn main() -> Result<ExitCode> {
                 wall_ms,
                 caption,
                 source_revision,
+                started_at_ms,
+                cache_clear,
                 history,
                 cache,
+                parent_seed_history,
+                parent_seed_cache,
+                parent_seed_caption,
+                parent_seed_revision,
+                parent_seed_started_at_ms,
             } => {
-                let sample = make_build_sample(
+                // clap's `requires_all` guarantees these arrive together.
+                let parent_seed = match (
+                    parent_seed_history,
+                    parent_seed_cache,
+                    parent_seed_caption,
+                    parent_seed_revision,
+                    parent_seed_started_at_ms,
+                ) {
+                    (Some(history), Some(cache), Some(caption), Some(revision), Some(started)) => {
+                        Some(ParentSeedRequest {
+                            caption,
+                            revision,
+                            started_at_ms: started,
+                            history,
+                            cache,
+                        })
+                    }
+                    _ => None,
+                };
+                let sample = make_build_sample(BuildSampleRequest {
                     mode,
                     repetition,
                     wall_ms,
                     caption,
                     source_revision,
+                    started_at_ms,
+                    cache_clear,
                     history,
                     cache,
-                )?;
+                    parent_seed,
+                })?;
                 println!("{}", serde_json::to_string(&sample)?);
             }
             RobotDemoCommands::BuildReceipt {
@@ -818,14 +1344,16 @@ fn main() -> Result<ExitCode> {
                     .filter(|line| !line.trim().is_empty())
                     .map(serde_json::from_str)
                     .collect::<std::result::Result<Vec<BuildSample>, _>>()?;
+                // This arm assembles; it does not attest. Every cache fact in
+                // the receipt arrived inside a sample, parsed from evidence by
+                // `build-sample`. Adding a cache field here would make the
+                // validator check this function's opinion again -- see the
+                // `cache_state_is_never_asserted_by_construction` guard.
                 let proof = BuildProof {
-                    schema_version: 1,
+                    schema_version: BUILD_PROOF_SCHEMA_VERSION,
                     run_id,
                     candidate_revision,
                     parent_revision,
-                    cache_scope: "local-user".into(),
-                    cache_cleared_before_each_cold_sample: true,
-                    cache_cleared_before_each_parent_seed: true,
                     samples,
                 };
                 if let Some(parent) = output.parent() {
@@ -930,18 +1458,54 @@ mod tests {
         }
     }
 
+    fn clear_at(completed_at_ms: u64) -> CacheClear {
+        CacheClear {
+            scope: CacheScope::LocalUser,
+            argv: "user clear".into(),
+            exit_code: 0,
+            started_at_ms: completed_at_ms - 10,
+            completed_at_ms,
+            transcript_path: format!("evidence/raw/clear-{completed_at_ms}.txt"),
+            transcript_sha256: "0123456789abcdef".repeat(4),
+        }
+    }
+
+    /// A deterministic timeline, one second-scale block per repetition:
+    /// native at +100, the cold clear at +200 and its build at +300, the warm
+    /// clear at +400, its parent seed at +500 and the measured warm build at
+    /// +600. Every cache-using build gets a distinct start.
     fn proof_sample(
         mode: &str,
         repetition: usize,
         remote_tasks: Option<u64>,
         cache_hits: Option<u64>,
     ) -> BuildSample {
+        let base = repetition as u64 * 1_000_000;
+        let (started_at_ms, cache_clears, parent_seed) = match mode {
+            "native" => (base + 100, Vec::new(), None),
+            "ib-cold" => (base + 300, vec![clear_at(base + 200)], None),
+            _ => (
+                base + 600,
+                vec![clear_at(base + 400)],
+                Some(ParentSeed {
+                    build_caption: format!("proof-parent-seed-{repetition}"),
+                    source_revision: "parent".into(),
+                    started_at_ms: base + 500,
+                    remote_tasks: 6,
+                    cache_hits: 0,
+                    cache_misses: 9,
+                }),
+            ),
+        };
         BuildSample {
             mode: mode.into(),
             repetition,
             wall_ms: 1_000 + repetition as u64,
             build_caption: format!("proof-{mode}-{repetition}"),
             source_revision: "candidate".into(),
+            started_at_ms,
+            cache_clears,
+            parent_seed,
             remote_tasks,
             local_tasks: remote_tasks.map(|_| 2),
             remote_core_time_s: remote_tasks.map(|_| 0.25),
@@ -958,15 +1522,26 @@ mod tests {
             samples.push(proof_sample("ib-parent-warm", repetition, Some(1), Some(3)));
         }
         BuildProof {
-            schema_version: 1,
+            schema_version: BUILD_PROOF_SCHEMA_VERSION,
             run_id: "proof-1".into(),
             candidate_revision: "candidate".into(),
             parent_revision: "parent".into(),
-            cache_scope: "local-user".into(),
-            cache_cleared_before_each_cold_sample: true,
-            cache_cleared_before_each_parent_seed: true,
             samples,
         }
+    }
+
+    fn rejection(proof: &BuildProof) -> String {
+        validate_build_proof(proof, 5)
+            .expect_err("expected this receipt to be rejected")
+            .to_string()
+    }
+
+    fn warm_mut(proof: &mut BuildProof) -> &mut BuildSample {
+        proof
+            .samples
+            .iter_mut()
+            .find(|sample| sample.mode == "ib-parent-warm")
+            .unwrap()
     }
 
     #[test]
@@ -974,30 +1549,12 @@ mod tests {
         let mut proof = complete_build_proof();
         assert!(validate_build_proof(&proof, 5).is_ok());
 
-        proof.cache_cleared_before_each_parent_seed = false;
-        assert!(validate_build_proof(&proof, 5)
-            .unwrap_err()
-            .to_string()
-            .contains("parent-seed"));
-        proof.cache_cleared_before_each_parent_seed = true;
-
         proof.samples[1].remote_tasks = Some(0);
-        assert!(validate_build_proof(&proof, 5)
-            .unwrap_err()
-            .to_string()
-            .contains("no verified remote tasks"));
+        assert!(rejection(&proof).contains("no verified remote tasks"));
         proof.samples[1].remote_tasks = Some(4);
 
-        let warm = proof
-            .samples
-            .iter_mut()
-            .find(|sample| sample.mode == "ib-parent-warm")
-            .unwrap();
-        warm.cache_hits = Some(0);
-        assert!(validate_build_proof(&proof, 5)
-            .unwrap_err()
-            .to_string()
-            .contains("no verified cache hits"));
+        warm_mut(&mut proof).cache_hits = Some(0);
+        assert!(rejection(&proof).contains("no verified cache hits"));
     }
 
     #[test]
@@ -1006,10 +1563,201 @@ mod tests {
         proof
             .samples
             .retain(|sample| sample.mode != "native" || sample.repetition != 5);
-        assert!(validate_build_proof(&proof, 5)
-            .unwrap_err()
-            .to_string()
-            .contains("require at least 5"));
+        assert!(rejection(&proof).contains("require at least 5"));
+    }
+
+    // --- the honesty regression suite -----------------------------------
+    //
+    // Schema 1 stamped the cache scope and the clearing procedure as literals
+    // at receipt-assembly time and then validated those same literals, so the
+    // three corresponding bails could never fire. Each test below drives one
+    // of the replacements, which read only records the runner produced.
+
+    #[test]
+    fn schema_one_receipts_are_rejected_because_their_attestations_were_literals() {
+        let mut proof = complete_build_proof();
+        proof.schema_version = 1;
+        let message = rejection(&proof);
+        assert!(message.contains("schema 1"), "{message}");
+        assert!(message.contains("literals"), "{message}");
+    }
+
+    #[test]
+    fn an_ib_sample_without_an_observed_clear_is_unknown_not_clean() {
+        let mut proof = complete_build_proof();
+        proof.samples[1].cache_clears.clear();
+        assert!(rejection(&proof).contains("records no cache clear"));
+
+        let mut proof = complete_build_proof();
+        warm_mut(&mut proof).cache_clears.clear();
+        assert!(rejection(&proof).contains("records no cache clear"));
+    }
+
+    #[test]
+    fn a_clear_is_rejected_unless_it_is_local_user_successful_and_retained() {
+        let mut proof = complete_build_proof();
+        proof.samples[1].cache_clears[0].scope = CacheScope::Shared;
+        assert!(rejection(&proof).contains("shared cache"));
+
+        let mut proof = complete_build_proof();
+        proof.samples[1].cache_clears[0].scope = CacheScope::Unknown;
+        assert!(rejection(&proof).contains("unrecognized scope"));
+
+        let mut proof = complete_build_proof();
+        proof.samples[1].cache_clears[0].exit_code = 3;
+        assert!(rejection(&proof).contains("exited 3"));
+
+        let mut proof = complete_build_proof();
+        proof.samples[1].cache_clears[0].transcript_sha256 = "not-a-digest".into();
+        assert!(rejection(&proof).contains("no retained transcript digest"));
+    }
+
+    #[test]
+    fn a_clear_must_precede_the_build_it_is_claimed_to_have_prepared() {
+        let mut proof = complete_build_proof();
+        // The clear finished one millisecond after the timed build began.
+        let start = proof.samples[1].started_at_ms;
+        proof.samples[1].cache_clears[0].completed_at_ms = start + 1;
+        assert!(rejection(&proof).contains("finished after the build started"));
+    }
+
+    #[test]
+    fn a_clear_cannot_be_reused_across_an_intervening_cache_using_build() {
+        let mut proof = complete_build_proof();
+        // Repetition 2's cold clear is backdated ahead of repetition 1's warm
+        // build, so another Incredibuild build ran in between and could have
+        // repopulated the cache.
+        let cold_two = proof
+            .samples
+            .iter_mut()
+            .find(|sample| sample.mode == "ib-cold" && sample.repetition == 2)
+            .unwrap();
+        cold_two.cache_clears[0].completed_at_ms = 1_000_550;
+        assert!(rejection(&proof).contains("ran between the cache clear"));
+    }
+
+    #[test]
+    fn warm_cache_hits_must_be_attributable_to_a_recorded_parent_seed() {
+        let mut proof = complete_build_proof();
+        warm_mut(&mut proof).parent_seed = None;
+        assert!(rejection(&proof).contains("records no parent seed"));
+
+        let mut proof = complete_build_proof();
+        warm_mut(&mut proof)
+            .parent_seed
+            .as_mut()
+            .unwrap()
+            .cache_hits = 2;
+        assert!(rejection(&proof).contains("did not run against an emptied cache"));
+
+        let mut proof = complete_build_proof();
+        warm_mut(&mut proof)
+            .parent_seed
+            .as_mut()
+            .unwrap()
+            .source_revision = "candidate".into();
+        assert!(rejection(&proof).contains("expected parent"));
+
+        let mut proof = complete_build_proof();
+        warm_mut(&mut proof)
+            .parent_seed
+            .as_mut()
+            .unwrap()
+            .remote_tasks = 0;
+        assert!(rejection(&proof).contains("parent seed has no verified remote tasks"));
+    }
+
+    #[test]
+    fn native_samples_may_not_carry_cache_evidence() {
+        let mut proof = complete_build_proof();
+        proof.samples[0].cache_clears.push(clear_at(50));
+        assert!(rejection(&proof).contains("IB-only telemetry"));
+    }
+
+    #[test]
+    fn cache_clear_transcripts_are_parsed_not_assumed() {
+        let digest = "0123456789abcdef".repeat(4);
+        let ok = "# swf-cache-clear v1\n\
+                  argv=user clear\n\
+                  exit_code=0\n\
+                  started_at_ms=1000\n\
+                  completed_at_ms=1200\n\
+                  --- transcript ---\n\
+                  Local user build cache cleared.\n";
+        let parsed = parse_cache_clear(ok, Path::new("clear.txt"), digest.clone()).unwrap();
+        assert_eq!(parsed.scope, CacheScope::LocalUser);
+        assert_eq!(parsed.completed_at_ms, 1200);
+
+        // A failed clear is never recorded as a clear.
+        let failed = ok.replace("exit_code=0", "exit_code=1");
+        assert!(
+            parse_cache_clear(&failed, Path::new("clear.txt"), digest.clone())
+                .unwrap_err()
+                .to_string()
+                .contains("unknown")
+        );
+
+        // An unfamiliar cache tool invocation yields Unknown, which the
+        // validator rejects -- it is never optimistically read as local-user.
+        let exotic = ok.replace("argv=user clear", "argv=whatever --purge");
+        assert_eq!(
+            parse_cache_clear(&exotic, Path::new("clear.txt"), digest.clone())
+                .unwrap()
+                .scope,
+            CacheScope::Unknown
+        );
+        let shared = ok.replace("argv=user clear", "argv=shared clear");
+        assert_eq!(
+            parse_cache_clear(&shared, Path::new("clear.txt"), digest.clone())
+                .unwrap()
+                .scope,
+            CacheScope::Shared
+        );
+
+        for broken in [
+            ok.replace("# swf-cache-clear v1", "# something else"),
+            ok.replace("exit_code=0\n", ""),
+            ok.replace("argv=user clear", "argv=user clear\nargv=shared clear"),
+            ok.replace("--- transcript ---", "transcript"),
+        ] {
+            assert!(parse_cache_clear(&broken, Path::new("clear.txt"), digest.clone()).is_err());
+        }
+    }
+
+    /// The regression guard the fix exists for. If somebody restores the
+    /// convenience of stamping cache state where the receipt is assembled,
+    /// this fails -- even if every behavioural test above still passes,
+    /// because a hardcoded `true` satisfies them all.
+    #[test]
+    fn cache_state_is_never_asserted_by_construction() {
+        let source = include_str!("main.rs");
+
+        // Assembled at runtime so this guard is not itself an occurrence.
+        for banned in [
+            format!("cache_cleared_before_each_{}", "cold_sample"),
+            format!("cache_cleared_before_each_{}", "parent_seed"),
+        ] {
+            assert!(
+                !source.contains(&banned),
+                "{banned} is back: the validator would be checking its own literal again"
+            );
+        }
+
+        let start = source
+            .find("RobotDemoCommands::BuildReceipt {\n                samples,")
+            .expect("build-receipt dispatch arm");
+        let end = start
+            + source[start..]
+                .find("println!(\"{}\", output.display());")
+                .expect("end of build-receipt dispatch arm");
+        let arm = &source[start..end];
+        for banned in ["CacheScope", "cache_clears", "parent_seed:", "cache_scope"] {
+            assert!(
+                !arm.contains(banned),
+                "the build-receipt arm sets {banned} itself; cache state must reach the \
+                 receipt only as evidence parsed by build-sample"
+            );
+        }
     }
 
     #[test]
