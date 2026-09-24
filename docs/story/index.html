@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>The robot succeeded. The contract failed.</title>
+<style>
+ :root{color-scheme:dark}
+ body{background:#0d1319;color:#edf2f4;font:17px/1.7 -apple-system,system-ui,sans-serif;margin:0}
+ .w{max-width:780px;margin:0 auto;padding:3rem 1.25rem 5rem}
+ h1{font-size:2.4rem;line-height:1.15;margin:0 0 .5rem}
+ h2{font-size:1.5rem;margin:3.5rem 0 .75rem;color:#f0b85d}
+ .lede{font-size:1.2rem;color:#b8c7d4;margin:0 0 2rem}
+ a{color:#f0b85d}
+ figure{margin:1.5rem 0}
+ img{width:100%;border-radius:8px;display:block}
+ figcaption{color:#8fa3b5;font-size:.88rem;margin-top:.5rem}
+ .two{display:grid;grid-template-columns:1fr 1fr;gap:1rem}
+ @media(max-width:620px){.two{grid-template-columns:1fr}}
+ .big{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;margin:2rem 0}
+ @media(max-width:620px){.big{grid-template-columns:repeat(2,1fr)}}
+ .big div{background:#141d26;border-radius:8px;padding:1rem;text-align:center}
+ .big b{display:block;font-size:1.7rem;color:#7fc4a0;line-height:1.2}
+ .big span{font-size:.8rem;color:#8fa3b5}
+ .quote{border-left:3px solid #f0b85d;padding-left:1.1rem;margin:2rem 0;font-size:1.15rem;color:#edf2f4}
+ table{border-collapse:collapse;width:100%;margin:1.25rem 0;font-size:.95rem}
+ th,td{text-align:left;padding:.5rem .6rem;border-bottom:1px solid #1e2a35}
+ th{color:#8fa3b5;font-weight:600}
+ .win{color:#7fc4a0}.lose{color:#d98b8b}
+ code{color:#f0b85d;font-size:.9em}
+ .foot{margin-top:4rem;padding-top:1.5rem;border-top:1px solid #1e2a35;color:#8fa3b5;font-size:.9rem}
+</style></head><body><div class="w">
+
+<h1>The robot succeeded.<br>The contract failed.</h1>
+<p class="lede">What we measured in one day: a robot that was wrong while every light was green,
+a verifier that certified four fabrications, and a build cache that only pays off when you
+throw your workspace away.</p>
+
+<div class="two">
+<figure>
+  <img src="../assets/robot-stale_600ms.gif" alt="Arm lifting a cube using a 600 ms stale observation">
+  <figcaption><strong>600 ms stale.</strong> It lifts the cube.
+  <code>success=true · rejections=[]</code><br>The contract says FAIL.</figcaption>
+</figure>
+<figure>
+  <img src="../assets/robot-lift.gif" alt="Arm lifting a cube with a fresh observation">
+  <figcaption><strong>Fresh observation.</strong> Same task, same code path.<br>
+  Indistinguishable from the outside.</figcaption>
+</figure>
+</div>
+
+<div class="big">
+  <div><b>30</b><span>control periods stale<br>(20 ms each)</span></div>
+  <div><b>4</b><span>fabrications our own<br>verifier certified</span></div>
+  <div><b>3.49×</b><span>cache, from an<br>empty workspace</span></div>
+  <div><b>1.08×</b><span>parallelism left in<br>the rebuild loop</span></div>
+</div>
+
+<h2>1 · The bug is one line</h2>
+<p>The safety gate's third rule: an observation older than the bound must never authorize motion.
+Here is the shipped implementation of that rule.</p>
+<p><code>let _ = (age_ms, policy);</code></p>
+<p>The age arrives and is thrown away. It silences an unused-variable warning. Three contract
+tests catch it — written by the same person, the same afternoon, who wrote the omission.</p>
+
+<h2>2 · So we built a proof gate. It lied. Four times.</h2>
+<table>
+<tr><th>what it checked</th><th>what it printed</th></tr>
+<tr><td>a boolean the producer had just written</td><td class="lose"><code>ratio=2.999x</code></td></tr>
+<tr><td>that a digest was 64 hex characters — never opened the file</td><td class="lose"><code>ratio=11.948x</code></td></tr>
+<tr><td>ten <em>real</em> transcripts wrapped around a no-op script</td><td class="lose"><code>ratio=119.949x</code></td></tr>
+<tr><td>seventeen scenarios at 0/50/600 ms against a 250 ms bound</td><td class="lose">"complete coverage"</td></tr>
+</table>
+<p>Forty-two guard tests later, twelve forgery classes are closed. One is still open, and the
+tool prints it in its own output.</p>
+
+<h2>3 · Then we did it to ourselves</h2>
+<p>We published "distributed builds are 2× slower" — then found the benchmark passed
+<code>--force-remote</code>, which idled four local cores. And a beautiful <em>87% parallel
+efficiency</em> figure that divided one machine's CPU-seconds by another machine's wall time.</p>
+<p class="quote">It felt like insight. That is what a claim you authored feels like from the inside.</p>
+
+<h2>4 · What the build cache actually does</h2>
+<table>
+<tr><th>your situation</th><th>plain cargo</th><th>Build Cache</th><th></th></tr>
+<tr><td><strong>empty workspace</strong> — a fork, a CI runner, an agent loop</td><td>12,149 ms</td><td class="win"><strong>3,485 ms</strong></td><td class="win">3.49× faster</td></tr>
+<tr><td>warm workspace — you, rebuilding</td><td class="win"><strong>980 ms</strong></td><td>3,951 ms</td><td class="lose">cargo wins</td></tr>
+</table>
+<p><code>HIT 52 / MISS 0 · 9 tasks of 58 · helpers 0</code></p>
+<p class="quote">The cache does not make your build faster.<br>
+It makes throwing your workspace away cheap.</p>
+<p>Which is exactly what an agent loop does — a clean box per candidate, so no candidate
+inherits the last one's state. That isolation costs a cold build every time. This is the bill,
+and the cache is how you stop paying it twice.</p>
+
+<h2>5 · Rust is where the rule actually lives</h2>
+<p>We ported the same contract onto a walking robot with a 50 Hz loop, and enforced it with
+types instead of vigilance:</p>
+<table>
+<tr><td><code>Sensors.observed_at</code></td><td>private — <code>Instant::now()</code> is the only constructor, so a backend carries a stamp but cannot write one</td></tr>
+<tr><td><code>ObservationAge</code></td><td>no <code>Default</code>, no public field — one way in</td></tr>
+<tr><td><code>Safety::apply(.., age)</code></td><td>by value: a dispatch site with no observation <strong>does not compile</strong></td></tr>
+</table>
+<p><strong>"I checked the age" stops being a claim a caller can make.</strong> The bound is
+arithmetic too — 80 ms is four control periods at 50 Hz, not a number someone picked.</p>
+<p>Seeded, at 100 ms stale: <span class="lose">0 of 273 ticks refuse</span>, the robot ends on its
+side — and its own odometry reports 0.67 m of forward travel. Repaired:
+<span class="win">266 of 266 refuse</span>, upright, and it still walks the same distance when
+nothing is wrong. The gate is free.</p>
+
+<h2>The point</h2>
+<p class="quote">A check wins against exactly the adversary who does not control its input.</p>
+<p>The type system works because the next contributor cannot author <code>rustc</code>. Our
+verifier failed because its adversary was us. And a cache hit is trustworthy for the same reason
+a wall-clock is not: <strong>you cannot author a cache hit</strong> — the key is computed from
+input content by something that is not you.</p>
+<p>A robot's odometry saying it travelled 0.67 m while lying on its side, and cargo's timestamp
+fingerprint saying "nothing to do" when the source changed, are the same bug: a cheap, fast,
+self-reported signal that is confidently wrong.</p>
+
+<div class="foot">
+<p>Every number measured 2026-09-24, one machine per comparison, n=5 with rotating order.
+<a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">451 evidence files</a>
+are committed, so a clone re-derives all of it. Three numbers here replaced numbers we withdrew.</p>
+<p><a href="../results/">All measurements, with charts</a> ·
+<a href="../talk/presentation.md">The full talk</a> ·
+<a href="../talk/slides.en.md">The deck</a> ·
+<a href="../">Home</a></p>
+<p>No distribution speedup is claimed — that result was negative and is published.
+Cross-machine cache sharing is not demonstrated. No footage exists of the walking robot;
+capturing it needs a pipeline we did not build.</p>
+</div>
+
+</div></body></html>
