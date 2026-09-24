@@ -1,0 +1,201 @@
+[
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "center-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 4,
+    "wall_time_ms": 63
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "center-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 5,
+    "wall_time_ms": 52
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "center-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 51
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "left-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 4,
+    "wall_time_ms": 58
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "left-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 5,
+    "wall_time_ms": 62
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "left-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 51
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "right-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 4,
+    "wall_time_ms": 86
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "right-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 5,
+    "wall_time_ms": 54
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "right-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 51
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "near-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 4,
+    "wall_time_ms": 50
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "near-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 5,
+    "wall_time_ms": 56
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "near-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 53
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "far-f0",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 4,
+    "wall_time_ms": 56
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 4,
+    "outcome": "cube_lifted",
+    "rejections": [],
+    "scenario": "far-f50",
+    "success": true,
+    "task_dispatches": 4,
+    "ticks": 5,
+    "wall_time_ms": 58
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 1,
+    "outcome": "rejected_stale",
+    "rejections": [
+      "reject/stale_perception(age=600ms)"
+    ],
+    "scenario": "far-f600",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 12,
+    "wall_time_ms": 52
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 2,
+    "outcome": "emergency_stop",
+    "rejections": [
+      "reject/emergency_stop"
+    ],
+    "scenario": "estop_descend",
+    "success": false,
+    "task_dispatches": 1,
+    "ticks": 1,
+    "wall_time_ms": 55
+  },
+  {
+    "backend": "mock (kinematic stand-in; NOT robosuite SIL)",
+    "decisions": 0,
+    "outcome": "timeout",
+    "rejections": [],
+    "scenario": "protocol_timeout",
+    "success": false,
+    "task_dispatches": 0,
+    "ticks": 0,
+    "wall_time_ms": 8068
+  }
+]

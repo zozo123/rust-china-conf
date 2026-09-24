@@ -41,7 +41,8 @@ not create age by sleeping while the simulator is paused.
 
 “One important boundary: authorization is at segment dispatch. A segment can
 contain multiple control steps. We are not demonstrating continuous physical
-safety supervision. The threshold is an illustrative policy.”
+safety supervision. The threshold is an illustrative policy, not a hardware
+safety limit.”
 
 ## 5:00–8:00 · Candidates need independent checks
 
@@ -61,7 +62,8 @@ protected checks remain part of the evidence boundary.
 
 “The checked-in rehearsal uses a reviewed fallback patch. It can accept a patch
 produced by an external agent. It does not itself call a language model.”
-If using a live external agent today, show it explicitly and cap the attempt.
+If using a live external agent today, show it explicitly and cap the attempt at
+approximately 45 seconds; on timeout, switch to the reviewed fallback patch.
 If using the fallback, say so before applying it.
 
 ## 8:00–11:00 · Disposable workspaces and Incredibuild
@@ -112,7 +114,7 @@ separate labels. Never display the old 88/88 as a new verifier result.
 
 ## 17:00–20:00 · What the measurements establish
 
-[Show two observations, clearly labeled as historical.]
+[Show two observations, clearly labeled as historical, with the run ID visible.]
 
 “Runner A's build phase took 21.426 seconds. B took 21.948.
 B was 522 milliseconds slower. Both records indicate Incredibuild use.

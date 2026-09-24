@@ -1,0 +1,78 @@
+{
+  "schema_version": 2,
+  "run_id": "build-exp-20260924T100157-cold-j10",
+  "candidate_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+  "parent_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540",
+  "samples": [
+    {
+      "mode": "native",
+      "repetition": 1,
+      "wall_ms": 7766,
+      "build_caption": "build-exp-20260924T100157-cold-j10-1",
+      "source_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790244118840,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "native",
+      "repetition": 8,
+      "wall_ms": 6777,
+      "build_caption": "build-exp-20260924T100157-cold-j10-8",
+      "source_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790244206924,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "native",
+      "repetition": 11,
+      "wall_ms": 7324,
+      "build_caption": "build-exp-20260924T100157-cold-j10-11",
+      "source_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790244230787,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "native",
+      "repetition": 14,
+      "wall_ms": 6963,
+      "build_caption": "build-exp-20260924T100157-cold-j10-14",
+      "source_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790244270763,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "native",
+      "repetition": 17,
+      "wall_ms": 6976,
+      "build_caption": "build-exp-20260924T100157-cold-j10-17",
+      "source_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790244310425,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    }
+  ]
+}

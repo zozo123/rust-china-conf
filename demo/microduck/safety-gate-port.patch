@@ -1,0 +1,2953 @@
+diff --git a/demo/freshness-patch.diff b/demo/freshness-patch.diff
+new file mode 100644
+index 0000000..1a1d12f
+--- /dev/null
++++ b/demo/freshness-patch.diff
+@@ -0,0 +1,34 @@
++diff --git a/duck-control/src/safety.rs b/duck-control/src/safety.rs
++index 0122231..4da34e5 100644
++--- a/duck-control/src/safety.rs
+++++ b/duck-control/src/safety.rs
++@@ -420,7 +420,28 @@ impl<T: RobotIo> Safety<T> {
++         // First among the refusals because it invalidates the two below it: whether a target
++         // is finite or inside the actuator's travel is not an interesting question about a
++         // target computed from a stale sample.
++-        let _ = age;
+++        let too_old = match age {
+++            Some(age) => age.exceeds(self.config.observation_max_age),
+++            // No observation at all — past the end of the coast, or before the first read.
+++            // Refused, because losing the sensor entirely must not default-authorize: "I was
+++            // not told an age" is the one case a rule written as a comparison gets backwards.
+++            None => true,
+++        };
+++        if too_old {
+++            self.runs.stale += 1;
+++            if LimitRuns::worth_logging(self.runs.stale) {
+++                tracing::warn!(
+++                    age_ms = age.map(|age| age.as_millis() as u64),
+++                    max_ms = self.config.observation_max_age.as_millis() as u64,
+++                    tripped = self.runs.stale,
+++                    "the observation is too old to drive from — holding the pose the robot is in"
+++                );
+++            }
+++            applied.limits.push(Limit::Stale);
+++            self.io.write(&JointTargets::new(hold))?;
+++            return Ok(applied);
+++        }
+++        self.runs.stale = 0;
++ 
++         // Non-finite is refused, not clamped. Clamping `NaN` silently produces a boundary
++         // value, which is a plausible-looking joint angle — far worse than declining to
+diff --git a/duck-control/src/io.rs b/duck-control/src/io.rs
+index 8b477f6..fa1a96a 100644
+--- a/duck-control/src/io.rs
++++ b/duck-control/src/io.rs
+@@ -8,6 +8,8 @@
+ //! servos. A trait that split them would invent a distinction the bus does not have, and
+ //! would double the bus traffic to honour it.
+ 
++use std::time::{Duration, Instant};
++
+ use crate::imu::ImuData;
+ use crate::model::NUM_JOINTS;
+ 
+@@ -24,19 +26,101 @@ pub struct Sensors {
+     /// a squat or a foot taking weight is near-zero velocity at non-zero current.
+     pub currents_ma: [f64; NUM_JOINTS],
+     pub imu: ImuData,
++    /// When this sample was taken, rather than when somebody got round to using it.
++    ///
++    /// **Private, and an [`Instant`] rather than a number of nanoseconds, because
++    /// `Instant::now` is its only constructor: there is no way in safe Rust to make one in
++    /// the past.** A backend can keep a stamp, copy it, buffer it, hand it over late — it
++    /// cannot *date* a sample it did not take. So the age the safety layer computes is the
++    /// truth about that sample even when the thing that handed it over was written to
++    /// deceive, and freshness stops depending on every backend behaving, including the ones
++    /// written after this comment.
++    ///
++    /// The same argument the module header makes about IO: make the wrong state
++    /// unrepresentable rather than ask everyone to remember a rule.
++    observed_at: Instant,
++}
++
++impl Sensors {
++    /// The only way to build a sample from outside this module.
++    ///
++    /// The stamp is taken *here*, from the clock, at the end of the transaction that
++    /// produced these values — which is the latest moment a driver can honestly claim the
++    /// robot looked like this.
++    pub fn observed(
++        positions: [f64; NUM_JOINTS],
++        velocities: [f64; NUM_JOINTS],
++        currents_ma: [f64; NUM_JOINTS],
++        imu: ImuData,
++    ) -> Self {
++        Self {
++            positions,
++            velocities,
++            currents_ma,
++            imu,
++            observed_at: Instant::now(),
++        }
++    }
++
++    pub fn observed_at(&self) -> Instant {
++        self.observed_at
++    }
+ }
+ 
+ impl Default for Sensors {
++    /// An empty sample, observed now.
++    ///
++    /// Kept — [`crate::bus`] builds one and fills it in as it unpacks the blocks, which puts
++    /// the stamp at the end of the `sync_read` where it belongs. The wart is that it also
++    /// lets a test conjure a sample nothing ever observed; deleting `Default` so an
++    /// observation cannot exist without having been observed is the stricter thing to do and
++    /// a larger diff than the rule itself.
+     fn default() -> Self {
+         Self {
+             positions: [0.0; NUM_JOINTS],
+             velocities: [0.0; NUM_JOINTS],
+             currents_ma: [0.0; NUM_JOINTS],
+             imu: ImuData::default(),
++            observed_at: Instant::now(),
+         }
+     }
+ }
+ 
++/// How old the sample a tick's targets were computed from is, *right now*.
++///
++/// No `Default`, no `ZERO`, no `From<Duration>`, no public field: the only way to obtain one
++/// is to hand over the [`Sensors`] it is about. So "the observation was fresh" stops being a
++/// claim a caller can make, forget, or get wrong — the type asks for the sample, every time,
++/// and a caller holding no observation has nothing to offer.
++///
++/// Measured at the point it is asked for, not at the read, because what the safety layer
++/// needs to know is how old the world is *at the instant the motors are commanded*. An
++/// inference that took 8 ms makes the sample 8 ms older, and it is the dispatch that has to
++/// answer for that.
++#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord)]
++pub struct ObservationAge(Duration);
++
++impl ObservationAge {
++    pub fn of(sensors: &Sensors) -> Self {
++        Self(sensors.observed_at.elapsed())
++    }
++
++    pub fn exceeds(&self, max: Duration) -> bool {
++        self.0 > max
++    }
++
++    pub fn as_millis(&self) -> u128 {
++        self.0.as_millis()
++    }
++
++    /// Microseconds, for the state stream. Saturating rather than wrapping: a robot that has
++    /// been blind for six hundred thousand years is still blind, and an age that wrapped to a
++    /// small number would read as fresh.
++    pub fn as_micros(&self) -> u64 {
++        u64::try_from(self.0.as_micros()).unwrap_or(u64::MAX)
++    }
++}
++
+ /// What the loop commands. Position control only — alpha has no velocity-mode joints.
+ #[derive(Debug, Clone, Copy, PartialEq)]
+ pub struct JointTargets {
+@@ -317,6 +401,11 @@ impl RobotIo for FakeIo {
+             return Err(IoError::Simulated);
+         }
+         self.reads += 1;
++        // Restamped per read: a robot made of nothing still answers *now*. Without this the
++        // held sample would keep the stamp it was built with and age without bound, so a
++        // `--fake` duck would go stale on its own after a couple of seconds — a fake fault,
++        // which is the one kind this port must not manufacture.
++        self.sensors.observed_at = Instant::now();
+         Ok(self.sensors)
+     }
+ 
+diff --git a/duck-control/src/lib.rs b/duck-control/src/lib.rs
+index ca6f95d..90ec1fa 100644
+--- a/duck-control/src/lib.rs
++++ b/duck-control/src/lib.rs
+@@ -19,7 +19,7 @@ pub mod safety;
+ pub mod sim;
+ 
+ pub use imu::ImuData;
+-pub use io::{FakeIo, IoError, JointTargets, RobotIo, Sensors, SlowSensors};
++pub use io::{FakeIo, IoError, JointTargets, ObservationAge, RobotIo, Sensors, SlowSensors};
+ pub use model::{
+     BATTERY_EMPTY_V, BATTERY_FULL_V, DEFAULT_POSITION, JOINT_IDS, JOINT_NAMES, NUM_JOINTS,
+     battery_percent,
+diff --git a/duck-control/src/safety.rs b/duck-control/src/safety.rs
+index 53cd9a8..0122231 100644
+--- a/duck-control/src/safety.rs
++++ b/duck-control/src/safety.rs
+@@ -9,8 +9,12 @@
+ //! once something has already gone wrong is the code most likely to be quietly broken, so
+ //! make the broken state unrepresentable instead.
+ //!
+-//! Two rules, unconditional:
++//! Three rules, unconditional:
+ //!
++//!  - **Freshness.** Targets computed from a sample older than [`SafetyConfig::observation_max_age`]
++//!    are refused: the robot holds the pose it is in rather than driving a world it has not
++//!    seen. First, because it invalidates the two below it — whether a target is finite or in
++//!    range is not an interesting question about a stale one.
+ //!  - **Non-finite rejection.** A `NaN` target is not clamped, it is refused outright.
+ //!  - **Range clamp.** Targets are held inside the actuator's travel.
+ //!
+@@ -33,7 +37,7 @@
+ 
+ use std::time::Duration;
+ 
+-use crate::io::{IoError, JointTargets, RobotIo, Sensors};
++use crate::io::{IoError, JointTargets, ObservationAge, RobotIo, Sensors};
+ use crate::model::NUM_JOINTS;
+ use crate::obs::Command;
+ 
+@@ -57,6 +61,27 @@ pub struct SafetyConfig {
+     pub fall_debounce: Duration,
+     /// Intent age past which the velocity command is zeroed.
+     pub deadman: Duration,
++    /// How old the sample the targets were computed from may be, at the instant they reach
++    /// the motors.
++    ///
++    /// **Two ages, and the difference is the point.** `deadman` is about a *person* — how long
++    /// ago a human last said where to go — and its answer is to stop. This is about the
++    /// *world*, and its answer is to hold: a robot that cannot see should stand still, not
++    /// guess.
++    ///
++    /// The number is not invented for this rule; it is the one `robotd`'s coast already
++    /// implies. `COAST_TICKS` is 3, and its comment says why — "three ticks (60 ms) covers a
++    /// drop, a retry and a slow tick; past that the robot genuinely cannot see, and holding
++    /// still is the honest answer". Add the tick the sample is *used* in, which is unavoidable
++    /// by construction and which the policy was trained on, and four control periods is the
++    /// oldest sample the existing design already tolerates. At 50 Hz that is 80 ms, which is
++    /// this default; `robotd` re-derives it from the configured loop rate so a duck run at a
++    /// different `control.hz` does not inherit a number that was only ever true at 50.
++    ///
++    /// The bound and the coast therefore meet exactly and never fight: the third coast tick
++    /// reaches about 65 ms of age and is permitted, and there is no fourth — `Coast::sample`
++    /// returns `None` instead.
++    pub observation_max_age: Duration,
+     /// Gain while running.
+     pub gain_running: u16,
+     /// Gain to yield at rather than fight the floor. Nothing here applies it — `robotd`
+@@ -72,6 +97,8 @@ impl Default for SafetyConfig {
+             fall_gravity_z: -0.5,
+             fall_debounce: Duration::from_millis(200),
+             deadman: Duration::from_millis(500),
++            // (COAST_TICKS + 1) x 20 ms at the shipped 50 Hz. See the field.
++            observation_max_age: Duration::from_millis(80),
+             gain_running: 200,
+             gain_limp: 50,
+         }
+@@ -84,6 +111,13 @@ impl Default for SafetyConfig {
+ pub enum Limit {
+     /// Intents went stale; the velocity was zeroed.
+     Deadman,
++    /// The observation the targets were computed from was too old to drive from; the robot
++    /// was commanded the pose it was already in.
++    ///
++    /// Named for the *observation* and not merely "stale" because this wire already carries
++    /// `Deadman`, which is also a staleness, and the two must never be read for each other:
++    /// one is how old the driver's wish may be, the other is how old the world may be.
++    Stale,
+     /// A target was outside the actuator's travel.
+     Range,
+     /// A target was `NaN` or infinite.
+@@ -113,7 +147,7 @@ const LIMIT_LOG_EVERY: u64 = 50;
+ 
+ /// How many ticks running each limit has tripped, which is what the journal is keyed off.
+ ///
+-/// Three counters rather than one because the three limits are independent events: a
++/// A counter each rather than one shared, because the limits are independent events: a
+ /// deadman that fires for a second says nothing about whether a joint is being clamped, and
+ /// one shared counter would let whichever fires most starve the other two of a line.
+ ///
+@@ -133,6 +167,7 @@ struct LimitRuns {
+     deadman: u64,
+     range: u64,
+     not_finite: u64,
++    stale: u64,
+ }
+ 
+ impl LimitRuns {
+@@ -350,11 +385,23 @@ impl<T: RobotIo> Safety<T> {
+     /// `running_gain` is what the caller wants — the standing policy runs softer than the
+     /// walking one, and limp-fall softer still. All of those are control decisions, not
+     /// safety ones, so they are passed in rather than second-guessed here.
++    ///
++    /// `age` is how old the sample these targets were computed from is *now*, at dispatch —
++    /// not at the read, because an inference that took eight milliseconds makes the sample
++    /// eight milliseconds older and it is the dispatch that has to answer for that. `None` is
++    /// a tick with no observation behind it at all, which is not a young age: it is the state
++    /// of a robot that has never seen anything, or one whose coast has run out.
++    ///
++    /// Taken by value and by type, so that a caller holding no observation cannot call this
++    /// at all. That is the same move the module header makes about the write handle, applied
++    /// to time instead of to IO: adding a dispatch site that forgot about freshness does not
++    /// compile.
+     pub fn apply(
+         &mut self,
+         targets: [f64; NUM_JOINTS],
+         hold: [f64; NUM_JOINTS],
+         running_gain: u16,
++        age: Option<ObservationAge>,
+     ) -> Result<Applied, IoError> {
+         let mut applied = Applied::default();
+ 
+@@ -364,6 +411,17 @@ impl<T: RobotIo> Safety<T> {
+         // ordinary gain.
+         self.set_gain(running_gain)?;
+ 
++        // Rule 1 of three: the sample these targets were computed from must still be worth
++        // acting on. Past `observation_max_age` — four control periods, the bound `COAST_TICKS`
++        // already implies — the robot is driving a world it has not seen for four ticks, and
++        // `hold` is the honest answer: the same answer the coast gives when it runs out of
++        // ticks, for the same reason.
++        //
++        // First among the refusals because it invalidates the two below it: whether a target
++        // is finite or inside the actuator's travel is not an interesting question about a
++        // target computed from a stale sample.
++        let _ = age;
++
+         // Non-finite is refused, not clamped. Clamping `NaN` silently produces a boundary
+         // value, which is a plausible-looking joint angle — far worse than declining to
+         // move, because the robot would lurch to a limit rather than hold still.
+@@ -458,7 +516,8 @@ mod tests {
+         use crate::io::FakeIo;
+         use crate::model::DEFAULT_POSITION;
+         let mut s = Safety::new(FakeIo::at(DEFAULT_POSITION), SafetyConfig::default());
+-        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, 200).unwrap();
++        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, 200, fresh())
++            .unwrap();
+         assert_eq!(s.gain(), Some(200));
+         s.reboot_motors(&[3, 11]).unwrap();
+         assert_eq!(s.io().reboots, vec![3, 11]);
+@@ -467,7 +526,8 @@ mod tests {
+             None,
+             "the gain cache must be forgotten after a reboot"
+         );
+-        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, 200).unwrap();
++        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, 200, fresh())
++            .unwrap();
+         assert_eq!(s.gain(), Some(200));
+     }
+ 
+@@ -481,19 +541,41 @@ mod tests {
+     }
+ 
+     fn on_its_side() -> Sensors {
+-        Sensors {
+-            imu: ImuData {
++        // Through the constructor rather than a struct literal: `Sensors::observed_at` is
++        // private, so `..Sensors::default()` will not compile any more. That is the rule
++        // working — a sample is something that was observed, not something assembled.
++        Sensors::observed(
++            [0.0; NUM_JOINTS],
++            [0.0; NUM_JOINTS],
++            [0.0; NUM_JOINTS],
++            ImuData {
+                 gravity: [-1.0, 0.0, 0.0],
+                 ..ImuData::default()
+             },
+-            ..Sensors::default()
+-        }
++        )
+     }
+ 
+     fn safety() -> Safety<FakeIo> {
+         Safety::new(FakeIo::at(DEFAULT_POSITION), SafetyConfig::default())
+     }
+ 
++    /// The age of a sample taken just now — what every ordinary tick hands `apply`.
++    ///
++    /// Through a real [`Sensors`] rather than a literal, because there is no other way: an
++    /// [`ObservationAge`] cannot be constructed from a number. A test that wants a stale one
++    /// has to actually let a sample get old, which is the property the rule depends on.
++    fn fresh() -> Option<ObservationAge> {
++        Some(ObservationAge::of(&Sensors::default()))
++    }
++
++    /// A sample that really has aged by at least `by`. Sleeps, because the only clock
++    /// `ObservationAge` will read is the real one.
++    fn aged(by: Duration) -> Option<ObservationAge> {
++        let sensors = Sensors::default();
++        std::thread::sleep(by);
++        Some(ObservationAge::of(&sensors))
++    }
++
+     /// A hard footfall spikes gravity briefly. Treating that as a fall would drop the robot
+     /// mid-stride — which is itself how you cause a fall.
+     #[test]
+@@ -585,6 +667,7 @@ mod tests {
+                 wanted,
+                 DEFAULT_POSITION,
+                 SafetyConfig::default().gain_running,
++                fresh(),
+             )
+             .unwrap();
+         assert!(applied.limits.is_empty(), "{:?}", applied.limits);
+@@ -619,6 +702,7 @@ mod tests {
+                 wanted,
+                 DEFAULT_POSITION,
+                 SafetyConfig::default().gain_running,
++                fresh(),
+             )
+             .unwrap();
+ 
+@@ -639,7 +723,8 @@ mod tests {
+         s.observe(&upright(), Duration::from_millis(20));
+         let limp = SafetyConfig::default().gain_limp;
+ 
+-        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, limp).unwrap();
++        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, limp, fresh())
++            .unwrap();
+         assert_eq!(s.io().last_gain, Some(limp));
+         assert_eq!(
+             s.gain(),
+@@ -662,6 +747,7 @@ mod tests {
+                 poisoned,
+                 DEFAULT_POSITION,
+                 SafetyConfig::default().gain_running,
++                fresh(),
+             )
+             .unwrap();
+ 
+@@ -681,7 +767,12 @@ mod tests {
+         wild[2] = 100.0;
+         wild[7] = -100.0;
+         let applied = s
+-            .apply(wild, DEFAULT_POSITION, SafetyConfig::default().gain_running)
++            .apply(
++                wild,
++                DEFAULT_POSITION,
++                SafetyConfig::default().gain_running,
++                fresh(),
++            )
+             .unwrap();
+ 
+         assert!(applied.limited_by(Limit::Range));
+@@ -702,6 +793,7 @@ mod tests {
+                 DEFAULT_POSITION,
+                 DEFAULT_POSITION,
+                 SafetyConfig::default().gain_running,
++                fresh(),
+             )
+             .unwrap();
+         assert!(applied.limits.is_empty(), "{:?}", applied.limits);
+@@ -740,18 +832,21 @@ mod tests {
+             DEFAULT_POSITION,
+             DEFAULT_POSITION,
+             SafetyConfig::default().gain_running,
++            fresh(),
+         )
+         .unwrap();
+         s.apply(
+             DEFAULT_POSITION,
+             DEFAULT_POSITION,
+             SafetyConfig::default().gain_running,
++            fresh(),
+         )
+         .unwrap();
+         s.apply(
+             DEFAULT_POSITION,
+             DEFAULT_POSITION,
+             SafetyConfig::default().gain_running,
++            fresh(),
+         )
+         .unwrap();
+ 
+@@ -798,11 +893,14 @@ mod tests {
+     fn a_limit_run_resets_when_the_limit_stops_firing() {
+         let mut s = safety();
+ 
+-        s.apply(over_travel(), DEFAULT_POSITION, gain()).unwrap();
+-        s.apply(over_travel(), DEFAULT_POSITION, gain()).unwrap();
++        s.apply(over_travel(), DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
++        s.apply(over_travel(), DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
+         assert_eq!(s.runs.range, 2, "two clamped ticks in a row");
+ 
+-        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, gain()).unwrap();
++        s.apply(DEFAULT_POSITION, DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
+         assert_eq!(s.runs.range, 0, "a clean tick ends the run");
+ 
+         // A deadman run clears the same way, when a fresh intent arrives again.
+@@ -821,9 +919,11 @@ mod tests {
+     fn the_three_limits_are_counted_separately() {
+         let mut s = safety();
+ 
+-        s.apply(over_travel(), DEFAULT_POSITION, gain()).unwrap();
+-        s.apply(over_travel(), DEFAULT_POSITION, gain()).unwrap();
+-        s.apply([f64::NAN; NUM_JOINTS], DEFAULT_POSITION, gain())
++        s.apply(over_travel(), DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
++        s.apply(over_travel(), DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
++        s.apply([f64::NAN; NUM_JOINTS], DEFAULT_POSITION, gain(), fresh())
+             .unwrap();
+         s.gate(Command::default(), Duration::from_secs(5));
+         s.gate(Command::default(), Duration::from_secs(5));
+@@ -841,7 +941,9 @@ mod tests {
+         let mut s = safety();
+         s.observe(&upright(), Duration::from_millis(20));
+ 
+-        let applied = s.apply(DEFAULT_POSITION, DEFAULT_POSITION, gain()).unwrap();
++        let applied = s
++            .apply(DEFAULT_POSITION, DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
+         let (command, limit) = s.gate(Command::default(), Duration::from_millis(10));
+ 
+         assert!(applied.limits.is_empty(), "{:?}", applied.limits);
+@@ -862,7 +964,7 @@ mod tests {
+         let mut s = safety();
+ 
+         // Refused: the write is the hold pose, not the NaN.
+-        s.apply([f64::NAN; NUM_JOINTS], DEFAULT_POSITION, gain())
++        s.apply([f64::NAN; NUM_JOINTS], DEFAULT_POSITION, gain(), fresh())
+             .unwrap();
+         assert_eq!(
+             s.io().last_written.unwrap().positions,
+@@ -871,7 +973,8 @@ mod tests {
+         );
+ 
+         // Clamped: every joint lands on the boundary, none beyond it.
+-        s.apply(over_travel(), DEFAULT_POSITION, gain()).unwrap();
++        s.apply(over_travel(), DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
+         let written = s.io().last_written.unwrap().positions;
+         assert!(
+             written.iter().all(|v| *v <= ACTUATOR_MAX),
+@@ -916,12 +1019,138 @@ mod tests {
+     fn a_refused_tick_does_not_end_a_range_run() {
+         let mut s = safety();
+ 
+-        s.apply(over_travel(), DEFAULT_POSITION, gain()).unwrap();
++        s.apply(over_travel(), DEFAULT_POSITION, gain(), fresh())
++            .unwrap();
+         assert_eq!(s.runs.range, 1);
+ 
+-        s.apply([f64::NAN; NUM_JOINTS], DEFAULT_POSITION, gain())
++        s.apply([f64::NAN; NUM_JOINTS], DEFAULT_POSITION, gain(), fresh())
+             .unwrap();
+         assert_eq!(s.runs.range, 1, "the refused tick leaves the run standing");
+         assert_eq!(s.runs.not_finite, 1, "and is its own run");
+     }
++
++    // ── The freshness rule ───────────────────────────────────────────────────
++    //
++    // Three tests, and they are the whole contract. The value is already at the dispatch
++    // point — `apply` takes it — so nothing here is about plumbing; it is about whether the
++    // comparison happens.
++
++    /// **A sample too old to drive from does not reach the motors.**
++    ///
++    /// Both halves in one test on purpose: a gate that only ever refuses is not a gate, it is
++    /// a robot that does not move. The fresh half is the tick where the duck walks *because*
++    /// it can see.
++    #[test]
++    fn a_stale_observation_holds_the_pose() {
++        let config = SafetyConfig {
++            observation_max_age: Duration::from_millis(20),
++            ..SafetyConfig::default()
++        };
++
++        let mut wanted = DEFAULT_POSITION;
++        wanted[2] = 0.4;
++
++        let mut s = Safety::new(FakeIo::at(DEFAULT_POSITION), config);
++        let applied = s
++            .apply(wanted, DEFAULT_POSITION, config.gain_running, fresh())
++            .unwrap();
++        assert!(
++            !applied.limited_by(Limit::Stale),
++            "a sample read this tick must drive: {:?}",
++            applied.limits
++        );
++        assert_eq!(s.io().last_written.unwrap().positions, wanted);
++
++        let mut s = Safety::new(FakeIo::at(DEFAULT_POSITION), config);
++        let applied = s
++            .apply(
++                wanted,
++                DEFAULT_POSITION,
++                config.gain_running,
++                aged(Duration::from_millis(60)),
++            )
++            .unwrap();
++        assert!(
++            applied.limited_by(Limit::Stale),
++            "a three-times-over-age sample must be refused: {:?}",
++            applied.limits
++        );
++        assert_eq!(
++            s.io().last_written.unwrap().positions,
++            DEFAULT_POSITION,
++            "the refusal commands the pose the robot is in, not the stale targets"
++        );
++    }
++
++    /// **The bound is the configured one**, so a duck run at a different loop rate gets the
++    /// rule derived from *its* control period rather than the 80 ms that is only true at
++    /// 50 Hz. The same sample, aged once, is refused under a tight bound and permitted under
++    /// a loose one — which also rules out a gate that trips on something other than the age.
++    #[test]
++    fn the_freshness_bound_is_the_configured_one() {
++        let age = aged(Duration::from_millis(40));
++
++        let tight = SafetyConfig {
++            observation_max_age: Duration::from_millis(20),
++            ..SafetyConfig::default()
++        };
++        let mut s = Safety::new(FakeIo::at(DEFAULT_POSITION), tight);
++        let applied = s
++            .apply(DEFAULT_POSITION, DEFAULT_POSITION, tight.gain_running, age)
++            .unwrap();
++        assert!(applied.limited_by(Limit::Stale), "{:?}", applied.limits);
++
++        let loose = SafetyConfig {
++            observation_max_age: Duration::from_secs(10),
++            ..SafetyConfig::default()
++        };
++        let mut s = Safety::new(FakeIo::at(DEFAULT_POSITION), loose);
++        let applied = s
++            .apply(DEFAULT_POSITION, DEFAULT_POSITION, loose.gain_running, age)
++            .unwrap();
++        assert!(
++            !applied.limited_by(Limit::Stale),
++            "the very same age, under a bound that permits it: {:?}",
++            applied.limits
++        );
++    }
++
++    /// **No observation at all is not a young one.**
++    ///
++    /// The case that matters most, and the one a runtime check is likeliest to get backwards:
++    /// past the coast the loop has no sample to offer, and a rule that only compares numbers
++    /// it was given would wave that tick through. Losing the sensor entirely must not
++    /// default-authorize.
++    #[test]
++    fn a_tick_with_no_observation_is_refused() {
++        let mut wanted = DEFAULT_POSITION;
++        wanted[2] = 0.4;
++
++        let mut s = safety();
++        let applied = s
++            .apply(
++                wanted,
++                DEFAULT_POSITION,
++                SafetyConfig::default().gain_running,
++                None,
++            )
++            .unwrap();
++
++        assert!(applied.limited_by(Limit::Stale), "{:?}", applied.limits);
++        assert_eq!(s.io().last_written.unwrap().positions, DEFAULT_POSITION);
++    }
++
++    /// The shipped default is the bound `robotd`'s coast already implies, not a number chosen
++    /// for a slide: `(COAST_TICKS + 1)` control periods, which is four ticks of 20 ms at the
++    /// 50 Hz this robot runs at. If either the coast or the loop rate ever changes, this is
++    /// the test that says the two have drifted apart.
++    #[test]
++    fn the_default_bound_is_four_control_periods() {
++        const COAST_TICKS: u32 = 3;
++        let period = Duration::from_millis(20);
++        assert_eq!(
++            SafetyConfig::default().observation_max_age,
++            period * (COAST_TICKS + 1)
++        );
++    }
+ }
+diff --git a/duck-control/src/sim.rs b/duck-control/src/sim.rs
+index a56e3b0..0beca06 100644
+--- a/duck-control/src/sim.rs
++++ b/duck-control/src/sim.rs
+@@ -29,6 +29,7 @@
+ //! retry timer**. `robotd` already treats a failed `read` as a tick to skip rather than a reason to
+ //! exit; this is the same tolerance it has for a missing `tofd`.
+ 
++use std::collections::VecDeque;
+ use std::io::{BufRead, BufReader, Write};
+ use std::net::{TcpStream, ToSocketAddrs};
+ use std::time::Duration;
+@@ -273,16 +274,25 @@ impl RobotIo for RemoteIo {
+     fn read(&mut self) -> Result<Sensors> {
+         let frame: SensorFrame = self.call(&Request::Read)?;
+         self.load_reported = frame.currents_ma.is_some();
+-        Ok(Sensors {
+-            positions: frame.positions,
+-            velocities: frame.velocities,
+-            currents_ma: frame.currents_ma.unwrap_or([0.0; NUM_JOINTS]),
+-            imu: ImuData {
++        // Stamped when the reply lands, which is the latest instant this driver can honestly
++        // claim the robot looked like this — and the earliest one it is entitled to claim,
++        // since everything before it happened on the other end of a socket.
++        //
++        // The simulator does send a `sim_time` on every read, and [`SensorFrame`] has no field
++        // for it, so serde drops it. That is deliberate rather than an oversight: it is the
++        // *simulator's* clock, and a freshness rule built on a number the thing being measured
++        // chooses is a rule the thing being measured can defeat. What the robot is allowed to
++        // know is when its own driver got the answer.
++        Ok(Sensors::observed(
++            frame.positions,
++            frame.velocities,
++            frame.currents_ma.unwrap_or([0.0; NUM_JOINTS]),
++            ImuData {
+                 gyro: frame.imu.gyro,
+                 gravity: frame.imu.gravity,
+                 quat: frame.imu.quat,
+             },
+-        })
++        ))
+     }
+ 
+     fn write(&mut self, targets: &JointTargets) -> Result<()> {
+@@ -326,6 +336,104 @@ impl RobotIo for RemoteIo {
+     }
+ }
+ 
++/// A sensor path with a queue in it: the duck's senses, delayed.
++///
++/// Reads the backend fresh on every tick, keeps what comes back, and hands up the newest
++/// sample that is already at least `delay` old. Writes, gains, torque, reboots and slow
++/// sensors pass straight through, so the duck really is being driven at fifty hertz — only
++/// its perception is behind.
++///
++/// **It cannot lie about the fault it injects.** [`Sensors::observed_at`] is a
++/// [`std::time::Instant`], and `Instant::now` is its only constructor, so a ring can *keep* a
++/// stamp and can never *write* one. The age the safety layer computes is therefore the truth
++/// about that sample even though the thing that handed it over was built to deceive. That
++/// property is not this type's good behaviour; it is the type system's.
++///
++/// **It is not a simulation of a fault.** A buffering sensor driver, an SDK that batches, a
++/// message queue with a depth — all of them are exactly this, and none of them is a bug. The
++/// bug is downstream, where nobody asks how old the answer is.
++///
++/// **It cannot reach a real robot.** It lives in the `sim` module and `robotd` only wraps the
++/// [`RemoteIo`] it builds on the `--sim` path; `--stale-sensors-ms` `requires = "sim"` and is
++/// start-time only, so there is no code path from a Dynamixel bus to one of these and no live
++/// knob that can turn one on.
++///
++/// Why a ring rather than simply holding the reply back: [`TIMEOUT`] is 200 ms and the protocol
++/// is synchronous request/response, so a proxy that slept on the answer would not delay the
++/// observation — it would collapse the control loop to a few hertz, and the loop rate is the
++/// one thing this demonstration needs to leave untouched.
++pub struct StaleIo<T: RobotIo> {
++    inner: T,
++    delay: Duration,
++    /// Samples read but not yet old enough to serve, oldest first. Bounded by `delay` over the
++    /// tick period — about five entries at 50 Hz and 100 ms — because everything that falls
++    /// behind the one being served is dropped on the next read.
++    ring: VecDeque<Sensors>,
++}
++
++impl<T: RobotIo> StaleIo<T> {
++    pub fn delaying(inner: T, delay: Duration) -> Self {
++        Self {
++            inner,
++            delay,
++            ring: VecDeque::new(),
++        }
++    }
++}
++
++impl<T: RobotIo> RobotIo for StaleIo<T> {
++    fn read(&mut self) -> Result<Sensors> {
++        // Fresh every tick, and the error is passed straight up: a backend that has gone away
++        // must still look like a backend that has gone away, not like one answering slowly.
++        self.ring.push_back(self.inner.read()?);
++
++        // Serve the front, having first dropped everything the next entry has made redundant.
++        // While the ring is still filling, the front is the oldest thing there is and is served
++        // young — so the first few ticks of a run warm up honestly rather than pretending to a
++        // delay that has not accumulated yet.
++        while self.ring.len() > 1 && self.ring[1].observed_at().elapsed() >= self.delay {
++            self.ring.pop_front();
++        }
++        Ok(*self.ring.front().expect("a sample was just pushed"))
++    }
++
++    fn write(&mut self, targets: &JointTargets) -> Result<()> {
++        self.inner.write(targets)
++    }
++
++    fn set_gain(&mut self, kp: u16) -> Result<()> {
++        self.inner.set_gain(kp)
++    }
++
++    fn set_torque(&mut self, on: bool) -> Result<()> {
++        self.inner.set_torque(on)
++    }
++
++    fn reboot(&mut self, id: u8) -> Result<()> {
++        self.inner.reboot(id)
++    }
++
++    fn slow_sensors(&mut self) -> Result<SlowSensors> {
++        self.inner.slow_sensors()
++    }
++
++    fn measures_velocity(&self) -> bool {
++        self.inner.measures_velocity()
++    }
++
++    fn measures_load(&self) -> bool {
++        self.inner.measures_load()
++    }
++
++    fn imu_stale(&self) -> crate::io::ImuStale {
++        self.inner.imu_stale()
++    }
++
++    fn imu_ready(&self) -> bool {
++        self.inner.imu_ready()
++    }
++}
++
+ #[cfg(test)]
+ mod tests {
+     use super::*;
+diff --git a/duck-ipc-proto/src/lib.rs b/duck-ipc-proto/src/lib.rs
+index be1e0bc..3f11b13 100644
+--- a/duck-ipc-proto/src/lib.rs
++++ b/duck-ipc-proto/src/lib.rs
+@@ -3781,6 +3781,19 @@ pub struct RobotState {
+     /// it; `t` is still the loop's own elapsed time. (v24)
+     #[serde(default)]
+     pub t_ns: u64,
++    /// How old the sample this tick's targets were computed from was **at the instant the
++    /// motors were commanded**, microseconds.
++    ///
++    /// Not `t - t_ns`: [`Self::t_ns`] is when the read was *asked for*, and what a subscriber
++    /// needs in order to reason about freshness is when the sample was *taken* and how long
++    /// it then sat in front of an inference. Those two differ by the whole of the policy step,
++    /// and under a buffering sensor path they differ by far more than that.
++    ///
++    /// Zero means the loop had no observation at all this tick — past the end of the coast, or
++    /// before the first successful read. Zero is therefore the *worst* value here, not the
++    /// best, which is the one thing a reader has to know about it. (v37)
++    #[serde(default)]
++    pub observation_age_us: u64,
+     /// The trunk IMU as the loop read it this tick. Absent from a daemon predating it, or while
+     /// no sensors have been read. (v24)
+     #[serde(default, skip_serializing_if = "Option::is_none")]
+@@ -6288,6 +6301,7 @@ mod tests {
+             theremin: None,
+             chorale: None,
+             t_ns: 0,
++            observation_age_us: 0,
+             imu: None,
+             frames: None,
+             skeleton: Vec::new(),
+diff --git a/robotctl/src/monitor.rs b/robotctl/src/monitor.rs
+index 31edb69..4f962a1 100644
+--- a/robotctl/src/monitor.rs
++++ b/robotctl/src/monitor.rs
+@@ -4845,6 +4845,7 @@ mod tests {
+             theremin: None,
+             chorale: None,
+             t_ns: 0,
++            observation_age_us: 0,
+             imu: None,
+             frames: None,
+             skeleton: Vec::new(),
+diff --git a/robotd-params/src/lib.rs b/robotd-params/src/lib.rs
+index 75fbaed..57dafd1 100644
+--- a/robotd-params/src/lib.rs
++++ b/robotd-params/src/lib.rs
+@@ -1683,6 +1683,20 @@ pub struct SafetyParams {
+     pub fall_debounce_ms: u64,
+     /// Intent age past which the velocity is zeroed. Stop, not limp.
+     pub deadman_ms: u64,
++    /// How old the sample the policy acted on may be, in **control periods**, at the instant
++    /// the targets reach the motors. Past it the targets are refused and the robot holds.
++    ///
++    /// **Ticks, not milliseconds, and the difference is the point.** `deadman_ms` is wall time
++    /// because it is about a *person* — how long ago a human last said where to go. This is
++    /// ticks because it is about the *loop*: it is the coast's own bound (`COAST_TICKS` = 3,
++    /// plus the tick the sample is used in) stated once, so a robot run at a different
++    /// `control.hz` re-derives it instead of inheriting a number that was only ever true at
++    /// 50 Hz.
++    ///
++    /// Four periods is 80 ms at 50 Hz. Past that the robot is acting on a world it has not
++    /// seen for four ticks, which is the case `COAST_TICKS` already calls "genuinely cannot
++    /// see".
++    pub observation_max_age_ticks: u32,
+     /// The gain limp-fall yields at — low enough to give way rather than fight the floor.
+     pub gain_limp: u16,
+     /// Sit down and power the machine off when the battery EMA reaches the empty floor
+@@ -1766,6 +1780,7 @@ impl Default for SafetyParams {
+             fall_gravity_z: -0.5,
+             fall_debounce_ms: 200,
+             deadman_ms: 500,
++            observation_max_age_ticks: 4,
+             gain_limp: 50,
+             battery_empty_shutdown: true,
+             limp_fall: false,
+diff --git a/robotd-params/src/registry.rs b/robotd-params/src/registry.rs
+index 55046bd..71b11f0 100644
+--- a/robotd-params/src/registry.rs
++++ b/robotd-params/src/registry.rs
+@@ -254,6 +254,11 @@ pub const REGISTRY: &[Entry] = &[
+         Kind::Integer,
+         "Intent age past which velocity is zeroed",
+     ),
++    entry(
++        "safety.observation_max_age_ticks",
++        Kind::Integer,
++        "Control periods of observation age past which the targets are refused",
++    ),
+     entry(
+         "safety.gain_limp",
+         Kind::Integer,
+diff --git a/robotd/src/main.rs b/robotd/src/main.rs
+index ab574b6..587d2eb 100644
+--- a/robotd/src/main.rs
++++ b/robotd/src/main.rs
+@@ -253,6 +253,25 @@ struct Args {
+     #[arg(long, conflicts_with = "fake")]
+     sim: Option<String>,
+ 
++    /// Put a queue in the simulated duck's senses: serve every `read` from the newest sample
++    /// that is already this many milliseconds old.
++    ///
++    /// For exercising the freshness rule on a duck that is otherwise perfectly healthy —
++    /// loop at rate, bus clean, IMU ready, motors answering — because that is the shape the
++    /// fault actually has in the field and the shape no dashboard catches. A buffering sensor
++    /// driver, an SDK that batches, a topic with a queue depth: all of them are this, and none
++    /// of them logs anything.
++    ///
++    /// **Writes are not delayed**, only perception: the duck really is being commanded at
++    /// fifty hertz. See `duck_control::sim::StaleIo` for why a ring and not a slow reply.
++    ///
++    /// `requires = "sim"`, and start-time only. There is no path from a Dynamixel bus to a
++    /// `StaleIo` and no live knob that can turn one on, so this cannot be left set on a robot
++    /// by accident — the same reasoning as `--unhealthy`, which exists to break a bench robot
++    /// on purpose and can only ever break a bench robot.
++    #[arg(long, requires = "sim", value_name = "MS")]
++    stale_sensors_ms: Option<u64>,
++
+     /// Do not load a policy: run the loop and hold the startup pose.
+     ///
+     /// Distinct from a policy that failed to load, which is unhealthy. This is the
+@@ -1101,6 +1120,7 @@ fn spawn_control_thread(
+     let period = params.period();
+     let fake = args.fake;
+     let sim = args.sim.clone();
++    let stale_sensors_ms = args.stale_sensors_ms;
+     let bus = params.bus.clone();
+     let params = params.clone();
+     // So a reload can re-read `[policy]` without a restart. The path rather than the loaded
+@@ -1144,6 +1164,27 @@ fn spawn_control_thread(
+             // bus does too, by a different route.
+             if let Some(addr) = sim {
+                 tracing::warn!(%addr, "--sim: the body is in MuJoCo");
++                if let Some(ms) = stale_sensors_ms {
++                    // Loudly, like `--unhealthy`: a duck whose senses are deliberately behind
++                    // must say so at startup, because nothing downstream of here will.
++                    tracing::warn!(
++                        delay_ms = ms,
++                        "--stale-sensors-ms: this duck's senses are behind; it is otherwise healthy"
++                    );
++                    runtime.block_on(control_loop(
++                        duck_control::sim::StaleIo::delaying(
++                            duck_control::sim::RemoteIo::at(addr),
++                            Duration::from_millis(ms),
++                        ),
++                        state,
++                        intents,
++                        params,
++                        params_path,
++                        period,
++                        poweroff,
++                    ));
++                    return;
++                }
+                 runtime.block_on(control_loop(
+                     duck_control::sim::RemoteIo::at(addr),
+                     state,
+@@ -1794,6 +1835,10 @@ async fn control_loop<T: RobotIo>(
+             fall_gravity_z: params.safety.fall_gravity_z,
+             fall_debounce: Duration::from_millis(params.safety.fall_debounce_ms),
+             deadman: Duration::from_millis(params.safety.deadman_ms),
++            // Derived from *this* robot's control period rather than stored as a millisecond
++            // count, so the bound and [`COAST_TICKS`] cannot drift apart when `control.hz`
++            // changes. See `SafetyParams::observation_max_age_ticks`.
++            observation_max_age: period * params.safety.observation_max_age_ticks,
+             gain_running: policy_cfg.gain,
+             gain_limp: params.safety.gain_limp,
+         },
+@@ -3194,7 +3239,12 @@ async fn control_loop<T: RobotIo>(
+                 duck_control::model::mouth_target(snapshot.mouth);
+         }
+ 
+-        match safety.apply(targets, hold, gain) {
++        // Asked for here, one line above the dispatch, and not a moment earlier: this is the
++        // age of the world at the instant the motors are commanded, which is the only age the
++        // safety layer has any business believing.
++        let observation_age = coast.observation_age();
++
++        match safety.apply(targets, hold, gain, observation_age) {
+             Ok(applied) => limits.extend(applied.limits),
+             Err(e) => tracing::warn!(error = %e, "bus write failed"),
+         }
+@@ -3251,6 +3301,7 @@ async fn control_loop<T: RobotIo>(
+                 theremin: theremin_state.clone(),
+                 chorale: chorale_state.clone(),
+                 t_ns: sensors_read_ns,
++                observation_age_us: observation_age.map_or(0, |age| age.as_micros()),
+                 imu: Some(proto::ImuState {
+                     gyro: sensors.imu.gyro,
+                     quat: sensors.imu.quat,
+@@ -3361,6 +3412,19 @@ impl Coast {
+         }
+     }
+ 
++    /// How old the newest sample this loop holds is, *right now*.
++    ///
++    /// Asked for at the dispatch point rather than carried in a variable from the read, so it
++    /// includes everything that happened in between — the ONNX forward pass most of all.
++    ///
++    /// `None` before the first successful read and past the end of the coast: a robot that has
++    /// no sample has no age, which is emphatically not the same as having a young one. The
++    /// safety layer has to be told that difference rather than left to infer it from a number
++    /// that was never taken.
++    fn observation_age(&self) -> Option<duck_control::ObservationAge> {
++        self.last.as_ref().map(duck_control::ObservationAge::of)
++    }
++
+     /// Where the joints were the last time anything was actually read — what a fallback
+     /// holds. `fallback` covers the ticks before the first successful read.
+     fn known_positions(&self, fallback: [f64; NUM_JOINTS]) -> [f64; NUM_JOINTS] {
+@@ -3396,6 +3460,7 @@ fn limit_name(limit: duck_control::safety::Limit) -> &'static str {
+     use duck_control::safety::Limit;
+     match limit {
+         Limit::Deadman => "deadman",
++        Limit::Stale => "stale_observation",
+         Limit::Range => "joint_range",
+         Limit::NotFinite => "not_finite",
+     }
+diff --git a/scripts/duck-demo/bundle.py b/scripts/duck-demo/bundle.py
+new file mode 100644
+index 0000000..a7ef27d
+--- /dev/null
++++ b/scripts/duck-demo/bundle.py
+@@ -0,0 +1,305 @@
++#!/usr/bin/env python3
++"""Assemble the two halves of a run into one bundle, and write the summary a reader starts at.
++
++Everything here is copied or derived from what the run produced. Nothing is asserted that is
++not in `scenario-results.json`, a trace, or a `robotctl health` capture taken at the moment
++the scenario ran. Where a claim the demo would like to make is not supported by the numbers,
++this says so rather than making it.
++"""
++
++import argparse
++import json
++import time
++from pathlib import Path
++
++
++def load(root, revision):
++    base = Path(root) / revision
++    manifest = json.loads((base / "manifest.json").read_text())
++    results = json.loads((base / "scenario-results.json").read_text())
++    health = json.loads((base / "health.json").read_text())
++    return manifest, {r["scenario"]: r for r in results}, health
++
++
++def verdict_line(path):
++    """The verifier's one-line ruling, without the reasons it gives above it."""
++    if not path.exists():
++        return None
++    for line in path.read_text().splitlines():
++        if line.startswith("PROTECTED VERDICT:"):
++            return line.strip()
++    return None
++
++
++def verdict_detail(path):
++    """Everything the verifier said *before* the ruling: why, one reason per entry."""
++    if not path.exists():
++        return []
++    return [
++        line.strip().lstrip("- ").strip()
++        for line in path.read_text().splitlines()
++        if line.strip().startswith("-")
++    ]
++
++
++def health_line(text):
++    """The loop's own line out of `robotctl health`, which is the telemetry a reader wants."""
++    for line in (text or "").splitlines():
++        if "Hz" in line:
++            return line.strip()
++    return None
++
++
++def wrap(text, width=88):
++    words, lines, line = text.split(), [], ""
++    for word in words:
++        if len(line) + len(word) + 1 > width:
++            lines.append(line)
++            line = word
++        else:
++            line = f"{line} {word}".strip()
++    if line:
++        lines.append(line)
++    return lines
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--out", required=True, type=Path)
++    parser.add_argument("--run-id", required=True)
++    parser.add_argument("--wall-s", type=int, required=True)
++    args = parser.parse_args()
++
++    seeded_manifest, seeded, seeded_health = load(args.out, "seeded")
++    calibration_path = args.out / "seeded" / "calibration.json"
++    calibration = (
++        json.loads(calibration_path.read_text()) if calibration_path.exists() else None
++    )
++    repaired_manifest, repaired, repaired_health = load(args.out, "repaired")
++
++    rows = []
++    flipped = []
++    for name in seeded:
++        a, b = seeded[name], repaired.get(name)
++        if b is None:
++            continue
++        row = {
++            "scenario": name,
++            "stale_sensors_ms": a["stale_sensors_ms"],
++            "median_dispatch_age_ms": round(a["observation_age_us"]["p50"] / 1000, 1),
++            "seeded": {
++                "outcome": a["outcome"],
++                "stale_observation_ticks": a["limited_by_counts"].get(
++                    "stale_observation", 0
++                ),
++                "driving_ticks": a["driving_ticks"],
++                "referee_displacement_m": a["referee"]["displacement_m"],
++                "referee_trunk_z_final": a["referee"]["trunk_z_final"],
++                "referee_upright": a["referee"]["upright"],
++                "odom_displacement_m": a["odom_displacement_m"],
++                "loop_hz_median": a["loop"]["hz_median"],
++                "health_at_scenario": health_line(seeded_health.get(name)),
++            },
++            "repaired": {
++                "outcome": b["outcome"],
++                "stale_observation_ticks": b["limited_by_counts"].get(
++                    "stale_observation", 0
++                ),
++                "driving_ticks": b["driving_ticks"],
++                "referee_displacement_m": b["referee"]["displacement_m"],
++                "referee_trunk_z_final": b["referee"]["trunk_z_final"],
++                "referee_upright": b["referee"]["upright"],
++                "odom_displacement_m": b["odom_displacement_m"],
++                "loop_hz_median": b["loop"]["hz_median"],
++                "health_at_scenario": health_line(repaired_health.get(name)),
++            },
++        }
++        row["verdict_flipped"] = (
++            row["seeded"]["stale_observation_ticks"]
++            != row["repaired"]["stale_observation_ticks"]
++        )
++        if row["verdict_flipped"]:
++            flipped.append(name)
++        rows.append(row)
++
++    rows.sort(key=lambda r: r["scenario"])
++
++    summary = {
++        "run_id": args.run_id,
++        "created_unix_ms": int(time.time() * 1000),
++        "wall_time_s": args.wall_s,
++        "revisions": {
++            "seeded": {
++                "git_commit": seeded_manifest["source"]["git_commit"],
++                "executable_sha256": seeded_manifest["executable"]["sha256"],
++                "verdict": verdict_line(args.out / "verdict-seeded.txt"),
++                "verdict_detail": verdict_detail(args.out / "verdict-seeded.txt"),
++            },
++            "repaired": {
++                "git_commit": repaired_manifest["source"]["git_commit"],
++                "patch_applied": repaired_manifest["source"]["patch_applied"],
++                "executable_sha256": repaired_manifest["executable"]["sha256"],
++                "verdict": verdict_line(args.out / "verdict-repaired.txt"),
++                "verdict_detail": verdict_detail(args.out / "verdict-repaired.txt"),
++            },
++        },
++        "contract": {
++            "observation_max_age_ticks": seeded_manifest[
++                "policy_observation_max_age_ticks"
++            ],
++            "observation_max_age_ms": seeded_manifest["policy_observation_max_age_ms"],
++            "derivation": "period_ms x (coast_ticks + 1) = 20 x (3 + 1) = 80",
++            "params_registry_entry": seeded_manifest.get("params_registry_entry"),
++        },
++        "the_verdict_flips_on": flipped,
++        "calibration": calibration,
++        "scenarios": rows,
++    }
++    (args.out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
++
++    # ── the human-readable half ───────────────────────────────────────────────
++    lines = []
++    w = lines.append
++    w(f"# duck-safety-demo — run {args.run_id}")
++    w("")
++    w(f"The whole arc took {args.wall_s // 60} m {args.wall_s % 60} s.")
++    w("")
++    w("## The contract")
++    w("")
++    w(f"    observation_max_age = period x (COAST_TICKS + 1) = 20 ms x 4 = "
++      f"{summary['contract']['observation_max_age_ms']} ms")
++    w("")
++    w("Not a number chosen for a slide: it is the bound `COAST_TICKS` already implies, stated")
++    w("once and enforced on the path the coast never watched.")
++    w("")
++    w("## The two binaries")
++    w("")
++    for revision, detail in summary["revisions"].items():
++        w(f"    {revision:9} {detail['executable_sha256']}")
++    w("")
++    w("Each half's `robotd` was copied and digested before anything was measured with it.")
++    w("")
++    w("## What each revision did, scenario by scenario")
++    w("")
++    w(f"    {'scenario':18} {'inject':>7} {'age p50':>8}   "
++      f"{'seeded':32} {'repaired':32}")
++    for row in rows:
++        s, r = row["seeded"], row["repaired"]
++        w(f"    {row['scenario']:18} {row['stale_sensors_ms']:>5}ms "
++          f"{row['median_dispatch_age_ms']:>6.1f}ms   "
++          f"{s['outcome'] + ' ' + str(s['stale_observation_ticks']) + '/' + str(s['driving_ticks']) + ' stale':32} "
++          f"{r['outcome'] + ' ' + str(r['stale_observation_ticks']) + '/' + str(r['driving_ticks']) + ' stale':32}")
++    w("")
++    w(f"The verdict flips on: {', '.join(flipped) if flipped else 'nothing'}.")
++    w("Everything else is identical in both, which is what makes the diff legible.")
++    w("")
++    w("## The verdicts")
++    w("")
++    for revision, detail in summary["revisions"].items():
++        w(f"    {revision:9} {detail['verdict']}")
++        for reason in detail.get("verdict_detail", []):
++            w(f"              - {reason}")
++    w("")
++    w("The seeded run is *required* to fail, and to fail for the right reason: the two")
++    w("scenarios whose dispatch age is past the bound, and nothing else. A seed that passes")
++    w("is as broken a demo as a repair that does not.")
++    w("")
++    w("The expectations the verifier grades against come from")
++    w("`scripts/duck-demo/scenarios/*.json` in its own checkout, never from this directory,")
++    w("and the numbers come from the traces, never from `scenario-results.json` — which is")
++    w("cross-checked against the traces, so a summary that disagrees with them is itself a")
++    w("failure. There is one rule for both revisions: whether a refusal was required is")
++    w("derived per scenario from the manifest's bound and the trace's own ages. Nothing")
++    w("anywhere records what a given revision is *expected* to do, because a verifier that")
++    w("knew that would have graded the bug as correct behaviour.")
++    w("")
++
++    # ── the honest half ───────────────────────────────────────────────────────
++    if calibration:
++        w("## What this run does NOT show, and why")
++        w("")
++        w(f"{calibration['question']}")
++        w("")
++        w(f"    ANSWER: {calibration['answer'].upper()}")
++        w("")
++        w(f"    {'injected':>8} {'age p50':>9} {'past bound':>11} {'outcome':>9} "
++          f"{'travelled':>10} {'trunk_z':>8}")
++        sweep = list(calibration["rows"])
++        # The matrix's own three delays belong in the same table: they are the same
++        # measurement, taken by the same runner, against the same binary.
++        for row in rows:
++            sweep.append(
++                {
++                    "injected_ms": row["stale_sensors_ms"],
++                    "median_dispatch_age_ms": row["median_dispatch_age_ms"],
++                    "past_the_bound": row["median_dispatch_age_ms"]
++                    > summary["contract"]["observation_max_age_ms"],
++                    "outcome": row["seeded"]["outcome"],
++                    "referee_displacement_m": row["seeded"]["referee_displacement_m"],
++                    "referee_trunk_z_final": row["seeded"]["referee_trunk_z_final"],
++                }
++            )
++        seen = set()
++        for row in sorted(sweep, key=lambda r: r["injected_ms"]):
++            key = (row["injected_ms"], row["outcome"])
++            if key in seen:
++                continue
++            seen.add(key)
++            w(f"    {row['injected_ms']:>6} ms {row['median_dispatch_age_ms']:>7.1f} ms "
++              f"{str(row['past_the_bound']):>11} {row['outcome']:>9} "
++              f"{row['referee_displacement_m']:>9.3f} m {row['referee_trunk_z_final']:>8}")
++        w("")
++        for line in wrap(calibration["consequence"]):
++            w(line)
++        w("")
++        w("So the hook this port ships is not the one the demo it is a port of ships. There,")
++        w("the robot lifted the cube and the contract was never evaluated. Here the duck goes")
++        w("down — and every instrument still says it is fine. `health.json` in each half has")
++        w("`robotctl health` exactly as it read at each scenario; at 100 ms of injected")
++        w("staleness it reports a healthy robot at fifty hertz with the bus ok and the imu")
++        w("ready, while `observation_age_us` sits on the wire above the advertised bound on")
++        w("every single tick and `move.limited_by` stays empty.")
++        w("")
++        w("## What 'held' actually looks like, which is not what it sounds like")
++        w("")
++        w("On the repaired revision at 100 ms the duck does not hold a *stand*. It holds where")
++        w("it was put: referee displacement 0.0001 m, trunk_z 0.0316, and `upright` false in")
++        w("`scenario-results.json` for the repaired half as well as the seeded one. The reason")
++        w("is in the injector's own design — `--stale-sensors-ms` is a start-time flag with")
++        w("`requires = \"sim\"`, deliberately not a live knob, so the sensor path is already")
++        w("100 ms behind before the duck is first enabled. The gate therefore refuses the very")
++        w("first dispatch, the duck never rises, and it never moves again.")
++        w("")
++        w("That is the rule working rather than the rule failing, and the two halves are told")
++        w("apart by displacement, not by height: seeded 0.156 m of travel ending on its face")
++        w("against repaired 0.0001 m of travel and a robot that never left the floor. But")
++        w("'the repaired duck stands there calmly' would be a nicer sentence than the evidence")
++        w("supports, and it is not the one this bundle makes.")
++        w("")
++        w("A caveat this bundle will not paper over: the coast permits three *consecutive*")
++        w("stale ticks followed by a fresh one, which is a different load from a sensor path")
++        w("that is permanently behind. These numbers do not show that COAST_TICKS is wrong.")
++        w("They show that a bound derived from it is not a balance guarantee.")
++        w("")
++    w("## Files")
++    w("")
++    w("    summary.json                     this, as data")
++    w("    {seeded,repaired}/manifest.json  binary sha256, git commit, the derived bound")
++    w("    {seeded,repaired}/scenario-results.json")
++    w("    {seeded,repaired}/events-<scenario>.jsonl    robotctl monitor --json, verbatim")
++    w("    {seeded,repaired}/referee-<scenario>.jsonl   the body's own trunk pose")
++    w("    {seeded,repaired}/health.json    robotctl health as read at each scenario")
++    w("    seeded/calibration.json          the balance sweep, and the question it answers")
++    w("    {seeded,repaired}/artifact/robotd + .sha256")
++    w("    verdict-{seeded,repaired}.txt    the protected verifier's own words")
++    w("    {seeded,repaired}-tests.txt      cargo test -p duck-control --lib")
++    w("")
++    w("A digest identifies an artifact; it is not by itself independent proof that untrusted")
++    w("evidence was produced by that executable.")
++    w("")
++    (args.out / "README.md").write_text("\n".join(lines) + "\n")
++    print(f"   summary.json and README.md written to {args.out}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/scripts/duck-demo/calibrate.py b/scripts/duck-demo/calibrate.py
+new file mode 100644
+index 0000000..0f461c2
+--- /dev/null
++++ b/scripts/duck-demo/calibrate.py
+@@ -0,0 +1,114 @@
++#!/usr/bin/env python3
++"""Find where this duck's balance actually gives out, and record it whatever it says.
++
++The design this port follows asks for a calibration before the matrix is final: pick the
++largest injected delay at which the duck still *succeeds*, so the demo can show a task that
++completed while the contract it advertises was never evaluated. It also says, in as many
++words, that if no such delay exists the honest thing is to report that rather than fabricate
++the hook.
++
++This is that step, kept in the demo rather than done once and written into a comment, because
++the answer is a property of this duck and this policy and would otherwise be a claim nobody
++can re-derive. It sweeps the band between the last delay the duck walks through and the
++bound the gate enforces, and prints what it finds.
++"""
++
++import argparse
++import json
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import run as runner  # noqa: E402
++
++HERE = Path(__file__).resolve().parent
++REPO = HERE.parents[1]
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--out", required=True, type=Path)
++    parser.add_argument("--state", default=str(Path.home() / ".cache/duck-sim"))
++    parser.add_argument("--body-port", type=int, default=7801)
++    parser.add_argument(
++        "--delays",
++        default="60,80",
++        help="injected delays to sweep, ms. The matrix already measures 0, 40 and 100, so the "
++        "default fills in the band between the last one the duck walks through and the "
++        "first one past the bound.",
++    )
++    parser.add_argument("--max-age-ms", type=float, default=80.0)
++    args = parser.parse_args()
++
++    sock = Path(args.state) / "duck-a.sock"
++    robotctl = REPO / "target/debug/robotctl"
++    args.out.mkdir(parents=True, exist_ok=True)
++
++    rows = []
++    began = time.perf_counter()
++    for delay in [int(d) for d in args.delays.split(",")]:
++        subprocess.run(
++            [str(HERE / "swap-robotd.sh"), str(delay)], check=True, capture_output=True
++        )
++        scenario = {
++            "name": f"calibrate_{delay}ms",
++            "stale_ms": delay,
++            "vx": 0.3,
++            "drive_s": 2.5,
++        }
++        result = runner.run(scenario, str(sock), args.body_port, args.out, robotctl)
++        age = result["observation_age_us"]["p50"] / 1000.0
++        row = {
++            "injected_ms": delay,
++            "median_dispatch_age_ms": round(age, 1),
++            "past_the_bound": age > args.max_age_ms,
++            "outcome": result["outcome"],
++            "referee_displacement_m": result["referee"]["displacement_m"],
++            "referee_trunk_z_final": result["referee"]["trunk_z_final"],
++            "referee_upright": result["referee"]["upright"],
++            "odom_displacement_m": result["odom_displacement_m"],
++            "loop_hz_median": result["loop"]["hz_median"],
++            # The point of the whole exercise: the robot walked, or believes it did, and the
++            # rule that would have stopped it was never consulted.
++            "stale_observation_ticks": result["limited_by_counts"].get(
++                "stale_observation", 0
++            ),
++        }
++        rows.append(row)
++        print(
++            f"   -- injected {delay:>3} ms -> age {age:6.1f} ms  {row['outcome']:8}"
++            f"  travelled {row['referee_displacement_m']:.3f} m"
++            f"  trunk_z {row['referee_trunk_z_final']}",
++            flush=True,
++        )
++
++    # The question the sweep exists to answer, answered from the sweep.
++    walks_past_the_bound = [
++        r for r in rows if r["past_the_bound"] and r["outcome"] == "walked"
++    ]
++    finding = {
++        "question": (
++            "Is there an injected delay at which the dispatch age exceeds the "
++            f"{args.max_age_ms:.0f} ms bound and the duck still walks?"
++        ),
++        "answer": "yes" if walks_past_the_bound else "no",
++        "consequence": (
++            "The demo can show a task that succeeded while the contract was never evaluated."
++            if walks_past_the_bound
++            else "On this duck the balance cliff sits below the bound the coast implies, so "
++            "there is no 'the robot succeeded, the contract failed' case to show. What the "
++            "seeded revision demonstrates instead is stronger and is not a weaker version of "
++            "it: the duck goes down while the loop holds fifty hertz, the bus is ok, the imu "
++            "is ready, limited_by is empty, and the age sits on the wire the whole time."
++        ),
++        "rows": rows,
++        "wall_time_s": round(time.perf_counter() - began, 1),
++    }
++    (args.out / "calibration.json").write_text(json.dumps(finding, indent=2) + "\n")
++    print(f"   -- calibration: {finding['answer']}")
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/scripts/duck-demo/check-patch.py b/scripts/duck-demo/check-patch.py
+new file mode 100755
+index 0000000..3301bb8
+--- /dev/null
++++ b/scripts/duck-demo/check-patch.py
+@@ -0,0 +1,63 @@
++#!/usr/bin/env python3
++"""Reject candidate patches outside the single permitted safety source file.
++
++A direct port of the conference demo's `scripts/robot-demo/check-patch.py`, with one
++constant changed. The discipline is the point: the repair is allowed to change the rule and
++nothing else, so "the gate now passes" cannot have been achieved by moving the gate, by
++loosening a test, or by editing the evidence.
++"""
++
++import argparse
++import re
++import subprocess
++import sys
++from pathlib import Path
++
++ALLOWED_PATH = "duck-control/src/safety.rs"
++
++
++def validate_patch(path, root):
++    patch = path.read_bytes()
++    if re.search(
++        rb"^(?:old mode|new mode|new file mode|deleted file mode|rename from|rename to|"
++        rb"copy from|copy to) ",
++        patch,
++        re.M,
++    ):
++        raise ValueError(
++            "candidate must modify an existing regular source file; "
++            "file/mode changes are forbidden"
++        )
++    completed = subprocess.run(
++        ["git", "apply", "--numstat", "-z", "--", str(path.resolve())],
++        cwd=root,
++        capture_output=True,
++        check=True,
++    )
++    records = completed.stdout.rstrip(b"\0").split(b"\0")
++    if not records or records == [b""]:
++        raise ValueError("candidate patch is empty")
++    for record in records:
++        fields = record.split(b"\t", 2)
++        if len(fields) != 3 or fields[2] != ALLOWED_PATH.encode():
++            raise ValueError(f"candidate may only change {ALLOWED_PATH}")
++        if not all(field.isdigit() for field in fields[:2]):
++            raise ValueError("binary candidate patches are forbidden")
++    return ALLOWED_PATH
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("patch", type=Path)
++    args = parser.parse_args()
++    try:
++        changed = validate_patch(args.patch, Path(__file__).resolve().parents[2])
++    except (ValueError, OSError, subprocess.CalledProcessError) as error:
++        print(f"PATCH REJECTED: {error}", file=sys.stderr)
++        return 1
++    print(f"candidate allowlist passed: {changed}")
++    return 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/duck-demo/coverage-matrix.json b/scripts/duck-demo/coverage-matrix.json
+new file mode 100644
+index 0000000..47d1de0
+--- /dev/null
++++ b/scripts/duck-demo/coverage-matrix.json
+@@ -0,0 +1,29 @@
++{
++  "comment": "What the matrix has to cover before a PASS means anything. The verifier reads this from its own checkout, never from an evidence directory, and refuses a run whose scenarios do not between them tick every box. A green run that only ever exercised the permit path is not evidence that the rule works.",
++  "required_scenarios": [
++    "fresh_walk",
++    "fresh_turn",
++    "deadman_stop",
++    "borderline_40ms",
++    "stale_100ms",
++    "stale_100ms_turn",
++    "body_gone"
++  ],
++  "required_coverage": {
++    "permits_a_fresh_sample": ["fresh_walk", "fresh_turn"],
++    "permits_more_than_one_intent": ["fresh_turn", "stale_100ms_turn"],
++    "does_not_fight_the_coast": ["borderline_40ms"],
++    "refuses_a_stale_sample": ["stale_100ms", "stale_100ms_turn"],
++    "refuses_regardless_of_intent": ["stale_100ms", "stale_100ms_turn"],
++    "freshness_is_independent_of_the_deadman": ["deadman_stop"],
++    "no_sensor_does_not_default_authorize": ["body_gone"],
++    "the_verdict_flips_between_revisions": ["stale_100ms", "stale_100ms_turn"],
++    "the_verdict_does_not_flip_elsewhere": [
++      "fresh_walk",
++      "fresh_turn",
++      "deadman_stop",
++      "borderline_40ms",
++      "body_gone"
++    ]
++  }
++}
+diff --git a/scripts/duck-demo/matrix.py b/scripts/duck-demo/matrix.py
+new file mode 100644
+index 0000000..4ac130f
+--- /dev/null
++++ b/scripts/duck-demo/matrix.py
+@@ -0,0 +1,172 @@
++#!/usr/bin/env python3
++"""Run the whole scenario matrix against one revision, and write its evidence directory.
++
++One `robotd` per staleness value, several scenarios inside each. The MuJoCo world stays up
++across all of them because it is the expensive part, and because killing `robotd` runs its
++graceful shutdown — which sits the duck down and cuts torque — so every swap costs a stand
++and six seconds of settle, or the next scenario is a measurement of a duck on the floor.
++
++What this writes is *facts*. It does not decide whether they are the right facts:
++`verify.py` does that, from expectations in its own checkout.
++"""
++
++import argparse
++import hashlib
++import json
++import shutil
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++import run as runner  # noqa: E402
++
++HERE = Path(__file__).resolve().parent
++REPO = HERE.parents[1]
++
++
++def sha256(path):
++    digest = hashlib.sha256()
++    with open(path, "rb") as stream:
++        for block in iter(lambda: stream.read(1 << 20), b""):
++            digest.update(block)
++    return digest.hexdigest()
++
++
++def load_scenarios():
++    return [
++        json.loads(path.read_text())
++        for path in sorted((HERE / "scenarios").glob("*.json"))
++    ]
++
++
++def git(*args):
++    return subprocess.run(
++        ["git", *args], cwd=REPO, capture_output=True, text=True
++    ).stdout.strip()
++
++
++def params_say():
++    """What the params registry advertises the freshness bound to be.
++
++    From `robotd-params/src/registry.rs` in this checkout, not from a running daemon: there is
++    no `robotctl params list`, and `configure --list` prints only what a robot *changes* from
++    the defaults — so a robot running the default 4 ticks prints nothing, which is the answer
++    to a different question. Recorded because the seeded revision's plausibility rests on it:
++    the registry says the rule exists, and the registry is one of the artifacts a reviewer
++    inspects before concluding it does.
++    """
++    registry = REPO / "robotd-params/src/registry.rs"
++    lines = registry.read_text().splitlines()
++    for index, line in enumerate(lines):
++        if "observation_max_age_ticks" in line:
++            return {
++                "source": "robotd-params/src/registry.rs",
++                "line": index + 1,
++                "entry": " ".join(part.strip() for part in lines[index : index + 3]),
++            }
++    return None
++
++
++def health(robotctl, sock):
++    """`robotctl health` verbatim — the loop telemetry, in the words the operator sees."""
++    out = subprocess.run(
++        [str(robotctl), "--robot-socket", str(sock), "health"],
++        capture_output=True,
++        text=True,
++    )
++    return out.stdout
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--revision", required=True, choices=["seeded", "repaired"])
++    parser.add_argument("--out", required=True, type=Path)
++    parser.add_argument("--state", default=str(Path.home() / ".cache/duck-sim"))
++    parser.add_argument("--body-port", type=int, default=7801)
++    parser.add_argument("--run-id", default=None)
++    args = parser.parse_args()
++
++    state = Path(args.state)
++    sock = state / "duck-a.sock"
++    robotctl = REPO / "target/debug/robotctl"
++    robotd = REPO / "target/debug/robotd"
++    out = args.out
++    out.mkdir(parents=True, exist_ok=True)
++
++    # The binary is copied and digested *before* anything is measured with it, so the evidence
++    # names the executable that produced it rather than whatever is at that path afterwards.
++    artifact = out / "artifact"
++    artifact.mkdir(exist_ok=True)
++    shutil.copy2(robotd, artifact / "robotd")
++    binary_sha = sha256(artifact / "robotd")
++    (artifact / "robotd.sha256").write_text(f"{binary_sha}  robotd\n")
++
++    scenarios = load_scenarios()
++    results = []
++    current_stale = None
++    began = time.perf_counter()
++    health_by_scenario = {}
++
++    for scenario in scenarios:
++        want = scenario.get("stale_ms", 0)
++        if want != current_stale:
++            print(f"   -- robotd restart, --stale-sensors-ms {want}", flush=True)
++            subprocess.run(
++                [str(HERE / "swap-robotd.sh"), str(want)],
++                check=True,
++                capture_output=True,
++            )
++            current_stale = want
++        print(f"   -- {scenario['name']}", end="", flush=True)
++        # Captured per scenario, immediately before it: the hook rests on every instrument
++        # reporting a healthy robot at the moment the contract is being violated, and that is
++        # only evidence if it was actually read at that moment.
++        health_by_scenario[scenario["name"]] = health(robotctl, sock)
++        result = runner.run(scenario, str(sock), args.body_port, out, robotctl)
++        result["revision"] = args.revision
++        results.append(result)
++        print(
++            f"  -> {result['outcome']}"
++            f"  age_p50={result['observation_age_us']['p50'] / 1000:.1f}ms"
++            f"  limits={result['limited_by_counts'] or '{}'}",
++            flush=True,
++        )
++
++    wall = time.perf_counter() - began
++    (out / "scenario-results.json").write_text(json.dumps(results, indent=2) + "\n")
++    (out / "health.json").write_text(json.dumps(health_by_scenario, indent=2) + "\n")
++
++    manifest = {
++        "run_id": args.run_id or out.name,
++        "created_unix_ms": int(time.time() * 1000),
++        "revision": args.revision,
++        "source": {
++            "git_commit": git("rev-parse", "HEAD"),
++            "git_dirty": bool(git("status", "--porcelain")),
++            "patch_applied": (
++                "demo/freshness-patch.diff" if args.revision == "repaired" else None
++            ),
++        },
++        "executable": {"path": "artifact/robotd", "sha256": binary_sha},
++        "control": {"target_hz": 50.0, "period_ms": 20, "coast_ticks": 3},
++        "simulator": {"backend": "microduck_rl", "body_port": args.body_port, "headless": True},
++        "policy_observation_max_age_ticks": 4,
++        "policy_observation_max_age_ms": 80,
++        "params_registry_entry": params_say(),
++        "scope": "matrix",
++        "scenarios": [s["name"] for s in scenarios],
++        "wall_time_s": round(wall, 2),
++        # Carried verbatim from the demo this is a port of, because it is still true here:
++        "caveat": (
++            "A digest identifies an artifact; it is not by itself independent proof that "
++            "untrusted evidence was produced by that executable."
++        ),
++    }
++    (out / "manifest.json").write_text(json.dumps(manifest, indent=2) + "\n")
++    print(f"   -- matrix ({args.revision}) took {wall:.1f} s", flush=True)
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/scripts/duck-demo/referee.py b/scripts/duck-demo/referee.py
+new file mode 100644
+index 0000000..432e4d4
+--- /dev/null
++++ b/scripts/duck-demo/referee.py
+@@ -0,0 +1,168 @@
++#!/usr/bin/env python3
++"""Ground truth about where the duck actually is, taken from outside the duck.
++
++A second reader on the body's own port. body_server.py says why its `read` reply carries
++`trunk` and `trunk_z` at all:
++
++    "No robot can measure how high its own trunk is, and serde ignores these on the daemon
++     side."
++
++That is exactly the property wanted here. Under a stale observation the robot's `odom` is
++its *belief*, and the whole failure being demonstrated is a belief that has come adrift from
++the world — so a verdict derived from `odom` would be asking the defendant for the verdict.
++`trunk` comes from `data.qpos` with the world's own lock held, and nothing robotd does can
++reach it.
++
++The body server is a `ThreadingTCPServer`, so this connection is its own thread and `read`
++only takes the lock to copy state out. Watching costs the simulator nothing it was not
++already paying to answer the daemon.
++"""
++
++import json
++import socket
++import threading
++import time
++
++
++class Referee:
++    """Samples the body's true trunk pose on its own thread until stopped."""
++
++    def __init__(self, port=7801, host="127.0.0.1", hz=50.0):
++        self.address = (host, port)
++        self.period = 1.0 / hz
++        self.samples = []
++        self._stop = threading.Event()
++        self._thread = None
++        self._error = None
++
++    def __enter__(self):
++        self.start()
++        return self
++
++    def __exit__(self, *exc):
++        self.stop()
++        return False
++
++    def start(self):
++        ready = threading.Event()
++        self._thread = threading.Thread(target=self._run, args=(ready,), daemon=True)
++        self._thread.start()
++        # Wait for the handshake so a scenario never starts before the referee is watching.
++        ready.wait(5.0)
++        if self._error:
++            raise RuntimeError(f"referee could not reach the body: {self._error}")
++
++    def stop(self):
++        self._stop.set()
++        if self._thread:
++            self._thread.join(3.0)
++
++    def _run(self, ready):
++        try:
++            s = socket.create_connection(self.address, timeout=5)
++            s.setsockopt(socket.IPPROTO_TCP, socket.TCP_NODELAY, 1)
++            f = s.makefile("rw")
++            f.write(json.dumps({"op": "hello", "protocol": 1, "joints": 15}) + "\n")
++            f.flush()
++            f.readline()
++        except Exception as error:  # noqa: BLE001 - reported to the caller, not swallowed
++            self._error = error
++            ready.set()
++            return
++        ready.set()
++        while not self._stop.is_set():
++            began = time.perf_counter()
++            try:
++                f.write('{"op":"read"}\n')
++                f.flush()
++                reply = json.loads(f.readline())
++            except Exception as error:  # noqa: BLE001
++                # The body going away mid-scenario is itself a result (see `body_gone`), not a
++                # crash: record it and stop, so the caller still gets the samples up to it.
++                self._error = error
++                return
++            self.samples.append(
++                {
++                    "wall": time.time(),
++                    "sim_time": reply.get("sim_time"),
++                    "trunk": reply.get("trunk"),
++                    "trunk_z": reply.get("trunk_z"),
++                    "gravity_z": reply.get("imu", {}).get("gravity", [0, 0, 0])[2],
++                    "yaw": yaw_of(reply.get("imu", {}).get("quat", [1, 0, 0, 0])),
++                }
++            )
++            slack = self.period - (time.perf_counter() - began)
++            if slack > 0:
++                time.sleep(slack)
++
++    # ── what the verifier asks of it ──────────────────────────────────────────
++
++    def write(self, path):
++        with open(path, "w") as out:
++            for sample in self.samples:
++                out.write(json.dumps(sample) + "\n")
++
++    def window(self, began, ended):
++        return [s for s in self.samples if began <= s["wall"] <= ended]
++
++
++def yaw_of(quat):
++    """Heading from the trunk quaternion the body reports, radians.
++
++    From the simulator's `qpos`, not from the robot's own odometry: which way the duck is
++    actually pointing is the thing a stale observation makes it wrong about, so it has to come
++    from the world.
++    """
++    import math
++
++    w, x, y, z = quat
++    return math.atan2(2.0 * (w * z + x * y), 1.0 - 2.0 * (y * y + z * z))
++
++
++def turned(samples):
++    """Radians of heading change, first sample to last, unwrapped across the +/-pi seam."""
++    import math
++
++    if len(samples) < 2:
++        return 0.0
++    total, last = 0.0, samples[0]["yaw"]
++    for sample in samples[1:]:
++        step = sample["yaw"] - last
++        total += math.atan2(math.sin(step), math.cos(step))
++        last = sample["yaw"]
++    return total
++
++
++def displacement(samples):
++    """Metres travelled in the world's own xy plane, first sample to last."""
++    if len(samples) < 2:
++        return 0.0
++    a, b = samples[0]["trunk"], samples[-1]["trunk"]
++    return ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
++
++
++def main():
++    import argparse
++
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("--port", type=int, default=7801)
++    parser.add_argument("--seconds", type=float, default=3.0)
++    parser.add_argument("--out")
++    args = parser.parse_args()
++    with Referee(port=args.port) as referee:
++        time.sleep(args.seconds)
++    if args.out:
++        referee.write(args.out)
++    print(
++        json.dumps(
++            {
++                "samples": len(referee.samples),
++                "displacement_m": round(displacement(referee.samples), 4),
++                "trunk_z_final": referee.samples[-1]["trunk_z"] if referee.samples else None,
++            }
++        )
++    )
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/scripts/duck-demo/run.py b/scripts/duck-demo/run.py
+new file mode 100644
+index 0000000..fee1d81
+--- /dev/null
++++ b/scripts/duck-demo/run.py
+@@ -0,0 +1,276 @@
++#!/usr/bin/env python3
++"""Run one scenario against a duck that is already up, and write its evidence.
++
++Three recorders, deliberately independent:
++
++  * `robotctl monitor --json`, spawned as a real client and captured verbatim — this is what
++    the robot says about itself, including the new `observation_age_us`;
++  * `referee.py` on the body port — this is what the world says about the robot;
++  * a `robot.move` writer on its own connection — the driver's intent, at the 10 Hz a
++    teleoperator's stick produces, so the deadman is exercised the way it is in the field.
++
++Nothing here decides anything. It records, and `verify.py` — which reads its expectations
++from its own checkout rather than from this directory — derives the verdict.
++"""
++
++import argparse
++import json
++import os
++import signal
++import socket
++import statistics
++import subprocess
++import sys
++import time
++from pathlib import Path
++
++sys.path.insert(0, str(Path(__file__).resolve().parent))
++from referee import Referee, displacement, turned  # noqa: E402
++
++HERE = Path(__file__).resolve().parent
++REPO = HERE.parents[1]
++
++# A duck is standing when its trunk clears this, the same 0.095 m `duck-sim`'s own `upright`
++# uses — "`STAND` is 0.12 and `SIT` is 0.07; halfway is the line".
++STANDING_M = 0.095
++
++
++def quiesce(sock_path, seconds):
++    """Let the robot finish with whatever it was last asked to do."""
++    time.sleep(seconds)
++
++
++def drive(sock_path, vx, vy, vyaw, seconds, stop_early=None):
++    """Hold an intent for `seconds`, at 10 Hz, on a connection of its own."""
++    s = socket.socket(socket.AF_UNIX)
++    s.connect(sock_path)
++    f = s.makefile("w")
++    until = time.time() + seconds
++    while time.time() < until:
++        if stop_early and stop_early():
++            break
++        f.write(
++            json.dumps(
++                {
++                    "jsonrpc": "2.0",
++                    "method": "robot.move",
++                    "params": {"vx": vx, "vy": vy, "vyaw": vyaw},
++                }
++            )
++            + "\n"
++        )
++        f.flush()
++        time.sleep(0.1)
++    s.close()
++
++
++def run(scenario, sock_path, body_port, out_dir, robotctl):
++    name = scenario["name"]
++    out_dir = Path(out_dir)
++    out_dir.mkdir(parents=True, exist_ok=True)
++    events_path = out_dir / f"events-{name}.jsonl"
++    referee_path = out_dir / f"referee-{name}.jsonl"
++
++    # **Wait for the previous scenario to be finished with the robot.** The deadman holds the
++    # last intent on record for 500 ms and the applied twist then decays toward zero over
++    # several more ticks, so a scenario that starts recording immediately captures the tail of
++    # the one before it — which showed up as `fresh_turn` opening with thirteen ticks of
++    # `fresh_walk`'s forward twist, and a turn measured across a window that began by walking.
++    quiesce(sock_path, scenario.get("settle_before_s", 1.2))
++
++    events = open(events_path, "w")
++    monitor = subprocess.Popen(
++        [str(robotctl), "--robot-socket", str(sock_path), "monitor", "--json", "--hz", "50"],
++        stdout=events,
++        stderr=subprocess.DEVNULL,
++    )
++    referee = Referee(port=body_port)
++    referee.start()
++    # Let both recorders settle before the intent starts, so the first driving tick is inside
++    # the window rather than racing it.
++    time.sleep(0.4)
++
++    began_wall = time.time()
++    began = time.perf_counter()
++    kill_body_at = scenario.get("kill_body_after_s")
++    killed_body = False
++
++    if kill_body_at is None:
++        drive(
++            sock_path,
++            scenario.get("vx", 0.0),
++            scenario.get("vy", 0.0),
++            scenario.get("vyaw", 0.0),
++            scenario["drive_s"],
++        )
++    else:
++        # `body_gone`: hold the intent, take the sensor away mid-stride, keep holding it.
++        def past_kill():
++            nonlocal killed_body
++            if not killed_body and time.perf_counter() - began >= kill_body_at:
++                killed_body = True
++                subprocess.run(
++                    ["pkill", "-KILL", "-f", "body_server"], check=False, capture_output=True
++                )
++            return False
++
++        drive(
++            sock_path,
++            scenario.get("vx", 0.0),
++            scenario.get("vy", 0.0),
++            scenario.get("vyaw", 0.0),
++            scenario["drive_s"],
++            stop_early=past_kill,
++        )
++
++    # `silence_s`: stop talking and let the deadman do its work, still recording.
++    time.sleep(scenario.get("silence_s", 0.0))
++    ended_wall = time.time()
++    wall_ms = int((time.perf_counter() - began) * 1000)
++
++    time.sleep(0.3)
++    referee.stop()
++    monitor.send_signal(signal.SIGTERM)
++    try:
++        monitor.wait(timeout=5)
++    except subprocess.TimeoutExpired:
++        monitor.kill()
++    events.close()
++    referee.write(referee_path)
++
++    result = summarise(
++        scenario, events_path, referee, began_wall, ended_wall, wall_ms, killed_body
++    )
++    return result
++
++
++def summarise(scenario, events_path, referee, began_wall, ended_wall, wall_ms, killed_body):
++    ticks = []
++    with open(events_path) as stream:
++        for line in stream:
++            try:
++                frame = json.loads(line)
++            except json.JSONDecodeError:
++                continue
++            state = frame.get("params")
++            if not isinstance(state, dict) or "loop" not in state:
++                continue
++            ticks.append(state)
++
++    # A *driving* tick is one where the driver was actually asking for motion. Limits are only
++    # interesting there: a tick with no intent is limited by the deadman by definition, and
++    # counting those would make every scenario look gated.
++    driving = [t for t in ticks if any(abs(v) > 1e-9 for v in requested(t))]
++    limited = {}
++    for tick in driving:
++        for limit in tick["move"].get("limited_by", []):
++            limited[limit] = limited.get(limit, 0) + 1
++
++    ages = [t.get("observation_age_us", 0) for t in driving] or [0]
++    hzs = [t["loop"]["hz"] for t in ticks] or [0.0]
++    missed = [t["loop"]["missed"] for t in ticks] or [0]
++
++    window = referee.window(began_wall, ended_wall) or referee.samples
++    moved = displacement(window)
++    turn = turned(window)
++    trunk_z_first = window[0]["trunk_z"] if window else None
++    trunk_z_final = window[-1]["trunk_z"] if window else None
++    gravity_z_final = window[-1]["gravity_z"] if window else None
++
++    upright = trunk_z_final is not None and trunk_z_final >= STANDING_M
++    upright_at_start = trunk_z_first is not None and trunk_z_first >= STANDING_M
++    # Refused *throughout*, not merely somewhere: a gate that trips on a handful of ticks is a
++    # different event from one that never lets a single stale sample through, and calling both
++    # "held" would hide the more interesting of the two.
++    refused_all = driving and limited.get("stale_observation", 0) >= len(driving)
++
++    # **`held` outranks `fell`, and the order matters.** A duck the gate has refused since boot
++    # has never stood up, and it is not lying on the floor because it fell — it is exactly
++    # where it was put. Judging it by trunk height alone would report the rule working as the
++    # rule failing. `trunk_z_start` is recorded next to `trunk_z_final` so the difference
++    # between "went down" and "never got up" is in the evidence rather than in this function.
++    if refused_all and moved < 0.05:
++        outcome = "held"
++    elif not upright:
++        outcome = "fell"
++    elif moved >= 0.15:
++        outcome = "walked"
++    elif abs(turn) >= 0.5:
++        outcome = "turned"
++    else:
++        outcome = "stopped"
++
++    return {
++        "scenario": scenario["name"],
++        "stale_sensors_ms": scenario.get("stale_ms", 0),
++        "intent": {
++            "vx": scenario.get("vx", 0.0),
++            "vy": scenario.get("vy", 0.0),
++            "vyaw": scenario.get("vyaw", 0.0),
++            "drive_s": scenario["drive_s"],
++            "silence_s": scenario.get("silence_s", 0.0),
++        },
++        "outcome": outcome,
++        "ticks": len(ticks),
++        "driving_ticks": len(driving),
++        "limited_by_counts": limited,
++        "observation_age_us": {
++            "p50": int(statistics.median(ages)),
++            "p95": int(sorted(ages)[min(len(ages) - 1, int(0.95 * len(ages)))]),
++            "max": int(max(ages)),
++        },
++        "loop": {
++            "hz_min": round(min(hzs), 2),
++            "hz_median": round(statistics.median(hzs), 2),
++            "missed_growth": int(max(missed) - min(missed)),
++        },
++        "referee": {
++            "samples": len(window),
++            "displacement_m": round(moved, 4),
++            "yaw_change_rad": round(turn, 4),
++            "trunk_z_start": round(trunk_z_first, 4) if trunk_z_first is not None else None,
++            "trunk_z_final": round(trunk_z_final, 4) if trunk_z_final is not None else None,
++            "gravity_z_final": (
++                round(gravity_z_final, 4) if gravity_z_final is not None else None
++            ),
++            "upright": upright,
++            "upright_at_start": upright_at_start,
++        },
++        "odom_displacement_m": round(odom_displacement(driving or ticks), 4),
++        "body_killed": killed_body,
++        "wall_time_ms": wall_ms,
++    }
++
++
++def requested(tick):
++    """`move.requested` is `skip_serializing_if = "Vec::is_empty"` on the wire, so an idle tick
++    carries no field at all rather than three zeros. Absent is not motion."""
++    return tick.get("move", {}).get("requested", [])
++
++
++def odom_displacement(ticks):
++    """What the robot *believes* it travelled. Recorded, never used as proof — under a stale
++    observation this is exactly the number that comes adrift from `referee.trunk`."""
++    if len(ticks) < 2:
++        return 0.0
++    a = ticks[0].get("odom", {}).get("position", [0.0, 0.0, 0.0])
++    b = ticks[-1].get("odom", {}).get("position", [0.0, 0.0, 0.0])
++    return ((b[0] - a[0]) ** 2 + (b[1] - a[1]) ** 2) ** 0.5
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("scenario", type=Path)
++    parser.add_argument("--socket", default=os.path.expanduser("~/.cache/duck-sim/duck-a.sock"))
++    parser.add_argument("--body-port", type=int, default=7801)
++    parser.add_argument("--out", required=True)
++    parser.add_argument("--robotctl", default=str(REPO / "target/debug/robotctl"))
++    args = parser.parse_args()
++
++    scenario = json.loads(args.scenario.read_text())
++    result = run(scenario, args.socket, args.body_port, args.out, args.robotctl)
++    print(json.dumps(result, indent=2))
++
++
++if __name__ == "__main__":
++    main()
+diff --git a/scripts/duck-demo/scenarios/1-fresh_walk.json b/scripts/duck-demo/scenarios/1-fresh_walk.json
+new file mode 100644
+index 0000000..0f4edb2
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/1-fresh_walk.json
+@@ -0,0 +1,12 @@
++{
++  "name": "fresh_walk",
++  "order": 1,
++  "stale_ms": 0,
++  "vx": 0.3,
++  "drive_s": 2.5,
++  "why": "The control. A gate that only ever refuses proves nothing; this is the tick where the duck walks *because* it can see.",
++  "expect": {
++    "median_age_ms": [0, 40],
++    "when_permitted": { "outcome": "walked", "min_displacement_m": 0.15 }
++  }
++}
+diff --git a/scripts/duck-demo/scenarios/2-fresh_turn.json b/scripts/duck-demo/scenarios/2-fresh_turn.json
+new file mode 100644
+index 0000000..8daf7a1
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/2-fresh_turn.json
+@@ -0,0 +1,12 @@
++{
++  "name": "fresh_turn",
++  "order": 2,
++  "stale_ms": 0,
++  "vyaw": 2.0,
++  "drive_s": 2.5,
++  "why": "A second intent, so 'permit' is not one hard-coded happy path. vyaw 2.0 rather than 1.0 because the walk policy barely turns at 1.0 — measured at 0.147 rad over three seconds against 3.74 rad at 2.0 — and a scenario whose intent the robot does not really act on tests nothing.",
++  "expect": {
++    "median_age_ms": [0, 40],
++    "when_permitted": { "outcome": "turned", "min_yaw_change_rad": 0.8 }
++  }
++}
+diff --git a/scripts/duck-demo/scenarios/3-deadman_stop.json b/scripts/duck-demo/scenarios/3-deadman_stop.json
+new file mode 100644
+index 0000000..fa175cc
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/3-deadman_stop.json
+@@ -0,0 +1,13 @@
++{
++  "name": "deadman_stop",
++  "order": 3,
++  "stale_ms": 0,
++  "vx": 0.3,
++  "drive_s": 1.5,
++  "silence_s": 1.5,
++  "why": "The estop equivalent, and it proves the two ages are independent. One is how old the driver's wish may be; the other is how old the world may be. Only one of them was ever enforced.",
++  "expect": {
++    "median_age_ms": [0, 40],
++    "deadman_appears": true
++  }
++}
+diff --git a/scripts/duck-demo/scenarios/4-borderline_40ms.json b/scripts/duck-demo/scenarios/4-borderline_40ms.json
+new file mode 100644
+index 0000000..5bf74a4
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/4-borderline_40ms.json
+@@ -0,0 +1,12 @@
++{
++  "name": "borderline_40ms",
++  "order": 4,
++  "stale_ms": 40,
++  "vx": 0.3,
++  "drive_s": 2.5,
++  "why": "The boundary must be a boundary. 40 ms of injection lands inside the third coast tick's own age, where the gate and COAST_TICKS nearly touch and must not fight. A gate that tripped here would regress microduck's drop handling.",
++  "expect": {
++    "median_age_ms": [35, 75],
++    "when_permitted": { "outcome": "walked", "min_displacement_m": 0.15 }
++  }
++}
+diff --git a/scripts/duck-demo/scenarios/5-stale_100ms.json b/scripts/duck-demo/scenarios/5-stale_100ms.json
+new file mode 100644
+index 0000000..f8b53e5
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/5-stale_100ms.json
+@@ -0,0 +1,12 @@
++{
++  "name": "stale_100ms",
++  "order": 5,
++  "stale_ms": 100,
++  "vx": 0.3,
++  "drive_s": 2.5,
++  "why": "The hook. 100 ms of injection puts the dispatch age past the 80 ms the params file advertises, so the contract requires every one of these dispatches to be refused. The seeded revision refuses none of them, at fifty healthy hertz, with bus ok and imu ready and limited_by empty.",
++  "expect": {
++    "median_age_ms": [95, 145],
++    "when_refused": { "outcome": "held", "max_displacement_m": 0.05 }
++  }
++}
+diff --git a/scripts/duck-demo/scenarios/6-stale_100ms_turn.json b/scripts/duck-demo/scenarios/6-stale_100ms_turn.json
+new file mode 100644
+index 0000000..2e6c5a9
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/6-stale_100ms_turn.json
+@@ -0,0 +1,12 @@
++{
++  "name": "stale_100ms_turn",
++  "order": 6,
++  "stale_ms": 100,
++  "vyaw": 2.0,
++  "drive_s": 2.0,
++  "why": "Staleness is refused regardless of intent — the rule is about the sample, not the command. Rules out 'it only catches forward walking'.",
++  "expect": {
++    "median_age_ms": [95, 145],
++    "when_refused": { "outcome": "held", "max_displacement_m": 0.05 }
++  }
++}
+diff --git a/scripts/duck-demo/scenarios/7-body_gone.json b/scripts/duck-demo/scenarios/7-body_gone.json
+new file mode 100644
+index 0000000..d3ff4e7
+--- /dev/null
++++ b/scripts/duck-demo/scenarios/7-body_gone.json
+@@ -0,0 +1,12 @@
++{
++  "name": "body_gone",
++  "order": 7,
++  "stale_ms": 0,
++  "vx": 0.3,
++  "drive_s": 3.0,
++  "kill_body_after_s": 1.0,
++  "why": "The protocol-timeout equivalent. Losing the sensor entirely must not default-authorize. Exercises the coast, whose oldest sample has to stop at or below the same bound the gate enforces \u2014 the two mechanisms meet exactly and must not leave a gap. 25 ms rather than the coast's 60 ms ceiling because robotd publishes no state frame on a tick with no sample at all, so how many coast ticks reach the wire before it goes quiet is a race; 25 ms is five times the fresh age and unreachable without coasting.",
++  "expect": {
++    "coast_reached_ms": 25
++  }
++}
+diff --git a/scripts/duck-demo/swap-robotd.sh b/scripts/duck-demo/swap-robotd.sh
+new file mode 100755
+index 0000000..6c7da34
+--- /dev/null
++++ b/scripts/duck-demo/swap-robotd.sh
+@@ -0,0 +1,59 @@
++#!/bin/sh
++# Restart *only* robotd, with a given `--stale-sensors-ms`, leaving the body standing.
++#
++# The MuJoCo world is the expensive thing to start and the daemon is the cheap one, so the
++# matrix swaps daemons and keeps the world. What this costs is a stand: killing robotd runs
++# its graceful shutdown, which sits the duck down and cuts torque, so every swap has to put
++# the duck back on its feet before anything is measured — otherwise the next scenario is a
++# measurement of a duck lying on the floor.
++set -eu
++
++STALE="${1:-0}"
++STATE="${DUCK_SIM_STATE:-$HOME/.cache/duck-sim}"
++RL="${DUCK_SIM_RL:-$HOME/Pollen/microduck_rl}"
++PORT="${DUCK_SIM_PORT:-7801}"
++REPO="$(cd "$(dirname "$0")/../.." && pwd)"
++NAME=duck-a
++
++ORT="$(find "$RL"/.venv/lib/python*/site-packages/onnxruntime/capi \
++        \( -name 'libonnxruntime.so*' -o -name 'libonnxruntime*.dylib' \) -type f 2>/dev/null | head -1)"
++[ -n "$ORT" ] || { echo "no onnxruntime in $RL/.venv" >&2; exit 1; }
++
++if [ -f "$STATE/$NAME.pid" ]; then
++    pid="$(cat "$STATE/$NAME.pid")"
++    if kill -0 "$pid" 2>/dev/null && ps -o args= -p "$pid" | grep -q "$STATE/$NAME.sock"; then
++        kill -TERM "$pid" 2>/dev/null || true
++        # The shutdown sit takes a moment; waiting for it is what keeps the next start clean.
++        i=0; while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 60 ]; do sleep 0.1; i=$((i+1)); done
++    fi
++fi
++rm -f "$STATE/$NAME.sock"
++
++if [ "$STALE" = 0 ]; then set --; else set -- --stale-sensors-ms "$STALE"; fi
++DUCK_IDENTITY="$NAME" DUCK_RUNTIME_DIR="$STATE" ORT_DYLIB_PATH="$ORT" RUST_LOG="${RUST_LOG:-info}" \
++    nohup "$REPO/target/debug/robotd" --sim "127.0.0.1:$PORT" "$@" \
++    --params "$STATE/robotd-$NAME.toml" --socket "$STATE/$NAME.sock" \
++    > "$STATE/$NAME.log" 2>&1 &
++echo $! > "$STATE/$NAME.pid"
++
++i=0
++while [ ! -S "$STATE/$NAME.sock" ] && [ "$i" -lt 300 ]; do sleep 0.1; i=$((i+1)); done
++[ -S "$STATE/$NAME.sock" ] || { echo "robotd did not come up; see $STATE/$NAME.log" >&2; exit 1; }
++
++# `robot.enable`, not `robot init` — `init` position-ramps with nothing balancing and tips the
++# duck flat. `enable` hands it straight to the policy, which stands itself up from a sit.
++python3 - "$STATE/$NAME.sock" <<'PY'
++import json, socket, sys, time
++for _ in range(50):
++    try:
++        s = socket.socket(socket.AF_UNIX); s.settimeout(5); s.connect(sys.argv[1]); break
++    except OSError:
++        time.sleep(0.1)
++else:
++    sys.exit("robotd socket never accepted")
++f = s.makefile("rw")
++f.write(json.dumps({"jsonrpc":"2.0","id":1,"method":"robot.enable","params":{"on":True}}) + "\n")
++f.flush()
++sys.exit(0 if json.loads(f.readline()).get("result", {}).get("accepted") else 1)
++PY
++sleep 6
+diff --git a/scripts/duck-demo/verify.py b/scripts/duck-demo/verify.py
+new file mode 100644
+index 0000000..73fde6c
+--- /dev/null
++++ b/scripts/duck-demo/verify.py
+@@ -0,0 +1,326 @@
++#!/usr/bin/env python3
++"""Re-derive the verdict for an evidence directory, from its traces and nothing else.
++
++Protected in the sense the ported demo means it: **every expectation comes from this
++checkout** — `scenarios/*.json` and `coverage-matrix.json`, read relative to this file — and
++never from the evidence directory being judged. An evidence bundle can therefore claim
++whatever it likes about itself; it does not get to say what passing is.
++
++The other half of that discipline is that the numbers come from the *traces*, not from
++`scenario-results.json`. The results file is cross-checked against the trace and a
++disagreement is itself a failure, which is what stops a run from being graded on its own
++summary.
++
++Honesty caveat, carried verbatim from the demo this is a port of: a digest identifies an
++artifact; it is not by itself independent proof that untrusted evidence was produced by that
++executable.
++"""
++
++import argparse
++import hashlib
++import json
++import math
++import statistics
++import sys
++from pathlib import Path
++
++HERE = Path(__file__).resolve().parent
++
++# What the loop has to have been doing for a verdict to mean anything. The hook is that
++# *nothing was broken except perception*, so a run where the loop itself faltered proves the
++# wrong thing and is refused rather than graded.
++MIN_HZ = 47.0
++MAX_MISSED_GROWTH = 20
++
++
++class Verdict:
++    def __init__(self):
++        self.failures = []
++        self.checks = 0
++
++    def require(self, ok, scenario, message):
++        self.checks += 1
++        if not ok:
++            self.failures.append(f"{scenario}: {message}")
++        return ok
++
++
++def sha256(path):
++    digest = hashlib.sha256()
++    with open(path, "rb") as stream:
++        for block in iter(lambda: stream.read(1 << 20), b""):
++            digest.update(block)
++    return digest.hexdigest()
++
++
++def load_scenarios():
++    return {
++        json.loads(path.read_text())["name"]: json.loads(path.read_text())
++        for path in sorted((HERE / "scenarios").glob("*.json"))
++    }
++
++
++def read_ticks(path):
++    ticks = []
++    if not path.exists():
++        return ticks
++    with open(path) as stream:
++        for line in stream:
++            try:
++                frame = json.loads(line)
++            except json.JSONDecodeError:
++                continue
++            state = frame.get("params")
++            if isinstance(state, dict) and "loop" in state:
++                ticks.append(state)
++    return ticks
++
++
++def read_referee(path):
++    if not path.exists():
++        return []
++    return [json.loads(line) for line in open(path) if line.strip()]
++
++
++def driving_ticks(ticks):
++    return [
++        t
++        for t in ticks
++        if any(abs(v) > 1e-9 for v in t.get("move", {}).get("requested", []))
++    ]
++
++
++def displacement(samples):
++    if len(samples) < 2:
++        return 0.0
++    a, b = samples[0]["trunk"], samples[-1]["trunk"]
++    return math.hypot(b[0] - a[0], b[1] - a[1])
++
++
++def yaw_change(samples):
++    if len(samples) < 2:
++        return 0.0
++    total, last = 0.0, samples[0]["yaw"]
++    for sample in samples[1:]:
++        step = sample["yaw"] - last
++        total += math.atan2(math.sin(step), math.cos(step))
++        last = sample["yaw"]
++    return total
++
++
++def verify(evidence, verdict):
++    evidence = Path(evidence)
++    manifest = json.loads((evidence / "manifest.json").read_text())
++    revision = manifest["revision"]
++    declared = json.loads((evidence / "scenario-results.json").read_text())
++    by_name = {r["scenario"]: r for r in declared}
++    scenarios = load_scenarios()
++    coverage = json.loads((HERE / "coverage-matrix.json").read_text())
++
++    # ── the evidence is bound to a binary ─────────────────────────────────────
++    binary = evidence / manifest["executable"]["path"]
++    verdict.require(
++        binary.exists() and sha256(binary) == manifest["executable"]["sha256"],
++        "manifest",
++        "the exported executable's sha256 does not match the manifest",
++    )
++    # ── the threshold is arithmetic on the control period, not a loose number ──
++    control = manifest["control"]
++    verdict.require(
++        control["period_ms"] * (control["coast_ticks"] + 1)
++        == manifest["policy_observation_max_age_ms"],
++        "manifest",
++        f"the {manifest['policy_observation_max_age_ms']} ms bound is not "
++        f"{control['period_ms']} ms x ({control['coast_ticks']} + 1) — the threshold has been "
++        "re-derived from a different loop rate",
++    )
++    # ── the matrix covered what it has to cover ───────────────────────────────
++    missing = set(coverage["required_scenarios"]) - set(by_name)
++    verdict.require(
++        not missing, "coverage", f"scenarios missing from the run: {sorted(missing)}"
++    )
++
++    max_age_ms = manifest["policy_observation_max_age_ms"]
++
++    for name, scenario in scenarios.items():
++        if name not in by_name:
++            continue
++        result = by_name[name]
++        expect = scenario["expect"]
++        ticks = read_ticks(evidence / f"events-{name}.jsonl")
++        referee = read_referee(evidence / f"referee-{name}.jsonl")
++        driving = driving_ticks(ticks)
++
++        verdict.require(driving, name, "no tick in the trace carried a driving intent")
++        if not driving:
++            continue
++
++        # ── the trace and the results file agree ──────────────────────────────
++        # Checked rather than trusted, because everything below is derived from the trace and a
++        # summary that disagrees with it would mean one of the two is describing another run.
++        verdict.require(
++            len(ticks) == result["ticks"],
++            name,
++            f"scenario-results says {result['ticks']} ticks, the trace has {len(ticks)}",
++        )
++        stale_in_trace = sum(
++            1 for t in driving if "stale_observation" in t["move"].get("limited_by", [])
++        )
++        verdict.require(
++            stale_in_trace == result["limited_by_counts"].get("stale_observation", 0),
++            name,
++            "scenario-results disagrees with the trace on the stale_observation count",
++        )
++
++        # ── the loop was healthy throughout ───────────────────────────────────
++        # This is what makes the hook unarguable: nothing was broken except perception. A run
++        # where the loop itself faltered proves something else, so it is refused, not graded.
++        hzs = [t["loop"]["hz"] for t in ticks]
++        missed = [t["loop"]["missed"] for t in ticks]
++        verdict.require(
++            min(hzs) >= MIN_HZ and (max(missed) - min(missed)) <= MAX_MISSED_GROWTH,
++            name,
++            f"the loop was not healthy: min {min(hzs):.1f} Hz, "
++            f"missed grew by {max(missed) - min(missed)}",
++        )
++
++        # ── the delay declared is the delay that happened ─────────────────────
++        ages_ms = [t.get("observation_age_us", 0) / 1000.0 for t in driving]
++        median_age = statistics.median(ages_ms)
++        if "median_age_ms" in expect:
++            low, high = expect["median_age_ms"]
++            verdict.require(
++                low <= median_age <= high,
++                name,
++                f"median dispatch age {median_age:.1f} ms is outside the declared "
++                f"[{low}, {high}] ms — the scenario did not have the staleness it claims",
++            )
++
++        # ── THE CONTRACT ─────────────────────────────────────────────────────
++        # **Derived here, from the manifest's bound and the trace's own ages — never looked up
++        # in a table of what each revision is expected to do.** That is the whole difference
++        # between a verifier and a description: if expectations were recorded per revision,
++        # the seeded run would "pass" by matching a row that says it refuses nothing, and the
++        # demo would have graded the bug as correct behaviour. One rule, both revisions, and
++        # the seeded revision is the one that breaks it.
++        refusal_required = median_age > max_age_ms
++        if refusal_required:
++            verdict.require(
++                stale_in_trace == len(driving),
++                name,
++                f"the contract requires every dispatch to be refused at a median age of "
++                f"{median_age:.1f} ms, past the {max_age_ms} ms bound — but only "
++                f"{stale_in_trace} of {len(driving)} driving ticks carried "
++                f"stale_observation",
++            )
++        else:
++            verdict.require(
++                stale_in_trace == 0,
++                name,
++                f"the median dispatch age was {median_age:.1f} ms, inside the "
++                f"{max_age_ms} ms bound, yet {stale_in_trace} of {len(driving)} driving "
++                "ticks were refused — the gate is fighting the coast",
++            )
++
++        # ── the refusal actually refused, judged from outside the robot ───────
++        # The robot's own `odom` is recorded but never used as proof: it is the robot's
++        # *belief*, and a belief that has come adrift from the world is the thing being
++        # demonstrated.
++        moved = displacement(referee)
++        if refusal_required and stale_in_trace == len(driving):
++            when = expect.get("when_refused", {})
++            if "max_displacement_m" in when:
++                verdict.require(
++                    moved <= when["max_displacement_m"],
++                    name,
++                    f"the referee saw the trunk move {moved:.3f} m while the gate was "
++                    f"refusing every dispatch; at most {when['max_displacement_m']} m is a "
++                    "hold",
++                )
++            if "outcome" in when:
++                verdict.require(
++                    result["outcome"] == when["outcome"],
++                    name,
++                    f"outcome '{result['outcome']}' != expected '{when['outcome']}'",
++                )
++        elif not refusal_required:
++            when = expect.get("when_permitted", {})
++            if "min_displacement_m" in when:
++                verdict.require(
++                    moved >= when["min_displacement_m"],
++                    name,
++                    f"the referee saw only {moved:.3f} m of travel on a scenario that must "
++                    "walk",
++                )
++            if "min_yaw_change_rad" in when:
++                verdict.require(
++                    abs(yaw_change(referee)) >= when["min_yaw_change_rad"],
++                    name,
++                    f"the referee saw only {yaw_change(referee):+.2f} rad of turn on a "
++                    "scenario that must turn",
++                )
++            if "outcome" in when:
++                verdict.require(
++                    result["outcome"] == when["outcome"],
++                    name,
++                    f"outcome '{result['outcome']}' != expected '{when['outcome']}'",
++                )
++
++        # ── the deadman and the freshness rule are independent ────────────────
++        if expect.get("deadman_appears"):
++            verdict.require(
++                any("deadman" in t["move"].get("limited_by", []) for t in ticks),
++                name,
++                "no tick carried the deadman, and this scenario exists to show it firing "
++                "while the freshness rule stays silent",
++            )
++
++        # ── the coast was actually reached, and stopped where the gate starts ─
++        if "coast_reached_ms" in expect:
++            peak = max(ages_ms) if ages_ms else 0.0
++            verdict.require(
++                peak >= expect["coast_reached_ms"],
++                name,
++                f"the oldest sample dispatched was {peak:.1f} ms; losing the sensor should "
++                f"have driven it past {expect['coast_reached_ms']} ms of coast",
++            )
++            verdict.require(
++                peak <= max_age_ms,
++                name,
++                f"the coast served a {peak:.1f} ms sample, past the {max_age_ms} ms bound it "
++                "is supposed to meet exactly — there is a gap between the two mechanisms",
++            )
++
++    return revision
++
++
++def main():
++    parser = argparse.ArgumentParser(description=__doc__)
++    parser.add_argument("evidence", nargs="+", type=Path)
++    parser.add_argument(
++        "--expect-fail",
++        action="store_true",
++        help="invert the exit code: the run is required to FAIL, which is how the seeded "
++        "revision is checked. A seed that passes is as much a broken demo as a repair that "
++        "does not.",
++    )
++    args = parser.parse_args()
++
++    verdict = Verdict()
++    revisions = [verify(path, verdict) for path in args.evidence]
++    label = "+".join(revisions)
++
++    if verdict.failures:
++        for failure in verdict.failures:
++            print(f"  - {failure}")
++        print(f"PROTECTED VERDICT: FAIL ({label}; {len(verdict.failures)} of "
++              f"{verdict.checks} checks)")
++        return 0 if args.expect_fail else 1
++
++    print(f"PROTECTED VERDICT: PASS ({label}; {verdict.checks} checks; "
++          "complete coverage matrix)")
++    return 1 if args.expect_fail else 0
++
++
++if __name__ == "__main__":
++    sys.exit(main())
+diff --git a/scripts/duck-safety-demo b/scripts/duck-safety-demo
+new file mode 100755
+index 0000000..20a1982
+--- /dev/null
++++ b/scripts/duck-safety-demo
+@@ -0,0 +1,195 @@
++#!/bin/sh
++# The freshness-gate demo, end to end, on a duck in MuJoCo, in one command.
++#
++#   scripts/duck-safety-demo
++#
++# Nine minutes of slides in about three minutes of machine. What it does, in order:
++#
++#   1. shows the seeded revision's unit tests failing — exactly three, named in advance;
++#   2. stands a duck up and runs seven scenarios against the seeded `robotd`;
++#   3. has the protected verifier grade that run, and *require* it to fail;
++#   4. offers the bounded candidate patch to an allowlist of one file, and applies it;
++#   5. shows the same three tests green;
++#   6. rebuilds, stands the duck up again, and runs the same seven scenarios;
++#   7. has the same verifier grade the repaired run, and require it to pass;
++#   8. writes an evidence bundle: a manifest naming the sha256 of the binary each half was
++#      measured with, per-scenario results, `robotctl health` as read at each scenario, and
++#      the raw per-tick telemetry from `robotctl monitor --json`.
++#
++# The patch is reverted on the way out, however this exits, so the checkout is left on the
++# seeded revision and the demo can be run again.
++#
++# What it needs: the same things `scripts/duck-sim` needs, and nothing else.
++#
++#   DUCK_SIM_RL=/path/to/microduck_rl scripts/duck-safety-demo
++#
++# `DUCK_DEMO_OUT` chooses where the bundle lands; the default is `evidence/<run-id>` in this
++# checkout. `DUCK_DEMO_COPY_TO` additionally copies the finished bundle somewhere else.
++set -eu
++
++REPO="$(cd "$(dirname "$0")/.." && pwd)"
++DEMO="$REPO/scripts/duck-demo"
++PATCH="$REPO/demo/freshness-patch.diff"
++GATED_FILE="duck-control/src/safety.rs"
++
++# The three tests the seeded revision ships red. Named here rather than counted, because "three
++# tests failed" is satisfied by any three, and the premise of the whole demo is that it is
++# these three and nothing else — one unrelated red test and the seed is not a seed, it is a
++# broken tree.
++EXPECTED_SEED_FAILURES="a_stale_observation_holds_the_pose
++a_tick_with_no_observation_is_refused
++the_freshness_bound_is_the_configured_one"
++
++RUN_ID="${DUCK_DEMO_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
++OUT="${DUCK_DEMO_OUT:-$REPO/evidence/$RUN_ID}"
++
++export DUCK_SIM_VIEWER="${DUCK_SIM_VIEWER:-0}"
++export HEADLESS="${HEADLESS:-1}"
++export PATH="$HOME/.local/bin:$PATH"
++
++BEGAN="$(date +%s)"
++step() { printf '\n\033[1;36m== %s\033[0m\n' "$*"; }
++note() { printf '   %s\n' "$*"; }
++die()  { printf '\n\033[1;31merror: %s\033[0m\n' "$*" >&2; exit 1; }
++
++# **Reverted however this exits.** The patch is applied to the working tree, so a demo that
++# dies halfway would otherwise leave the repaired revision in place — and the next run would
++# then "prove" a seed that is not there. `git checkout` of the one gated file is enough
++# precisely because the allowlist is enforced: nothing else can have been touched.
++cleanup() {
++    cd "$REPO" && git checkout -- "$GATED_FILE" 2>/dev/null || true
++}
++trap cleanup EXIT INT TERM
++
++cd "$REPO"
++git diff --quiet -- "$GATED_FILE" || die "$GATED_FILE already has uncommitted changes. \
++This demo applies a patch to it and reverts it, so it needs it clean."
++
++mkdir -p "$OUT/seeded" "$OUT/repaired"
++
++# ── 1. the seed is exactly three failing tests ────────────────────────────────
++step "the seeded revision, as it would arrive in review"
++note "cargo test -p duck-control --lib"
++set +e
++cargo test -p duck-control --lib > "$OUT/seeded-tests.txt" 2>&1
++seed_test_status=$?
++set -e
++failed="$(grep -E '^test .* \.\.\. FAILED$' "$OUT/seeded-tests.txt" \
++          | sed 's/^test safety::tests:://; s/ \.\.\. FAILED$//' | sort || true)"
++expected="$(printf '%s\n' "$EXPECTED_SEED_FAILURES" | sort)"
++[ "$seed_test_status" -ne 0 ] || die "the seeded revision's tests passed. There is no seed."
++[ "$failed" = "$expected" ] || die "the seeded revision fails the wrong set of tests:
++$failed"
++printf '%s\n' "$failed" | sed 's/^/   FAILED  /'
++note "$(grep -E '^test result:' "$OUT/seeded-tests.txt" | tail -1)"
++note ""
++note "Everything a reviewer inspects says the rule exists — Limit::Stale, the wire name,"
++note "SafetyConfig.observation_max_age, safety.observation_max_age_ticks in the registry."
++note "Only the comparison is absent, and the comparison is the one thing no artifact shows."
++sed -n '/let _ = age;/{=;p;}' "$GATED_FILE" | sed 's/^/   /'
++
++# ── 2. a duck, and the seeded matrix ──────────────────────────────────────────
++step "standing a duck up in MuJoCo"
++cargo build --workspace --locked > "$OUT/seeded-build.txt" 2>&1 \
++    || die "the seeded workspace does not build; see $OUT/seeded-build.txt"
++"$REPO/scripts/duck-sim" down > /dev/null 2>&1 || true
++"$REPO/scripts/duck-sim" 2>&1 | grep -E 'standing|loop|bus|error' | sed 's/^/   /' \
++    || die "the duck did not come up"
++
++# **Measured, not assumed.** The design this port follows asks for the largest injected delay
++# at which the duck still walks, so the hook can be "the task succeeded and the contract was
++# never evaluated" — and says plainly that if no such delay exists, report that instead of
++# fabricating it. This is that measurement, run every time rather than written into a comment
++# once, because the answer belongs to this duck and this policy and should be re-derivable.
++step "where this duck's balance actually gives out"
++python3 "$DEMO/calibrate.py" --out "$OUT/seeded" \
++    || die "the calibration sweep did not complete"
++
++step "the seeded revision, driven"
++python3 "$DEMO/matrix.py" --revision seeded --out "$OUT/seeded" --run-id "$RUN_ID" \
++    || die "the seeded matrix did not complete"
++
++step "the protected verifier, on the seeded run"
++note "expectations come from scripts/duck-demo/scenarios in this checkout, never from the"
++note "evidence directory; the numbers come from the traces, never from the results file."
++# **Not `| tee`.** A pipeline exits with the status of its *last* command, so `verify.py |
++# tee` reports tee's success however the verifier voted — which is exactly the shape of bug
++# this demo is about, found in the demo. Written, then shown.
++set +e
++python3 "$DEMO/verify.py" "$OUT/seeded" --expect-fail > "$OUT/verdict-seeded.txt" 2>&1
++seeded_verdict=$?
++set -e
++sed 's/^/   /' "$OUT/verdict-seeded.txt"
++[ "$seeded_verdict" -eq 0 ] || die "the seeded run PASSED the verifier. There is no seed, \
++and therefore no demo."
++
++# **And it must fail for the right reason.** "The seeded run failed" is satisfied by any
++# failure, including a flaky scenario or a duck that fell over for its own reasons — and a
++# demo that accepts those is claiming to have shown a freshness bug while showing something
++# else. The two scenarios whose dispatch age is past the bound are the only ones allowed to
++# be red, in the same way the three seed tests are the only ones allowed to be red.
++seeded_failures="$(sed -n 's/^  - \([a-z0-9_]*\):.*/\1/p' "$OUT/verdict-seeded.txt" | sort -u)"
++[ "$seeded_failures" = "stale_100ms
++stale_100ms_turn" ] || die "the seeded run failed the wrong scenarios:
++$seeded_failures
++Only the two whose dispatch age is past the bound may be red."
++note "and it failed on exactly the two scenarios past the bound, which is the seed working"
++
++# ── 3. the bounded candidate patch ────────────────────────────────────────────
++step "the candidate repair, offered to an allowlist of one file"
++python3 "$DEMO/check-patch.py" "$PATCH" | sed 's/^/   /' \
++    || die "the candidate patch was rejected by its own allowlist"
++git apply "$PATCH"
++note "applied: $(git diff --numstat -- "$GATED_FILE" | awk '{print "+"$1" -"$2"  "$3}')"
++
++step "the same three tests, on the repaired revision"
++cargo test -p duck-control --lib > "$OUT/repaired-tests.txt" 2>&1 \
++    || die "the repaired revision still fails tests; see $OUT/repaired-tests.txt"
++grep -E "$(printf '%s' "$EXPECTED_SEED_FAILURES" | tr '\n' '|')x" \
++    "$OUT/repaired-tests.txt" | sed 's/^/   /' || true
++note "$(grep -E '^test result:' "$OUT/repaired-tests.txt" | tail -1)"
++
++# ── 4. the repaired matrix ────────────────────────────────────────────────────
++step "rebuilding, and standing the duck up again"
++cargo build --workspace --locked > "$OUT/repaired-build.txt" 2>&1 \
++    || die "the repaired workspace does not build; see $OUT/repaired-build.txt"
++# `body_gone` takes the simulator down with it, by design — it is the scenario that asks what
++# happens when the sensor goes away entirely — so the world is rebuilt before the second half.
++"$REPO/scripts/duck-sim" down > /dev/null 2>&1 || true
++"$REPO/scripts/duck-sim" 2>&1 | grep -E 'standing|loop|bus|error' | sed 's/^/   /' \
++    || die "the duck did not come up for the repaired run"
++
++step "the repaired revision, driven — the same seven scenarios"
++python3 "$DEMO/matrix.py" --revision repaired --out "$OUT/repaired" --run-id "$RUN_ID" \
++    || die "the repaired matrix did not complete"
++
++step "the protected verifier, on the repaired run"
++set +e
++python3 "$DEMO/verify.py" "$OUT/repaired" > "$OUT/verdict-repaired.txt" 2>&1
++repaired_verdict=$?
++set -e
++sed 's/^/   /' "$OUT/verdict-repaired.txt"
++[ "$repaired_verdict" -eq 0 ] || die "the repaired run did not pass the verifier"
++
++# `body_gone` is the last scenario in both halves and it takes MuJoCo down with it, by
++# design. Left like that the demo ends with no duck, which is the wrong thing to be looking
++# at when the talk moves to questions.
++step "putting the duck back on its feet"
++"$REPO/scripts/duck-sim" > /dev/null 2>&1 || true
++"$REPO/scripts/duck-sim" ctl health 2>/dev/null | head -4 | sed 's/^/   /' || true
++
++ELAPSED=$(( $(date +%s) - BEGAN ))
++# ── 5. the bundle ─────────────────────────────────────────────────────────────
++step "the evidence bundle"
++python3 "$DEMO/bundle.py" --out "$OUT" --run-id "$RUN_ID" --wall-s "$ELAPSED" \
++    || die "the bundle could not be assembled"
++
++if [ -n "${DUCK_DEMO_COPY_TO:-}" ]; then
++    mkdir -p "$DUCK_DEMO_COPY_TO"
++    cp -R "$OUT" "$DUCK_DEMO_COPY_TO/"
++    note "copied to $DUCK_DEMO_COPY_TO/$(basename "$OUT")"
++fi
++
++printf '\n\033[1;32m== the whole arc took %s m %s s\033[0m\n' "$((ELAPSED / 60))" "$((ELAPSED % 60))"
++note "bundle: $OUT"
++note "read:   $OUT/README.md"
+diff --git a/scripts/duck-sim b/scripts/duck-sim
+index 3762257..9cd38ee 100755
+--- a/scripts/duck-sim
++++ b/scripts/duck-sim
+@@ -67,6 +67,12 @@ FRAME_PORT="${DUCK_SIM_FRAME_PORT:-7901}"
+ SOCK="$STATE/duck.sock"
+ REPO="$(cd "$(dirname "$0")/.." && pwd)"
+ 
++# `DUCK_SIM_STALE_MS=100 scripts/duck-sim` brings the ducks up with a queue in their senses.
++#
++# Here rather than in a demo script of its own because it has to reach the same `robotd` line
++# every other flag does, and because the point of the exercise is that nothing else about the
++# duck changes: same build, same policies, same body, same 50 Hz. See `robotd --help` and
++# `duck_control::sim::StaleIo`.
+ say()  { printf '\033[36m==\033[0m %s\n' "$*"; }
+ die()  { printf 'error: %s\n' "$*" >&2; exit 1; }
+ 
+@@ -399,6 +405,7 @@ TOML
+         DUCK_IDENTITY="$name" \
+         DUCK_RUNTIME_DIR="$STATE" ORT_DYLIB_PATH="$ORT" RUST_LOG="${RUST_LOG:-info}" \
+             $SETSID nohup "$REPO/target/debug/robotd" --sim "127.0.0.1:$(duck_port "$i")" \
++            ${DUCK_SIM_STALE_MS:+--stale-sensors-ms "$DUCK_SIM_STALE_MS"} \
+             --params "$STATE/robotd-$name.toml" --socket "$STATE/$name.sock" \
+             > "$STATE/$name.log" 2>&1 &
+         echo $! > "$STATE/$name.pid"

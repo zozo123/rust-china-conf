@@ -1,189 +1,222 @@
 ---
 marp: true
-title: A Million Compiles. One Robot Hour.
+title: How Do You Know?
 paginate: true
 style: |
   section { background: #10171d; color: #edf2f4; font-family: sans-serif; font-size: 28px; }
   h1, h2 { color: #edf2f4; }
   a { color: #f0b85d; }
   table { font-size: 24px; }
+  code { color: #f0b85d; }
 ---
 
-# A Million Compiles. One Robot Hour.
+# How Do You Know?
 
-Disposable workspaces and independently checked robot behavior
+A robot that succeeded while it was wrong, a proof gate that certified four
+fabrications, and the one rung that held
 
 [简体中文](slides.md)
 
-<!-- Title expresses motivation, not a measured conversion. 25-minute talk with six-minute demo and five minutes of questions. -->
+<!-- Every number in this deck was measured 2026-09-24 on one machine. Evidence is committed: 447 files. -->
 
 ---
 
 ## The robot succeeded
 
-![bg right:42% contain](../assets/robot-lift-poster.png)
+![bg right:42% contain](../assets/robot-stale_600ms-poster.png)
 
-| Check | Recorded seeded result |
-| --- | --- |
-| Cube lifted | Yes |
-| Observation age | 600 ms |
-| Freshness contract | Failed |
+`outcome=cube_lifted  success=true`
+`dispatches=4  rejections=[]  wall=4088 ms`
 
-<!-- The image illustrates the simulator task from a separate fresh episode. Use the seeded replay for its decision data. Source: ../examples/ec2-runner-a/events-stale_600ms.jsonl -->
+Every light is green.
 
----
-
-## The Rust contract
-
-1. Simulated stop takes precedence
-2. Future observation timestamps are invalid
-3. At segment dispatch, observation age must be ≤ 250 ms
-
-The seeded implementation omits rule 3.
-
-<!-- Boundary tests cover 250/251 ms. This is a demo threshold; authorizations occur at segment boundaries, not every control step. -->
+<!-- Footage is run asset-stale-verify-1790261498, the STALE episode, not the fresh lift. robosuite 1.5.2 / mujoco 3.9.0. -->
 
 ---
 
-## Agent changes and acceptance criteria
+## It was wrong the whole time
 
-| Agent may propose | Protected from candidate edits |
-| --- | --- |
-| Gate implementation patch | Contract tests |
-| Explanation and test output | Simulator and scenario fixtures |
-| | Verifier and runner scripts |
+```
+control loop      |-20-|-20-|-20-|-20-|-20-|  ms
+contract bound    |<----- 250 ms = 12.5 ticks ----->|
+what it acted on  |<-------- 600 ms = 30 ticks --------->|
+```
 
-The default rehearsal uses a reviewed fallback patch.
-
-<!-- The checked-in script does not invoke an LLM. If presenting an external agent, show that separate attempt and identify fallback use. -->
+The age was in the data. It dispatched anyway.
 
 ---
 
-## Candidate validation stack
+## The contract disagrees
 
-| Component | Responsibility |
-| --- | --- |
-| Temporary workspace | Candidate checkout and fresh outputs |
-| Incredibuild | Compilation distribution/reuse integration |
-| Rust | Gate, lock-step host, evidence, IB telemetry and proof |
-| Python | Narrow robosuite / MuJoCo adapter |
-| Protected verifier | Required cases, ordered traces, artifact identity |
+```
+cargo test -p robot-safety-gate --test contract
+  boundary_251ms_rejects ... FAILED
+  stale_ages_are_rejected ... FAILED
+  configured_threshold_is_respected ... FAILED
+  5 passed; 3 failed
+```
 
-<!-- The intended IB benefits need helper/cache telemetry. The observed build path alone does not prove reuse. -->
-
----
-
-## Rust owns the decision and the proof
-
-`Proposal → Decision → Dispatch` is typed Rust.
-
-`swf-cli` requires, per IB sample:
-
-- remote tasks > 0
-- remote core time > 0
-- cold cache hits = 0
-- parent-warmed cache hits > 0
-
-Incomplete telemetry is a failure, not a zero.
-
-<!-- Python remains only because robosuite is Python-native. It advances MuJoCo and proposes scripted segments; it cannot authorize motion or certify evidence. Nexus Robotics OS has aligned ideas but is an RC and is not added just for branding or to inflate this measured graph. -->
+Task green. Contract red. **Same binary.**
 
 ---
 
-## Runner lifecycle
+## Rule three
 
-Workspace A exports the failure and base revision.
+```rust
+// robot-safety-gate/src/lib.rs:147
+let _ = (age_ms, policy);
+```
 
-Workspace B applies the candidate and rebuilds with fresh outputs.
+One line. It silences the unused-variable warning.
 
-**EC2-backed workspaces today. Islo provider planned.**
-
-<!-- A local Git worktree is not a VM security boundary. We remove workspaces, not EC2 machines. Tests rerun. -->
-
----
-
-## Six-minute demonstration
-
-Seeded failure · bounded patch · remove A
-
-Fresh build in B · stale refusal · fresh lift
-
-Evidence receipt for the actual executable
-
-<!-- Switch to the runbook. Label replay and live runs separately. Full17-case rehearsal coverage must not be presented as two live selected cases. -->
+That is the whole bug.
 
 ---
 
-## The patched behavior
+## Who wrote the test?
 
-| Observation | Task dispatches | Outcome |
-| --- | --- | --- |
-| Stale, 600 ms | 0 | Rejected at tick 12 |
-| Fresh, 0 ms | 4 | Cube lifted |
+The contract is pinned by three tests.
 
-Same patched executable in the recorded Linux run
+The omission is on line 147.
 
-<!-- Source: ../examples/ec2-runner-b/events-center-f600.jsonl and events-center-f0.jsonl -->
+**Same author. Same afternoon.**
 
----
-
-## Build observations
-
-| Historical phase | Wall time |
-| --- | --- |
-| Runner A | 21.426 s |
-| Runner B | 21.948 s |
-
-B took **522 ms longer**. No measured speedup.
-
-<!-- Both records indicate IB use. Different candidates, one sample per phase, uncontrolled cache states. No proof of helper work or cache reuse in those metrics. -->
+<!-- This is the first rung: a check whose adversary controls its input. -->
 
 ---
 
-## The controlled proof gate
+## Forgery 1 — the receipt certified itself
 
-Same fixed candidate, rotating order, **≥5 samples per mode**
+```
+cache_cleared_before_each_cold_sample: true   <- a literal the producer wrote
 
-1. Native Cargo
-2. IB after clearing the per-user cache
-3. IB after the parent revision seeds that cache
+$ build-proof --receipt fabricated.json
+BUILD PROOF PASS ... ratio=2.999x vs native; saved=14000ms      exit 0
+```
 
-Report medians + ranges only after Rust verifies helper and cache counters.
-
-<!-- scripts/robot-demo/ec2-agentic-physical-ai.sh. Until a receipt exists, say “implemented, not measured,” not “accelerated.” -->
-
----
-
-## The evidence receipt
-
-17 recorded simulator episodes:
-
-**10 lifts · 5 stale rejections · 1 stop · 1 timeout**
-
-Source, patch, executable identity and event traces
-
-<!-- Run ec2-e2e-20260923-160725. Original verifier reported88/88; the strengthened current suite has different checks. Archived executable is not committed; new rehearsals export theirs. A digest is identity, not an execution attestation. -->
+Three of eight fail-closed conditions could never fire.
 
 ---
 
-## Demonstrated scope
+## Forgery 2 — sixty-four zeros
 
-Software-in-the-loop with segment-level authorization
+```
+transcript_path:   "/tmp/does-not-exist.txt"
+transcript_sha256: "0000...0000"     <- 64 hex chars. That was the check.
 
-Simulator state supplies cube position
+-> BUILD RECEIPT CONSISTENT ... ratio=11.948x                   exit 0
+```
 
-Physical hardware and performance benefits need separate validation
-
-<!-- Also outside scope: trained vision, continuous control-step supervision, islo execution. Keep this concise and direct. -->
+We validated the digest's shape. We never opened the file.
 
 ---
 
-## Every candidate needs fresh checks
+## Forgery 3 — real files, real digests
 
-Temporary execution and reusable compilation have different lifetimes.
+Ten transcripts produced by **our own** `cache-clear.sh`, wrapped around a
+three-line script that prints `namespace user purged` and touches nothing.
 
-The robot’s behavior determines whether the repair satisfies its contract.
+All ten opened. All ten re-hashed. **"Corroborated."**
 
-[Source, replay and evidence](https://github.com/zozo123/rust-china-conf)
+```
+ratio=119.949x                                                  exit 0
+```
 
-<!-- Close, then questions. Controlled benchmark: same fixed candidate, native/IB empty/IB parent-warmed, ≥5 samples per mode, medians+ranges, disclosed contention. -->
+<!-- This is the one that changed the thesis. Representability was not the axis. Authorship is. -->
+
+---
+
+## Forgery 4 — our own coverage claim
+
+```
+coverage-matrix.json :  "freshness_ms": [0, 50, 600]
+lib.rs:25            :  DEFAULT_MAX_OBSERVATION_AGE_MS = 250
+```
+
+Seventeen scenarios. The verifier calls it a **complete coverage matrix**.
+
+Any staleness above 500 ms passes all seventeen.
+
+---
+
+## And then I did it
+
+```
+-f, --force-remote   force allow_remote tasks to remote helpers
+                     ^ ib-benchmark.sh:176
+
+max_initiator_cores = 0      <- four local cores. Idle. Every run.
+```
+
+I published "2x slower". I had measured four remote cores **replacing** four
+idle local ones.
+
+---
+
+## My best number was wrong
+
+I derived **87% parallel efficiency** and built a slide around it.
+
+It divided one machine's CPU-seconds by another machine's wall time, then by a
+core count that exists nowhere on disk.
+
+**It felt like insight.** That is what a claim you authored feels like from the
+inside.
+
+---
+
+## What survived
+
+| | `-j1` | `-j10` | |
+|---|---|---|---|
+| cold | 22,861 ms | 6,976 ms | **3.28x** |
+| warm, one file | 1,016 ms | 942 ms | **1.08x** |
+
+One machine, one tool, n=5.
+
+The rebuild that matters is **serial**. Distribution sells parallelism; this
+workload has none left.
+
+---
+
+## One word
+
+```xml
+<process filename="rustc" type="local_only">   <!-- was: allow_remote -->
+  <ib_cache enabled="true" />
+</process>
+```
+
+Cache and distribution are independent knobs on the same declaration.
+
+---
+
+## Both rows
+
+| | cargo | Build Cache | |
+|---|---|---|---|
+| **empty workspace** | 12,149 ms | **3,485 ms** | **3.49x** |
+| warm workspace | **980 ms** | 3,951 ms | cargo wins |
+
+```
+HIT 52 / MISS 0 · 9 tasks of 58 · helpers 0
+```
+
+**The cache does not make your build faster. It makes throwing your workspace
+away cheap.**
+
+---
+
+## proposes : attests
+
+```
+policy   : gate          holds no IO handle — it CANNOT command a motor
+candidate: verifier      re-derives from traces — cannot be handed an answer
+job      : coordinator   writes the build record — the job cannot author it
+```
+
+# A check wins against exactly the adversary who does not control its input.
+
+`rustc`'s adversary cannot author `rustc`. My verifier's adversary was me.
+
+<!-- Close: we built a machine to catch unverified claims, pointed it at our own work, and it caught us four times. That is the only reason to believe any number here. -->

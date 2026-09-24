@@ -1,0 +1,11 @@
+{
+  "expect": "cube_lifted",
+  "name": "right-f0",
+  "placement": {
+    "x": 0.03,
+    "y": 0.0
+  },
+  "staleness_ms": 0,
+  "stall_before_proposal_ms": 0,
+  "stop_at_segment": null
+}

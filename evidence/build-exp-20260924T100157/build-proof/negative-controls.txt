@@ -1,0 +1,17 @@
+Negative controls run against swf-cli robot-demo build-proof --min-samples 5
+(synthetic probes; NOT part of the measured evidence, kept only to show where
+the validator stops).
+
+1. receipt with 4 native samples
+   -> Error: native has 4 sample(s), require at least 5      (exit 1)
+   This fires BEFORE the ib-cold check, which proves the real 20-sample
+   receipt cleared every per-sample check and the native >=5 check.
+
+2. native sample doctored with remote_tasks=412, cache_hits=0
+   -> Error: native sample 1 contains IB-only telemetry      (exit 1)
+
+3. native sample doctored with a fabricated cache_clears entry
+   -> Error: native sample 1 contains IB-only telemetry      (exit 1)
+
+Real receipt (evidence/build-exp-20260924T100157/build-proof/receipt.json)
+   -> Error: missing benchmark mode ib-cold                  (exit 1)

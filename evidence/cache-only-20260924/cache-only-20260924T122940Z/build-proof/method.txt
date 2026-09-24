@@ -1,0 +1,45 @@
+run_id=cache-only-20260924T122940Z
+base_revision=f721855259e857efc008f1e84e270c92263c876d
+candidate_identity=f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9
+samples_per_mode=5
+timed_command=cargo build --workspace --locked
+downloads_outside_timing=true
+acceleration_mode=cache-only
+ib_profile_installed=/home/qa_user/rust-china-conf/rust/ib_profile.cache-only.xml
+ib_profile_sha256=20d976e763a43fa623a52d41e798f1d621de5f8a6d66df0c6513a4cff94cb02d
+ib_profile_rustc_type=local_only (checked against the type_type
+                      enumeration in /opt/incredibuild/data/ib_profile.xsd; see profile-check.txt)
+distribution_contract=excluded (passed to build-proof as
+                      --distribution; 'excluded' REFUSES the receipt if any IB
+                      sample or parent seed reports a remote task or remote core
+                      time, so a cache-only claim fails on the first leaked task)
+ib_console_args=--build-cache-local-user --build-cache-report-all-miss
+force_remote=0 (1 means -f/--force-remote: remotable tasks
+                               REPLACE the initiator's local cores)
+workspace_discipline=stable target path, contents wiped before every build
+native_target_path=/home/qa_user/rust-china-conf/.ib-proof.FPf9cn/ws/native
+ib_target_path=/home/qa_user/rust-china-conf/.ib-proof.FPf9cn/ws/ib   (ib-cold, parent-seed and ib-parent-warm share it)
+cache_key_note=the Build Cache key includes rustc --out-dir, i.e. the target
+               path; cold and warm therefore differ only in cache state
+empty_cache_hit_floor=1 (cargo runs 'rustc -vV' twice; the second hits the
+                         entry the first stored -- an intra-build self-hit,
+                         see raw/*.cache-report.txt for the two blocks;
+                         passed to build-proof as --empty-cache-hit-floor 1,
+                         which also requires warm samples to exceed it)
+cache_scope_requested=local-user (recorded per clear in raw/*.cache-clear.txt;
+                                   the receipt derives it, this line is not evidence)
+cache_clear_measured_blast_radius=machine-wide: build_avoid_cache.sh rm -rf's
+                      /etc/incredibuild/cache/build_cache/shared/* whatever scope it
+                      is given, and that directory is the rustc Build Cache for every
+                      user of this initiator. The 'user' argv above is what was
+                      REQUESTED; this line is what was measured to happen.
+build_cache_local_user_flag_note=--build-cache-local-user selects
+                      /etc/incredibuild/cache/build_avoid/<user>.<uid>, the CCACHE
+                      store for C/C++. It was measured to stay at 140 KB across 21
+                      Rust builds, i.e. it is inert for rustc. It is kept so the
+                      argv is unchanged from earlier runs, not because it isolates.
+run_order=rotating native/ib-cold/ib-parent-warm
+per_task_cache_report=raw/<caption>.cache-report.txt (cross-checked against
+                      the build report DB; a disagreement aborts the run)
+evidence_dir=/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof
+receipt_path=/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/receipt.json

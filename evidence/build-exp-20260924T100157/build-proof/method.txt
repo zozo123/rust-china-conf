@@ -1,0 +1,25 @@
+run_id=build-exp-20260924T100157
+host=Darwin 25.6.0 arm64 cores=10
+rustc=rustc 1.92.0 (ded5c06cf 2025-12-08)
+cargo=cargo 1.92.0 (344c4567c 2025-10-21)
+base_revision=2883e19a166cedcb4075c37fb7a0cfb148b0d540
+candidate_identity=2883e19a166cedcb4075c37fb7a0cfb148b0d540+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9
+samples_per_mode=5
+timed_command=cargo build --workspace --locked -j <N>
+downloads_outside_timing=true (cargo fetch --locked run once per worktree before any sample)
+build_provider=native
+incredibuild=absent (ib_console not found on this machine); no acceleration measured or claimed
+cold_protocol=cache-clear.sh removes CARGO_TARGET_DIR immediately before the timed build
+warm_protocol=cache-clear.sh removes CARGO_TARGET_DIR, untimed parent-revision build seeds it, patch applied, candidate build timed
+cache_scope_note=the cache cleared here is a cargo target directory; swf-cli derives scope 'unknown' for it, which is correct - it is not an Incredibuild local-user cache
+run_order=rotating cold-j10/cold-j1/warm-j10/warm-j1
+evidence_dir=/Users/yossi.eliaz/Documents/Codex/2026-09-23/thi/rust-china-conf/evidence/build-exp-20260924T100157/build-proof
+
+--- validation outcome ---
+swf-cli robot-demo build-proof --receipt receipt.json --min-samples 5
+  exit 1, stderr: "Error: missing benchmark mode ib-cold"
+This is the correct result. build-proof requires all three schema modes
+(native, ib-cold, ib-parent-warm). This machine has no Incredibuild, so the two
+IB modes cannot be measured and were not fabricated. The receipt is real and
+native-only; the verifier refuses to pass it. See negative-controls.txt for
+evidence that the validator stopped at the missing-mode gate and not earlier.

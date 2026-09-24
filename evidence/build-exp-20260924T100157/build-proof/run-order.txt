@@ -1,0 +1,5 @@
+1 cold-j10 cold-j1 warm-j10 warm-j1
+2 cold-j1 warm-j10 warm-j1 cold-j10
+3 warm-j10 warm-j1 cold-j10 cold-j1
+4 warm-j1 cold-j10 cold-j1 warm-j10
+5 cold-j10 cold-j1 warm-j10 warm-j1

@@ -2,8 +2,9 @@
 # Preflight: verify toolchain, simulator backend, and IB/sandbox availability.
 set -euo pipefail
 cd "$(dirname "$0")/../.."
-# shellcheck disable=SC1091
-[ -f .env.local ] && { set -a; . ./.env.local; set +a; }
+# .env.local fills unset values only; the operator's own environment wins.
+# shellcheck source=scripts/robot-demo/env-local.sh
+. scripts/robot-demo/env-local.sh
 
 echo "== preflight =="
 
@@ -46,6 +47,24 @@ else
     exit 1
   fi
   echo "warn ib_console not found — native cargo baseline (labeled; no acceleration claimed)"
+fi
+
+# The benchmark invokes rust/target/debug/swf-cli by absolute path and rebuilds
+# it into that exact directory. The runners build their own copy in a throwaway
+# CARGO_TARGET_DIR, so the checked-out one is routinely stale: say so here
+# rather than discovering it after the cache has been cleared on stage.
+PROOF_CLI="$(pwd)/rust/target/debug/swf-cli"
+if [ ! -x "$PROOF_CLI" ]; then
+  echo "info no build yet at $PROOF_CLI — ib-benchmark.sh builds it into that path"
+elif "$PROOF_CLI" robot-demo build-proof --help >/dev/null 2>&1; then
+  echo "ok   $PROOF_CLI supports 'robot-demo build-proof'"
+else
+  echo "warn $PROOF_CLI is stale (no 'robot-demo build-proof') — ib-benchmark.sh"
+  echo "     rebuilds it there before the experiment; do not invoke it as-is"
+fi
+if [ -n "${CARGO_TARGET_DIR:-}" ]; then
+  echo "warn CARGO_TARGET_DIR=$CARGO_TARGET_DIR is set in this environment;"
+  echo "     ib-benchmark.sh overrides it for its bootstrap build on purpose"
 fi
 
 if [ -n "${ISLO_SANDBOX_KEY:-}" ]; then

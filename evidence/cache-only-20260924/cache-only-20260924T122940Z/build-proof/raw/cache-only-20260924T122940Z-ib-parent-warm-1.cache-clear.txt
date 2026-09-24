@@ -1,0 +1,9 @@
+# swf-cache-clear v2
+tool=/opt/incredibuild/management/build_avoid_cache.sh
+command=/opt/incredibuild/management/build_avoid_cache.sh user clear
+argv=user clear
+exit_code=0
+started_at_ms=1790253011481
+completed_at_ms=1790253011512
+--- transcript ---
+

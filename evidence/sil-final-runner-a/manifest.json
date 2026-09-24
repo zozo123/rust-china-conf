@@ -1,0 +1,21 @@
+{
+  "run_id": "sil-final-runner-a",
+  "created_unix_ms": 1790162361672,
+  "source": {
+    "git_commit": "c689c697bc46cfe33a577a99bfb2baaab2aaa501",
+    "git_dirty": false,
+    "patch_applied": null
+  },
+  "executable": {
+    "path": "/Users/yossi.eliaz/Documents/Codex/2026-09-23/thi/rust-china-conf/.runners/a/target/debug/swf-cli",
+    "sha256": "659082e41e10a6ebe43e509b762c950ccdbad305bb864525f1072b5bf2846c28"
+  },
+  "simulator": {
+    "backend": "robosuite",
+    "python": "/Users/yossi.eliaz/Documents/Codex/2026-09-23/thi/rust-china-conf/demo/robot-sim/.venv/bin/python3",
+    "python_version": "3.12.12",
+    "platform": "macos-aarch64"
+  },
+  "policy_max_observation_age_ms": 250,
+  "scope": "Rust contract checks, bridge checks and simulated robot scenarios. Hardware HIL and physical validation are not performed."
+}

@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Project-level Incredibuild Linux profile: CACHE ONLY, NO DISTRIBUTION.
+
+  This file is ib_profile.xml with ONE attribute changed:
+
+      ib_profile.xml             <process filename="rustc" type="allow_remote">
+      ib_profile.cache-only.xml  <process filename="rustc" type="local_only">
+
+  Everything else (the globals block, the process list, the ib_cache child and
+  its enabled="true") is identical, and scripts/robot-demo/ib-benchmark.sh
+  CHECKS that mechanically before it measures anything, so the two files cannot
+  drift into differing in some second, unnoticed way.
+
+  Why the one word matters. /opt/incredibuild/data/ib_profile.xsd declares
+  `type` and `ib_cache` as independent things on the same <process>:
+
+      <xs:simpleType name="type_type">
+        <xs:restriction base="xs:string">
+          <xs:enumeration value="intercepted" />
+          <xs:enumeration value="static_intercepted" />
+          <xs:enumeration value="static_intercepted_fileops" />
+          <xs:enumeration value="allow_remote" />
+          <xs:enumeration value="local_only" />
+        </xs:restriction>
+      </xs:simpleType>
+
+  and ib_cache is a separate child element of process_type carrying its own
+  required `enabled` attribute. Remote execution and Build Cache reuse are
+  therefore two knobs, not one. type="local_only" keeps rustc INTERCEPTED and
+  CACHED while guaranteeing that no rustc task is ever sent to a helper.
+
+  That is what makes a cache measurement possible at all. With allow_remote, a
+  faster wall time could be the cache, the helpers, or both, and nothing in the
+  wall time says which. With local_only, Incredibuild's own Build History
+  reports remote_tasks=0 and remote_core_time=0 for the build, and `swf-cli
+  robot-demo build-proof` run with `distribution excluded` REFUSES the receipt
+  if either is anything else. Whatever acceleration is left is the cache's.
+
+  Incredibuild loads $PWD/ib_profile.xml with highest precedence, so this file
+  is not read where it sits. ib-benchmark.sh COPIES the selected profile over
+  rust/ib_profile.xml inside the disposable git worktree it builds in, records
+  the SHA-256 of the file it installed, and never edits the checked-out tree.
+-->
+<ib_profile version="1">
+  <globals
+    ignore_following_profiles="false"
+    dummy_mode="false"
+    monitor_enable="false"
+    local_slot_priority="low"
+    requested_cores="10000"
+  />
+  <processes>
+    <process filename="rustc" type="local_only">
+      <ib_cache enabled="true" />
+    </process>
+  </processes>
+</ib_profile>

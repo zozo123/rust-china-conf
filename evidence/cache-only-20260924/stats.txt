@@ -1,0 +1,23 @@
+PHASE 1 (gated by swf-cli build-proof --distribution excluded, 5/mode, rotating)
+  native               n=5 median=   11515ms  range=11458-11549  hits/total=n/a     remote_tasks=n/a
+  ib-cold              n=5 median=   16049ms  range=15456-16176  hits/total=1/52    remote_tasks=0
+  ib-parent-warm       n=5 median=    6527ms  range=6449-6626  hits/total=47/52   remote_tasks=0
+PHASE 2 (side measurements, NOT gated by build-proof, 5/mode, rotating)
+  ib-cold-seed         n=1 median=   15722ms  range=15722-15722  hits/total=1/52    remote_tasks=0
+  native               n=5 median=   11608ms  range=11473-11804  hits/total=n/a     remote_tasks=n/a
+  native-debug0        n=5 median=   10399ms  range=10328-10508  hits/total=n/a     remote_tasks=n/a
+  native-lld           n=5 median=   11619ms  range=11490-11694  hits/total=n/a     remote_tasks=n/a
+  ib-warm-identical    n=5 median=    3706ms  range=3378-4310  hits/total=52/52   remote_tasks=0
+
+ANSWERS (medians only; ratios are median/median)
+  native anchor phase1=11515ms phase2=11608ms (drift +0.8%)
+  full-reuse vs native       : 3.13x faster, saves 7902ms (3706 vs 11608)
+  one-file-change vs native  : 1.76x faster, saves 4988ms (6527 vs 11515)
+  cold cache vs native       : 0.72x (16049 vs 11515) = 4534ms SLOWER
+  full-reuse vs ib-cold      : 4.33x faster, saves 12343ms
+  one-file vs ib-cold        : 2.46x faster, saves 9522ms
+  debug=0 vs native          : 1.12x faster, saves 1209ms (10399 vs 11608)
+  explicit lld vs native     : 0.999x (11619 vs 11608); lld is ALREADY the default,
+                               see cache-extras-*/cache-extras/linker-and-debuginfo-lever-check.txt
+  full-reuse vs debug=0      : 2.81x faster
+  one-file vs debug=0        : 1.59x faster

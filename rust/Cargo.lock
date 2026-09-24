@@ -303,9 +303,11 @@ version = "0.1.0"
 dependencies = [
  "anyhow",
  "clap",
+ "hex",
  "robot-safety-gate",
  "serde",
  "serde_json",
+ "sha2",
  "swf-app",
 ]
 

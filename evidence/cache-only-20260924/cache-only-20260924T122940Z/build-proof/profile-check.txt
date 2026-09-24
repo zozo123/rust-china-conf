@@ -1,0 +1,10 @@
+xsd=/opt/incredibuild/data/ib_profile.xsd
+xsd_type_type_enumeration=intercepted,static_intercepted,static_intercepted_fileops,allow_remote,local_only
+distributed_profile=/home/qa_user/rust-china-conf/rust/ib_profile.xml rustc=allow_remote ib_cache=true
+cache_only_profile=/home/qa_user/rust-china-conf/rust/ib_profile.cache-only.xml rustc=local_only ib_cache=true
+selected_profile=/home/qa_user/rust-china-conf/rust/ib_profile.cache-only.xml rustc=local_only ib_cache=true
+structurally_identical_apart_from_rustc_type=true
+OK
+selected_profile_sha256=20d976e763a43fa623a52d41e798f1d621de5f8a6d66df0c6513a4cff94cb02d
+installed=/home/qa_user/rust-china-conf/.ib-proof.FPf9cn/parent/rust/ib_profile.xml sha256=20d976e763a43fa623a52d41e798f1d621de5f8a6d66df0c6513a4cff94cb02d from=/home/qa_user/rust-china-conf/rust/ib_profile.cache-only.xml
+installed=/home/qa_user/rust-china-conf/.ib-proof.FPf9cn/candidate/rust/ib_profile.xml sha256=20d976e763a43fa623a52d41e798f1d621de5f8a6d66df0c6513a4cff94cb02d from=/home/qa_user/rust-china-conf/rust/ib_profile.cache-only.xml

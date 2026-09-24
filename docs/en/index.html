@@ -146,9 +146,9 @@ dispatches   <span class="good">0</span></pre>
       </div>
       <p class="note">Additional cases: simulated stop → emergency_stop; bridge stall → timeout. Total: 10 lifts, 5 stale rejections, 1 stop, 1 timeout.</p>
       <div class="measurements">
-        <div><p>Runner A build phase</p><strong>21.426 <small>s</small></strong></div>
-        <div><p>Runner B build phase</p><strong>21.948 <small>s</small></strong></div>
-        <p>B took 522 ms longer. Both records indicate Incredibuild use. These two observations demonstrate the integration path; they are not a controlled cache or speedup measurement.</p>
+        <div><p>Runner A build phase</p><strong>21.426 <small>s</small></strong><p class="warn">single uncontrolled sample · archived run</p></div>
+        <div><p>Runner B build phase</p><strong>21.948 <small>s</small></strong><p class="warn">522 ms SLOWER than A · no speedup established</p></div>
+        <p>One sample per phase, taken from the archived run with caches uncontrolled. B took 522 ms longer than A. Both records indicate Incredibuild use. These two observations demonstrate that the integration path ran; they establish no speedup and are not a controlled cache or performance measurement.</p>
       </div>
       <details><summary>What the archived evidence contains</summary><p>The historical run reported 10/10 Rust gate tests and 88/88 checks under the original verifier. Those counts describe that revision, not the strengthened current suite. The repository contains traces, manifests, build timings, and the recorded executable digest. The executable itself is not committed, so a clone cannot independently recheck that historical binary. A new rehearsal exports its own verifiable artifact.</p><p><a href="examples/README.en.md">Read the evidence notes</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">Browse the original artifacts</a></p></details>
     </section>

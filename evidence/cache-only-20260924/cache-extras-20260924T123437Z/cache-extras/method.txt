@@ -1,0 +1,10 @@
+run_id=cache-extras-20260924T123437Z
+base_revision=f721855259e857efc008f1e84e270c92263c876d
+samples_per_mode=5
+profile=/home/qa_user/rust-china-conf/rust/ib_profile.cache-only.xml sha256=20d976e763a43fa623a52d41e798f1d621de5f8a6d66df0c6513a4cff94cb02d rustc_type=local_only ib_cache=true
+ib_console_args=--build-cache-local-user --build-cache-report-all-miss (no -f / --force-remote)
+ib_target_path=/home/qa_user/rust-china-conf/.ib-extras.nxJctC/ws/ib (stable; contents wiped before every sample)
+lld_flags=-Clink-arg=-fuse-ld=lld -Clink-arg=-B/home/qa_user/.rustup/toolchains/1.92.0-x86_64-unknown-linux-gnu/lib/rustlib/x86_64-unknown-linux-gnu/bin/gcc-ld
+timed_command=cargo build --workspace --locked
+downloads_outside_timing=true
+gated_by_build_proof=false (the receipt schema has three modes; these are side measurements)

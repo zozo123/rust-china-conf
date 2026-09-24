@@ -1,0 +1,1 @@
+{"phase": "cold", "runner": "A", "wall_ms": 13959, "sandbox_provider": "local_git_worktree", "build_provider": "native", "ib": false, "cache_namespace": null, "cache_reuse_verified": false, "base_revision": "2883e19a166cedcb4075c37fb7a0cfb148b0d540"}

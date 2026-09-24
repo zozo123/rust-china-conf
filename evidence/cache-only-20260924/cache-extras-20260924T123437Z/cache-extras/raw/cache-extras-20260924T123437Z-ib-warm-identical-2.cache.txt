@@ -1,0 +1,4 @@
+Cache statistics:
+total=52
+hits=52
+misses=0

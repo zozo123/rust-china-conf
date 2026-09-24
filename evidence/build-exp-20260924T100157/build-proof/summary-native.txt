@@ -1,0 +1,14 @@
+samples total: 20  (all mode=['native'])
+config      n  median_ms   min_ms   max_ms  range_ms  walls
+cold-j1     5    22861.0    22629    23236       607  [22629, 22861, 23236, 22928, 22842]
+cold-j10    5     6976.0     6777     7766       989  [7766, 6777, 7324, 6963, 6976]
+warm-j1     5     1016.0     1014     1099        85  [1014, 1016, 1079, 1099, 1015]
+warm-j10    5      942.0      915      984        69  [942, 943, 931, 915, 984]
+
+parallelism speedup, cold  (j1 median / j10 median): 3.277x
+parallelism speedup, warm  (j1 median / j10 median): 1.079x
+parent-seed reuse, j10 (cold median / warm median):  7.406x
+parent-seed reuse, j1  (cold median / warm median):  22.501x
+
+NOTE: every number above is a NATIVE cargo build on this Mac.
+      No Incredibuild was present, none was measured, no acceleration is claimed.

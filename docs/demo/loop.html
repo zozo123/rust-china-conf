@@ -98,11 +98,11 @@ const STAGES = [
 const F = [
   { s:0, phase:"运行器 A — 一次性，空缓存", runner:["a","运行器 A"], add:[
     ["cmd","$ scripts/robot-demo/cold.sh ec2-e2e-20260923-160725-runner-a"],
-    ["dim","  全新 git worktree · 全新 CARGO_TARGET_DIR · 空缓存命名空间"],
+    ["dim","  全新 git worktree · 全新 CARGO_TARGET_DIR · 全新本地 target；远端缓存状态未知"],
   ]},
   { s:0, add:[
     ["","  ib_console: coordinator + initiator + 2 helpers"],
-    ["","  cargo build --locked  (compile stage distributed)"],
+    ["","  cargo build --locked  (示意：编译分发未验证)"],
   ], m:{phase:"cold", wall:"…", ib:"running", disp:null} },
   { s:0, add:[
     ["ok","  Finished dev profile — 21426 ms"],
@@ -146,12 +146,12 @@ const F = [
 
   { s:3, phase:"烧掉运行器", runner:["gone","运行器 A 已销毁"], add:[
     ["cmd","$ teardown runner A"],
-    ["bad","  worktree 已删 · target 目录已删 · 实例已不在"],
+    ["bad","  worktree 已删 · target 目录已删 · 实例销毁未验证"],
     ["ok","  留下：补丁、基线修订、上下文包，"],
     ["ok","        以及父修订预热过的编译工作"],
   ]},
 
-  { s:4, phase:"运行器 B — 新实例，热工厂", runner:["b","运行器 B"], add:[
+  { s:4, phase:"运行器 B — 新 worktree，同一基线", runner:["b","运行器 B"], add:[
     ["cmd","$ scripts/robot-demo/warm.sh ec2-e2e-20260923-160725-runner-b"],
     ["dim","  全新实例 · 无先前产物 · 补丁打在精确基线上"],
     ["","  cargo build --locked  (cache reuse unverified)"],
@@ -176,7 +176,7 @@ const F = [
     ["cmd","$ swf-cli robot-demo validate --run-id ec2-e2e-...-runner-b"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },
   { s:5, phase:"证明绑定到产物", add:[
-    ["ok","  protected verifier: 88 / 88 PASS"],
+    ["ok","  protected verifier: 88 / 88 PASS  (历史修订，非当前校验器)"],
     ["dim","  sha256 f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326"],
     ["ok","  结论绑定到做出这些裁决的那份可执行文件"],
   ], m:{phase:"warm", wall:"21948 ms", ib:"ib: true", disp:"0"} },

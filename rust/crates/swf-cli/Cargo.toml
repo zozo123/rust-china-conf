@@ -12,6 +12,12 @@ serde = { workspace = true }
 serde_json = { workspace = true }
 anyhow = { workspace = true }
 clap = { workspace = true }
+# Used, not decorative: the proof path hashes the transcript bytes it has
+# already read, so that the bytes hashed are provably the bytes parsed.
+# Both crates are already in this workspace's graph via swf-app, so no new
+# crate is compiled and the measured build workload is unchanged.
+sha2 = { workspace = true }
+hex = { workspace = true }
 
 [[bin]]
 name = "swf-cli"

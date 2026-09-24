@@ -1,0 +1,33 @@
+NATIVE-WARM CONTROL — the baseline ib-benchmark.sh never ran
+host AL6555I10 / 10.133.27.234 (initiator), 2026-09-24 13:02:33-13:04:33 UTC, load 0.08 -> 1.28
+repo ~/rust-china-conf @ f721855259e857efc008f1e84e270c92263c876d
+patch demo/fallback-patch.diff (sha256 1d2b9783dba88b9c...), the SAME patch ib-benchmark.sh applies
+timed command: cargo build --workspace --locked (dev profile), identical to the benchmark's
+cargo fetch --locked run once per worktree OUTSIDE every timed phase
+
+VARIANT A — one worktree, patch applied IN PLACE, persistent CARGO_TARGET_DIR
+A-seed-cold 11565 ms            (empty target; agrees with the receipt's native median 11515)
+A-noop   1 77 / 2 80 / 3 81 / 4 81 / 5 81 ms          median 81   range 77-81
+A-apply  1 892 / 2 883 / 3 931 / 4 905 / 5 885 ms     median 892  range 883-931
+A-revert 1 884 / 2 908 / 3 931 / 4 898 / 5 965 ms     median 908  range 884-965
+crates compiled in A-apply rep 1: robot-safety-gate, swf-app, swf-cli
+  -> exactly the 3 crates that MISS in Incredibuild's 47/52 warm build
+
+VARIANT B — a BRAND-NEW worktree path per candidate, ONE shared persistent CARGO_TARGET_DIR
+  (the literal "disposable workspace, reusable compilation" configuration)
+B-seed-cold 11505 ms
+B-freshworktree-apply 1 2775 / 2 2776 / 3 2778 / 4 2867 / 5 2809 ms   median 2778  range 2775-2867
+crates compiled in B rep 1: robot-safety-gate, swf-app, swf-cli
+NOTE: an earlier reviewer reported 636-645 ms for this configuration. That loop removed and
+re-added the candidate worktree at the SAME path, so cargo's incremental state for that path
+survived. At a genuinely new path each iteration the honest number is 2778 ms. The correction
+runs in Incredibuild's favour and is applied throughout CACHE-RESULTS.md.
+
+STALENESS REPRO — the one place Incredibuild is strictly better (/tmp/stale.sh)
+parent rlib sha256                       0f0c4b82e21d5aec...
+candidate build, changed lib.rs backdated to 2020-01-01, shared target:
+  83 ms, 0 crates compiled, rlib 0f0c4b82e21d5aec... = BYTE-IDENTICAL TO THE PARENT
+  -> cargo shipped a stale artifact and reported success
+after `touch` on the same file: 2797 ms, rlib 91c4838950d76ff0... (correct)
+cargo's fingerprint is mtime-based. Incredibuild's Build Cache key is command-line/content
+based and cannot fail this way.

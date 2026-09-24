@@ -381,10 +381,10 @@ button:disabled{opacity:.45;cursor:default}
   <!-- EVIDENCE -->
   <section class="evidence" aria-label="补丁构建的验证证据" data-i18n-attr="aria-label:evidenceAria">
     <dl>
-      <div><dt data-i18n="evV">受保护校验器</dt><dd class="pass" data-i18n="evVV">88 / 88 项检查通过</dd></div>
+      <div><dt data-i18n="evV">历史校验器 · 原始版本</dt><dd data-i18n="evVV">88 / 88 项检查通过 · 历史修订，非当前校验器</dd></div>
       <div><dt data-i18n="evSim">仿真器</dt><dd>robosuite 1.5.2 · MuJoCo 3.9.0</dd></div>
       <div><dt data-i18n="evB">构建</dt><dd data-i18n="evBB">Incredibuild 4.31.0 · 两个阶段</dd></div>
-      <div><dt data-i18n="evT">历史补丁构建的 Rust 测试</dt><dd>10 / 10 · 8 contract + 2 unit</dd></div>
+      <div><dt data-i18n="evT">历史补丁构建的 Rust 测试</dt><dd data-i18n="evTT">10 / 10 · 8 项契约 + 2 项单元</dd></div>
       <div><dt data-i18n="evHsh">被测可执行文件 sha256</dt><dd class="hash">f358e898b4e4f0cf00c840de314c9e7c42cb246a4b97f1abffd3071fbecc8326</dd></div>
       <div><dt data-i18n="evP">新鲜度策略</dt><dd data-i18n="evPP">250 ms — 演示值，不是硬件限</dd></div>
     </dl>
@@ -427,9 +427,9 @@ const COPY = {
     hdPlace:"方块位置", hd0:"观测 0 ms", hd50:"观测 50 ms", hd600:"观测 600 ms",
     estop:"急停", estopS:"1 次派发后在 tick 10 保持 — 停止压过其余所有规则",
     timeout:"桥接超时", timeoutS:"tick 0 显式失败 — 缺失的批准永远不是同意",
-    evV:"历史校验器 · 原始版本", evVV:"88 / 88 项检查通过", evSim:"仿真器",
+    evV:"历史校验器 · 原始版本", evVV:"88 / 88 项检查通过 · 历史修订，非当前校验器", evSim:"仿真器",
     evB:"构建", evBB:"Incredibuild 4.31.0 · 两个阶段",
-    evT:"历史补丁构建的 Rust 测试", evHsh:"被测可执行文件 sha256",
+    evT:"历史补丁构建的 Rust 测试", evTT:"10 / 10 · 8 项契约 + 2 项单元", evHsh:"被测可执行文件 sha256",
     evP:"新鲜度策略", evPP:"250 ms — 演示值，不是硬件限",
     caveat:"<b>这说明什么。</b> Rust 契约检查、桥接检查与仿真机器人场景，用摘要绑定到做出这些裁决的可执行文件。未做硬件在环与实体验证；方块位姿来自仿真器状态，不是训练视觉。构建阶段测得 21.4 s 与 21.9 s；这表明 Incredibuild 构建路径已运行；辅助节点参与、缓存复用与加速效果仍未验证。",
     standby:"待机", choose:"选择一个回合，回放其已记录轨迹。",
@@ -476,9 +476,9 @@ const COPY = {
     hdPlace:"cube placement", hd0:"observation 0 ms", hd50:"observation 50 ms", hd600:"observation 600 ms",
     estop:"Emergency stop", estopS:"held at tick 10 after 1 dispatch — stop outranks every other rule",
     timeout:"Bridge timeout", timeoutS:"failed explicitly at tick 0 — a missing approval is never a yes",
-    evV:"Historical verifier · original revision", evVV:"88 / 88 checks passed", evSim:"Simulator",
+    evV:"Historical verifier · original revision", evVV:"88 / 88 checks passed · historical revision, not the current verifier", evSim:"Simulator",
     evB:"Build", evBB:"Incredibuild 4.31.0 · both phases",
-    evT:"Historical patched Rust tests", evHsh:"Tested executable sha256",
+    evT:"Historical patched Rust tests", evTT:"10 / 10 · 8 contract + 2 unit", evHsh:"Tested executable sha256",
     evP:"Freshness policy", evPP:"250 ms — demo value, not a hardware limit",
     caveat:"<b>What this shows.</b> Rust contract checks, bridge checks and simulated robot scenarios, bound by digest to the executable that made these decisions. Hardware-in-the-loop and physical validation were not performed, and the cube pose comes from simulator state rather than a trained vision system. Build phases measured 21.4 s and 21.9 s; the Incredibuild build path ran, but helper activity, cache reuse and speedup remain unverified.",
     standby:"Standby", choose:"Choose an episode to replay its recorded trace.",
