@@ -1,0 +1,358 @@
+{
+  "schema_version": 2,
+  "run_id": "cache-only-20260924T122940Z",
+  "candidate_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+  "parent_revision": "f721855259e857efc008f1e84e270c92263c876d",
+  "samples": [
+    {
+      "mode": "native",
+      "repetition": 1,
+      "wall_ms": 11458,
+      "build_caption": "cache-only-20260924T122940Z-native-1",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790252983465,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "ib-cold",
+      "repetition": 1,
+      "wall_ms": 15780,
+      "build_caption": "cache-only-20260924T122940Z-ib-cold-1",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790252994966,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790252994930,
+          "completed_at_ms": 1790252994962,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-cold-1.cache-clear.txt",
+          "transcript_sha256": "88d8880714acab540538d82cf2599205c0d65976ccaf52725cc5dfc01dbc63b2"
+        }
+      ],
+      "remote_tasks": 0,
+      "local_tasks": 60,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 1,
+      "cache_misses": 51
+    },
+    {
+      "mode": "ib-parent-warm",
+      "repetition": 1,
+      "wall_ms": 6527,
+      "build_caption": "cache-only-20260924T122940Z-ib-parent-warm-1",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253027929,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253011481,
+          "completed_at_ms": 1790253011512,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-parent-warm-1.cache-clear.txt",
+          "transcript_sha256": "9109d2d0832128f11d7c102b22f33521ac79351e8b2e9c7a9e4aa3fcaaef3d8c"
+        }
+      ],
+      "parent_seed": {
+        "build_caption": "cache-only-20260924T122940Z-parent-seed-1",
+        "source_revision": "f721855259e857efc008f1e84e270c92263c876d",
+        "started_at_ms": 1790253011562,
+        "remote_tasks": 0,
+        "cache_hits": 1,
+        "cache_misses": 51
+      },
+      "remote_tasks": 0,
+      "local_tasks": 14,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 47,
+      "cache_misses": 5
+    },
+    {
+      "mode": "ib-cold",
+      "repetition": 2,
+      "wall_ms": 16049,
+      "build_caption": "cache-only-20260924T122940Z-ib-cold-2",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253036722,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253036641,
+          "completed_at_ms": 1790253036674,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-cold-2.cache-clear.txt",
+          "transcript_sha256": "b7551b06dfe6cbb03122025603f47e44bcb8f01fcea7c317c061a8bd54062e9d"
+        }
+      ],
+      "remote_tasks": 0,
+      "local_tasks": 60,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 1,
+      "cache_misses": 51
+    },
+    {
+      "mode": "ib-parent-warm",
+      "repetition": 2,
+      "wall_ms": 6547,
+      "build_caption": "cache-only-20260924T122940Z-ib-parent-warm-2",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253068937,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253052897,
+          "completed_at_ms": 1790253052929,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-parent-warm-2.cache-clear.txt",
+          "transcript_sha256": "768b5d1478a1bde3c3ce42ec1c1695e1ba9f330dc1f2c4e7894961a1b4584dad"
+        }
+      ],
+      "parent_seed": {
+        "build_caption": "cache-only-20260924T122940Z-parent-seed-2",
+        "source_revision": "f721855259e857efc008f1e84e270c92263c876d",
+        "started_at_ms": 1790253052978,
+        "remote_tasks": 0,
+        "cache_hits": 1,
+        "cache_misses": 51
+      },
+      "remote_tasks": 0,
+      "local_tasks": 14,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 47,
+      "cache_misses": 5
+    },
+    {
+      "mode": "native",
+      "repetition": 2,
+      "wall_ms": 11541,
+      "build_caption": "cache-only-20260924T122940Z-native-2",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253077713,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "ib-parent-warm",
+      "repetition": 3,
+      "wall_ms": 6626,
+      "build_caption": "cache-only-20260924T122940Z-ib-parent-warm-3",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253104919,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253089262,
+          "completed_at_ms": 1790253089295,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-parent-warm-3.cache-clear.txt",
+          "transcript_sha256": "609acbef7051abd5f470d54bd37712b690333aa5f195b07b1508875480928103"
+        }
+      ],
+      "parent_seed": {
+        "build_caption": "cache-only-20260924T122940Z-parent-seed-3",
+        "source_revision": "f721855259e857efc008f1e84e270c92263c876d",
+        "started_at_ms": 1790253089343,
+        "remote_tasks": 0,
+        "cache_hits": 1,
+        "cache_misses": 51
+      },
+      "remote_tasks": 0,
+      "local_tasks": 14,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 47,
+      "cache_misses": 5
+    },
+    {
+      "mode": "native",
+      "repetition": 3,
+      "wall_ms": 11497,
+      "build_caption": "cache-only-20260924T122940Z-native-3",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253111734,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "ib-cold",
+      "repetition": 3,
+      "wall_ms": 15456,
+      "build_caption": "cache-only-20260924T122940Z-ib-cold-3",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253123327,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253123238,
+          "completed_at_ms": 1790253123272,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-cold-3.cache-clear.txt",
+          "transcript_sha256": "8353248c5cd74c48492852c25a9b8adb78dc5c76aa9f449f8e51502a366af8ee"
+        }
+      ],
+      "remote_tasks": 0,
+      "local_tasks": 60,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 1,
+      "cache_misses": 51
+    },
+    {
+      "mode": "native",
+      "repetition": 4,
+      "wall_ms": 11549,
+      "build_caption": "cache-only-20260924T122940Z-native-4",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253138964,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    },
+    {
+      "mode": "ib-cold",
+      "repetition": 4,
+      "wall_ms": 16173,
+      "build_caption": "cache-only-20260924T122940Z-ib-cold-4",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253150603,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253150520,
+          "completed_at_ms": 1790253150551,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-cold-4.cache-clear.txt",
+          "transcript_sha256": "737655333ddb4b9304f8775939c1e6b9aeec0a8f84a5ae4d7e8d4f831158f6a9"
+        }
+      ],
+      "remote_tasks": 0,
+      "local_tasks": 60,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 1,
+      "cache_misses": 51
+    },
+    {
+      "mode": "ib-parent-warm",
+      "repetition": 4,
+      "wall_ms": 6449,
+      "build_caption": "cache-only-20260924T122940Z-ib-parent-warm-4",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253182931,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253166910,
+          "completed_at_ms": 1790253166941,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-parent-warm-4.cache-clear.txt",
+          "transcript_sha256": "451fe5605b62f4883cceee3cd9b751547a0f3019650199b531338086f3ce119d"
+        }
+      ],
+      "parent_seed": {
+        "build_caption": "cache-only-20260924T122940Z-parent-seed-4",
+        "source_revision": "f721855259e857efc008f1e84e270c92263c876d",
+        "started_at_ms": 1790253166991,
+        "remote_tasks": 0,
+        "cache_hits": 1,
+        "cache_misses": 51
+      },
+      "remote_tasks": 0,
+      "local_tasks": 14,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 47,
+      "cache_misses": 5
+    },
+    {
+      "mode": "ib-cold",
+      "repetition": 5,
+      "wall_ms": 16176,
+      "build_caption": "cache-only-20260924T122940Z-ib-cold-5",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253189608,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253189526,
+          "completed_at_ms": 1790253189559,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-cold-5.cache-clear.txt",
+          "transcript_sha256": "0ab622410c94fbbb3d50a458a3fa8ade073d689ba3a1885ce02d286b61bd5a28"
+        }
+      ],
+      "remote_tasks": 0,
+      "local_tasks": 60,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 1,
+      "cache_misses": 51
+    },
+    {
+      "mode": "ib-parent-warm",
+      "repetition": 5,
+      "wall_ms": 6481,
+      "build_caption": "cache-only-20260924T122940Z-ib-parent-warm-5",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253221946,
+      "cache_clears": [
+        {
+          "scope": "local-user",
+          "argv": "user clear",
+          "exit_code": 0,
+          "started_at_ms": 1790253205922,
+          "completed_at_ms": 1790253205954,
+          "transcript_path": "/home/qa_user/rust-china-conf/evidence/cache-only-20260924T122940Z/build-proof/raw/cache-only-20260924T122940Z-ib-parent-warm-5.cache-clear.txt",
+          "transcript_sha256": "1e13d198ec7483bf10629d975bedf60033ca3e9c3fe8aa910def048171e258c1"
+        }
+      ],
+      "parent_seed": {
+        "build_caption": "cache-only-20260924T122940Z-parent-seed-5",
+        "source_revision": "f721855259e857efc008f1e84e270c92263c876d",
+        "started_at_ms": 1790253206004,
+        "remote_tasks": 0,
+        "cache_hits": 1,
+        "cache_misses": 51
+      },
+      "remote_tasks": 0,
+      "local_tasks": 14,
+      "remote_core_time_s": 0.0,
+      "cache_hits": 47,
+      "cache_misses": 5
+    },
+    {
+      "mode": "native",
+      "repetition": 5,
+      "wall_ms": 11515,
+      "build_caption": "cache-only-20260924T122940Z-native-5",
+      "source_revision": "f721855259e857efc008f1e84e270c92263c876d+patch:1d2b9783dba88b9cbf77db5cb836a819c2dadf60fbf045a3cedfe3c71ad0d1a9",
+      "started_at_ms": 1790253228619,
+      "cache_clears": [],
+      "remote_tasks": null,
+      "local_tasks": null,
+      "remote_core_time_s": null,
+      "cache_hits": null,
+      "cache_misses": null
+    }
+  ]
+}

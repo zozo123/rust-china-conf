@@ -1,0 +1,56 @@
+CERTIFICATION OF THE CACHE-ONLY BUILD RECEIPT
+=============================================
+Verdict : CERTIFIED (exit 0)
+Receipt : receipt.json
+          sha256 da1b019daeaa895a1818d32154ce29280d4cf9acdbb8d165b64c78c3527062ce
+Verdict transcript : receipt-verdict.txt
+
+COMMAND (run on the initiator AL6555_I_1_0 / 10.133.27.234):
+  swf-cli robot-demo build-proof \
+    --receipt evidence/cache-only-20260924T122940Z/build-proof/receipt.json \
+    --min-samples 5 --distribution excluded --empty-cache-hit-floor 1
+  -> BUILD RECEIPT CONSISTENT, exit 0
+
+TOOL PROVENANCE (working tree is DIRTY; the revision alone does not identify it)
+  git HEAD        f721855259e857efc008f1e84e270c92263c876d
+  main.rs sha256  c0870f22f865cd0caa9049bf2e8105e7f26f3ecb626d7bd690b8321c45915401
+  binary  sha256  47a23ef86cf6f77bbbbd1dba780e94ae77195d95c7c0800dff40c8fdebf2a05c
+  binary confirmed current: `cargo build -p swf-cli` was a no-op (0.05s, digest unchanged)
+  test suite: 42 passed, 0 failed
+
+WHAT IS CERTIFIED (3 modes, 5 samples each, distinct repetitions)
+  native          median 11,515 ms  range 11,458-11,549
+  ib-cold         median 16,049 ms  range 15,456-16,176   ratio 0.717x (SLOWER)
+  ib-parent-warm  median  6,527 ms  range  6,449-6,626    ratio 1.764x
+  remote_tasks == 0 and remote_core_time == 0 on every IB sample and every parent seed.
+  10 cache-clear transcripts opened, re-hashed and re-parsed; all digests matched.
+
+WHAT IS *NOT* CERTIFIED
+  The 3.13x full-reuse headline (3,706 ms, 52/52 hits) is NOT in this receipt.
+  The schema carries only native / ib-cold / ib-parent-warm, so the full-reuse
+  mode was measured but never gated. The certified cache speed-up is 1.76x.
+  wall_ms is not corroborated by anything: a receipt with fabricated wall times
+  still passes (verified - see below). The gate says so itself under NOT CHECKED.
+
+TWO NON-DEFAULT FLAGS, AND WHY THEY ARE NOT A WEAKENED GATE
+  --distribution excluded : NOT a relaxation. It DEMANDS remote_tasks == 0 and
+    remote_core_time == 0; one leaked task refuses the receipt (verified: T1).
+    The default `required` is the wrong contract for a cache-only profile.
+  --empty-cache-hit-floor 1 : a CORRECTED contract, not a lowered threshold.
+    The old rule (hits == 0) is factually unsatisfiable for Rust: cargo invokes
+    `rustc -vV` twice per build. Verified from Incredibuild's own per-task Build
+    Cache report, in all 10 empty-cache builds: block 1 (`rustc -vV`) MISSED and
+    block 3 (identical command, identical hash) HIT the entry block 1 had just
+    stored, with the hit timestamp inside that build's own window. The cache was
+    genuinely empty at build start. The floor is symmetric - it also requires
+    warm builds to EXCEED 1, verified by T5.
+
+ADVERSARIAL TESTS RUN BY THE CERTIFIER
+  T1 remote_tasks 0 -> 1          REFUSED exit 1
+  T2 digest altered by 1 char     REFUSED exit 1
+  T3 nonexistent transcript path  REFUSED exit 1
+  T4 wall_ms fabricated (~23x)    ACCEPTED exit 0  <-- known, disclosed limit
+  T5 warm hits lowered to floor   REFUSED exit 1
+  transcript +1 newline           REFUSED exit 1
+  The briefing's "hand-forged receipt, ratio 11.948x" forgery is now dead:
+  test `the_receipt_that_printed_ratio_11_948x_from_invented_fields_is_now_refused`.

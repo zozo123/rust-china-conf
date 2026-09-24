@@ -1,0 +1,5 @@
+1 native ib-cold ib-parent-warm
+2 ib-cold ib-parent-warm native
+3 ib-parent-warm native ib-cold
+4 native ib-cold ib-parent-warm
+5 ib-cold ib-parent-warm native

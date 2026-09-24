@@ -1,0 +1,650 @@
+note keeping caller-provided ROBOT_DEMO_PYTHON; the value in .env.local is ignored
+== repetition 1 / 5 ==
+-- native rep 1
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling serde_json v1.0.151
+   Compiling thiserror v2.0.20
+   Compiling colorchoice v1.0.5
+   Compiling anstyle v1.0.14
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling anstyle-query v1.1.5
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling clap_lex v1.1.1
+   Compiling cfg-if v1.0.5
+   Compiling anyhow v1.0.104
+   Compiling strsim v0.11.1
+   Compiling memchr v2.8.3
+   Compiling cpufeatures v0.2.17
+   Compiling heck v0.5.0
+   Compiling itoa v1.0.18
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.50s
+-- native-debug0 rep 1
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling utf8parse v0.2.2
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling thiserror v2.0.20
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling colorchoice v1.0.5
+   Compiling serde_json v1.0.151
+   Compiling anstream v1.0.0
+   Compiling digest v0.10.7
+   Compiling strsim v0.11.1
+   Compiling heck v0.5.0
+   Compiling clap_lex v1.1.1
+   Compiling memchr v2.8.3
+   Compiling cpufeatures v0.2.17
+   Compiling anyhow v1.0.104
+   Compiling itoa v1.0.18
+   Compiling cfg-if v1.0.5
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized] target(s) in 10.35s
+-- native-lld rep 1
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling utf8parse v0.2.2
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling anstream v1.0.0
+   Compiling digest v0.10.7
+   Compiling anyhow v1.0.104
+   Compiling cfg-if v1.0.5
+   Compiling strsim v0.11.1
+   Compiling cpufeatures v0.2.17
+   Compiling clap_lex v1.1.1
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling heck v0.5.0
+   Compiling clap_builder v4.6.7
+   Compiling sha2 v0.10.9
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.64s
+-- ib-warm-identical rep 1
+== repetition 2 / 5 ==
+-- native-debug0 rep 2
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle-query v1.1.5
+   Compiling thiserror v2.0.20
+   Compiling colorchoice v1.0.5
+   Compiling serde_json v1.0.151
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling anstyle v1.0.14
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling cpufeatures v0.2.17
+   Compiling memchr v2.8.3
+   Compiling heck v0.5.0
+   Compiling itoa v1.0.18
+   Compiling anyhow v1.0.104
+   Compiling strsim v0.11.1
+   Compiling cfg-if v1.0.5
+   Compiling clap_lex v1.1.1
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized] target(s) in 10.34s
+-- native-lld rep 2
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle-query v1.1.5
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle v1.0.14
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling colorchoice v1.0.5
+   Compiling anstream v1.0.0
+   Compiling digest v0.10.7
+   Compiling cfg-if v1.0.5
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling clap_lex v1.1.1
+   Compiling strsim v0.11.1
+   Compiling anyhow v1.0.104
+   Compiling heck v0.5.0
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.57s
+-- ib-warm-identical rep 2
+-- native rep 2
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle-query v1.1.5
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling colorchoice v1.0.5
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle v1.0.14
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling itoa v1.0.18
+   Compiling cpufeatures v0.2.17
+   Compiling anyhow v1.0.104
+   Compiling strsim v0.11.1
+   Compiling clap_lex v1.1.1
+   Compiling memchr v2.8.3
+   Compiling heck v0.5.0
+   Compiling cfg-if v1.0.5
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.55s
+== repetition 3 / 5 ==
+-- native-lld rep 3
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling utf8parse v0.2.2
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle v1.0.14
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle-query v1.1.5
+   Compiling thiserror v2.0.20
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling colorchoice v1.0.5
+   Compiling serde_json v1.0.151
+   Compiling anstream v1.0.0
+   Compiling digest v0.10.7
+   Compiling cfg-if v1.0.5
+   Compiling cpufeatures v0.2.17
+   Compiling clap_lex v1.1.1
+   Compiling heck v0.5.0
+   Compiling strsim v0.11.1
+   Compiling anyhow v1.0.104
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling clap_builder v4.6.7
+   Compiling sha2 v0.10.9
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.61s
+-- ib-warm-identical rep 3
+-- native rep 3
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling serde v1.0.229
+   Compiling utf8parse v0.2.2
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle v1.0.14
+   Compiling serde_json v1.0.151
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle-query v1.1.5
+   Compiling colorchoice v1.0.5
+   Compiling thiserror v2.0.20
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling cpufeatures v0.2.17
+   Compiling clap_lex v1.1.1
+   Compiling anyhow v1.0.104
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling strsim v0.11.1
+   Compiling heck v0.5.0
+   Compiling cfg-if v1.0.5
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.42s
+-- native-debug0 rep 3
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling utf8parse v0.2.2
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling colorchoice v1.0.5
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling serde_json v1.0.151
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling thiserror v2.0.20
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling cfg-if v1.0.5
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling strsim v0.11.1
+   Compiling heck v0.5.0
+   Compiling clap_lex v1.1.1
+   Compiling cpufeatures v0.2.17
+   Compiling anyhow v1.0.104
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized] target(s) in 10.41s
+== repetition 4 / 5 ==
+-- ib-warm-identical rep 4
+-- native rep 4
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle v1.0.14
+   Compiling colorchoice v1.0.5
+   Compiling serde_json v1.0.151
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling thiserror v2.0.20
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling anstyle-query v1.1.5
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling strsim v0.11.1
+   Compiling anyhow v1.0.104
+   Compiling cpufeatures v0.2.17
+   Compiling memchr v2.8.3
+   Compiling heck v0.5.0
+   Compiling cfg-if v1.0.5
+   Compiling itoa v1.0.18
+   Compiling clap_lex v1.1.1
+   Compiling clap_builder v4.6.7
+   Compiling sha2 v0.10.9
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.75s
+-- native-debug0 rep 4
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling utf8parse v0.2.2
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling anstyle-query v1.1.5
+   Compiling anstyle v1.0.14
+   Compiling serde_json v1.0.151
+   Compiling colorchoice v1.0.5
+   Compiling thiserror v2.0.20
+   Compiling block-buffer v0.10.4
+   Compiling crypto-common v0.1.7
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling strsim v0.11.1
+   Compiling memchr v2.8.3
+   Compiling itoa v1.0.18
+   Compiling cpufeatures v0.2.17
+   Compiling anyhow v1.0.104
+   Compiling heck v0.5.0
+   Compiling cfg-if v1.0.5
+   Compiling clap_lex v1.1.1
+   Compiling clap_builder v4.6.7
+   Compiling sha2 v0.10.9
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized] target(s) in 10.27s
+-- native-lld rep 4
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling serde v1.0.229
+   Compiling zmij v1.0.23
+   Compiling syn v3.0.6
+   Compiling utf8parse v0.2.2
+   Compiling anstyle-parse v1.0.0
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling thiserror v2.0.20
+   Compiling anstyle v1.0.14
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling serde_json v1.0.151
+   Compiling anstream v1.0.0
+   Compiling digest v0.10.7
+   Compiling memchr v2.8.3
+   Compiling clap_lex v1.1.1
+   Compiling cpufeatures v0.2.17
+   Compiling itoa v1.0.18
+   Compiling anyhow v1.0.104
+   Compiling cfg-if v1.0.5
+   Compiling heck v0.5.0
+   Compiling strsim v0.11.1
+   Compiling clap_builder v4.6.7
+   Compiling sha2 v0.10.9
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.49s
+== repetition 5 / 5 ==
+-- native rep 5
+   Compiling proc-macro2 v1.0.107
+   Compiling unicode-ident v1.0.26
+   Compiling quote v1.0.47
+   Compiling version_check v0.9.5
+   Compiling serde_core v1.0.229
+   Compiling typenum v1.20.1
+   Compiling generic-array v0.14.7
+   Compiling utf8parse v0.2.2
+   Compiling zmij v1.0.23
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling thiserror v2.0.20
+   Compiling anstyle v1.0.14
+   Compiling anstyle-query v1.1.5
+   Compiling colorchoice v1.0.5
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling serde_json v1.0.151
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling strsim v0.11.1
+   Compiling cpufeatures v0.2.17
+   Compiling clap_lex v1.1.1
+   Compiling anyhow v1.0.104
+   Compiling itoa v1.0.18
+   Compiling memchr v2.8.3
+   Compiling cfg-if v1.0.5
+   Compiling heck v0.5.0
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.65s
+-- native-debug0 rep 5
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling colorchoice v1.0.5
+   Compiling anstyle-query v1.1.5
+   Compiling thiserror v2.0.20
+   Compiling serde_json v1.0.151
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling anstyle v1.0.14
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling cpufeatures v0.2.17
+   Compiling strsim v0.11.1
+   Compiling cfg-if v1.0.5
+   Compiling memchr v2.8.3
+   Compiling clap_lex v1.1.1
+   Compiling itoa v1.0.18
+   Compiling anyhow v1.0.104
+   Compiling heck v0.5.0
+   Compiling clap_builder v4.6.7
+   Compiling sha2 v0.10.9
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized] target(s) in 10.46s
+-- native-lld rep 5
+   Compiling proc-macro2 v1.0.107
+   Compiling quote v1.0.47
+   Compiling unicode-ident v1.0.26
+   Compiling version_check v0.9.5
+   Compiling typenum v1.20.1
+   Compiling serde_core v1.0.229
+   Compiling generic-array v0.14.7
+   Compiling zmij v1.0.23
+   Compiling utf8parse v0.2.2
+   Compiling serde v1.0.229
+   Compiling syn v3.0.6
+   Compiling anstyle-parse v1.0.0
+   Compiling serde_json v1.0.151
+   Compiling thiserror v2.0.20
+   Compiling is_terminal_polyfill v1.70.2
+   Compiling colorchoice v1.0.5
+   Compiling anstyle v1.0.14
+   Compiling crypto-common v0.1.7
+   Compiling block-buffer v0.10.4
+   Compiling anstyle-query v1.1.5
+   Compiling digest v0.10.7
+   Compiling anstream v1.0.0
+   Compiling clap_lex v1.1.1
+   Compiling cfg-if v1.0.5
+   Compiling itoa v1.0.18
+   Compiling heck v0.5.0
+   Compiling memchr v2.8.3
+   Compiling anyhow v1.0.104
+   Compiling strsim v0.11.1
+   Compiling cpufeatures v0.2.17
+   Compiling sha2 v0.10.9
+   Compiling clap_builder v4.6.7
+   Compiling hex v0.4.3
+   Compiling serde_derive v1.0.229
+   Compiling thiserror-impl v2.0.20
+   Compiling clap_derive v4.6.7
+   Compiling clap v4.6.7
+   Compiling robot-safety-gate v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/home/qa_user/rust-china-conf/.ib-extras.nxJctC/src/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 11.44s
+-- ib-warm-identical rep 5
+
+=== PHASE 2 RESULTS (counters from Incredibuild telemetry only) ===
+mode                  n  median_ms      min      max            hits  remote
+ib-cold-seed          1      15722    15722    15722            1/52       0
+native                5      11608    11473    11804               -       -
+native-debug0         5      10399    10328    10508               -       -
+native-lld            5      11619    11490    11694               -       -
+ib-warm-identical     5       3706     3378     4310           52/52       0
+evidence: /home/qa_user/rust-china-conf/evidence/cache-extras-20260924T123437Z/cache-extras

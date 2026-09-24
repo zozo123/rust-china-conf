@@ -1,0 +1,1 @@
+[bridge] scenario=stale_600ms backend=mock (kinematic stand-in; NOT robosuite SIL) staleness_ms=600

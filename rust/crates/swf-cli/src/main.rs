@@ -540,14 +540,64 @@ fn as_f64(value: Option<&serde_json::Value>, label: &str) -> Result<f64> {
         .with_context(|| format!("{label} is missing, negative, or not numeric"))
 }
 
+/// Resolve the initiator-local build number that the cache-statistics tool is
+/// keyed by.
+///
+/// Incredibuild 4.30 reports `buildId` as an opaque string of the form
+/// `uuid_<initiator-uuid>_buildid_<pid>_<NNNNNN>`, whose final zero-padded
+/// segment is the initiator-local build number. That number -- not the opaque
+/// string -- is what names
+/// `/etc/incredibuild/db/incredibuildBuildReport_<n>.db`, and therefore what
+/// `show_build_cache_statistics.sh <n>` accepts. A plain numeric field is still
+/// preferred whenever the deployment provides one; the string is only
+/// destructured as a fallback, and only when its final segment is entirely
+/// digits. Anything else is an error rather than a guess.
+fn parse_build_number(record: &serde_json::Map<String, serde_json::Value>) -> Result<u64> {
+    if let Ok(number) = as_u64(
+        value_for(record, &["buildNumber", "localBuildNumber"]),
+        "build number",
+    ) {
+        return Ok(number);
+    }
+    if let Ok(number) = as_u64(value_for(record, &["buildId", "id"]), "build number") {
+        return Ok(number);
+    }
+    let raw = value_for(record, &["buildId", "id"])
+        .and_then(serde_json::Value::as_str)
+        .context("build number is missing: no numeric buildNumber and no buildId string")?;
+    let tail = raw
+        .rsplit('_')
+        .next()
+        .filter(|segment| !segment.is_empty() && segment.chars().all(|c| c.is_ascii_digit()))
+        .with_context(|| {
+            format!("buildId {raw:?} does not end in a numeric build-number segment")
+        })?;
+    tail.parse::<u64>().with_context(|| {
+        format!("buildId {raw:?} has an unparsable build-number segment {tail:?}")
+    })
+}
+
 fn parse_ib_history(document: &serde_json::Value, caption: &str) -> Result<IbHistory> {
     let mut records = Vec::new();
     walk_records(document, &mut records);
     let matches: Vec<_> = records
         .into_iter()
         .filter(|record| {
-            value_for(record, &["buildCaption", "caption", "buildName", "name"])
-                .and_then(serde_json::Value::as_str)
+            // buildTitle/title are Incredibuild 4.30's spelling. Without them
+            // every record matches zero captions and the gate cannot read this
+            // grid's Build History at all.
+            value_for(
+                record,
+                &[
+                    "buildCaption",
+                    "caption",
+                    "buildName",
+                    "name",
+                    "buildTitle",
+                    "title",
+                ],
+            )
+            .and_then(serde_json::Value::as_str)
                 == Some(caption)
         })
         .collect();
@@ -562,14 +612,12 @@ fn parse_ib_history(document: &serde_json::Value, caption: &str) -> Result<IbHis
         .and_then(serde_json::Value::as_str)
         .context("build status is missing")?
         .to_ascii_lowercase();
-    if !["success", "successful", "completed"].contains(&status.as_str()) {
+    // "succeeded" is Incredibuild 4.30's spelling of the same outcome.
+    if !["success", "successful", "completed", "succeeded"].contains(&status.as_str()) {
         bail!("build {caption:?} is not successful: {status}");
     }
     Ok(IbHistory {
-        build_number: as_u64(
-            value_for(record, &["buildNumber", "buildId", "id"]),
-            "build number",
-        )?,
+        build_number: parse_build_number(record)?,
         remote_tasks: as_u64(
             value_for(record, &["numberOfRemoteTasks", "remoteTasks"]),
             "remote tasks",
@@ -2903,6 +2951,53 @@ mod tests {
         assert_eq!(parsed.local_tasks, 2);
         assert_eq!(parsed.remote_core_time_s, 1.25);
         assert!(parse_ib_history(&history, "missing").is_err());
+    }
+
+    /// The Incredibuild 4.30 spellings, pinned against a record copied from
+    /// this grid's own Build History API.
+    ///
+    /// These three adapters were once fixed on the initiator and then lost
+    /// when a newer copy of this file was synced over the top of them, and the
+    /// loss was silent: every substantive check still compiled and every other
+    /// test still passed, while the gate could no longer find a single build.
+    /// A test is the only thing that makes that kind of drift loud.
+    #[test]
+    fn the_history_parser_reads_incredibuild_4_30_spellings() {
+        let record = serde_json::json!({
+            "builds": [{
+                "buildId": "uuid_ec23ccb6-591f-d8ca-65dc-e034d646a4f0_buildid_186292_000056",
+                "buildTitle": "cacheonly-smoke-ib-cold-1",
+                "buildStatus": "Succeeded",
+                "numberOfLocalTasks": 60,
+                "numberOfRemoteTasks": 0,
+                "remoteCoreTime": 0
+            }]
+        });
+        let parsed = parse_ib_history(&record, "cacheonly-smoke-ib-cold-1")
+            .expect("4.30 reports the caption as buildTitle and the status as Succeeded");
+        // The initiator-local build number is the buildId's last segment: it
+        // is what names incredibuildBuildReport_<n>.db, which is what
+        // show_build_cache_statistics.sh is keyed by.
+        assert_eq!(parsed.build_number, 56);
+        // A cache-only build. Zero is a VALUE here, not an absence, and the
+        // parser must carry it through rather than reject it -- the cache-only
+        // contract in build-proof is what decides whether zero is acceptable.
+        assert_eq!(parsed.remote_tasks, 0);
+        assert_eq!(parsed.remote_core_time_s, 0.0);
+        assert_eq!(parsed.local_tasks, 60);
+
+        // A buildId with no numeric tail is an error, never a guess.
+        let opaque = serde_json::json!({
+            "builds": [{
+                "buildId": "uuid_abc_buildid_nope",
+                "buildTitle": "x",
+                "buildStatus": "Succeeded",
+                "numberOfLocalTasks": 1,
+                "numberOfRemoteTasks": 0,
+                "remoteCoreTime": 0
+            }]
+        });
+        assert!(parse_ib_history(&opaque, "x").is_err());
     }
 
     #[test]

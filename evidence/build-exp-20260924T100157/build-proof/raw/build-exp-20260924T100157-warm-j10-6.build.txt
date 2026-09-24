@@ -1,0 +1,4 @@
+   Compiling robot-safety-gate v0.1.0 (/private/var/folders/w2/81x9sfys2dl6v07z7wnq7yt40000gp/T/native-build-exp.ANVDxP/warmseed/rust/crates/robot-safety-gate)
+   Compiling swf-app v0.1.0 (/private/var/folders/w2/81x9sfys2dl6v07z7wnq7yt40000gp/T/native-build-exp.ANVDxP/warmseed/rust/crates/swf-app)
+   Compiling swf-cli v0.1.0 (/private/var/folders/w2/81x9sfys2dl6v07z7wnq7yt40000gp/T/native-build-exp.ANVDxP/warmseed/rust/crates/swf-cli)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.88s

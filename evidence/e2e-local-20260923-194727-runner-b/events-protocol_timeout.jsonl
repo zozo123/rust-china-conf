@@ -1,0 +1,2 @@
+{"ts_unix_ms":1790182084770,"dir":"in","scenario":"protocol_timeout","line":"{\"type\": \"hello\", \"backend\": \"mock\", \"backend_label\": \"mock (kinematic stand-in; NOT robosuite SIL)\", \"version\": 1, \"simulation_tick_ns\": 50000000}"}
+{"ts_unix_ms":1790182092778,"dir":"session","scenario":"protocol_timeout","line":"{\"session\":\"proposal_timeout\"}"}

@@ -531,6 +531,52 @@ capture_cache_report() {
     >> "$OUT/cache-report-per-task.txt"
 }
 
+# The distribution contract, applied to the build that just finished instead of
+# to the receipt at the end.
+#
+# This is the SAME demand `build-proof --distribution` makes -- it is not an
+# extra or a weaker one -- moved forward so a run that cannot satisfy it dies in
+# under a minute rather than after every sample has been measured. It matters
+# most in the distributed mode, where a measured fact makes the surprise cheap:
+# on this grid, with rustc allow_remote and WITHOUT -f/--force-remote,
+# Incredibuild kept every task local and Build History reported
+# numberOfRemoteTasks=0, maxInitiatorCores=4. That is a legitimate scheduling
+# decision (4 local cores, a deep and narrow 52-unit crate graph, multi-megabyte
+# rlibs to ship) and not a failure, but it means "distributed" is a request, not
+# a guarantee, and a receipt asserting distribution would be refused at the end
+# of a ten-minute run for a reason visible after the first build.
+#
+# The counter is read from Incredibuild's own Build History response, never
+# inferred from wall time.
+check_distribution_contract() {
+  local caption="$1" history="$2" remote
+  remote="$("$PROOF_CLI" robot-demo build-history --input "$history" --caption "$caption" |
+    python3 -c 'import json,sys; print(json.load(sys.stdin)["remote_tasks"])')"
+  case "$IB_DISTRIBUTION_CONTRACT" in
+    excluded)
+      if [[ "$remote" == 0 ]]; then return 0; fi
+      echo "$caption: IB_ACCEL=cache-only, but Build History reports $remote remote task(s)." >&2
+      echo "  The installed profile should declare rustc local_only; see profile-check.txt." >&2
+      echo "  A cache-only measurement that distributed anything is not a cache measurement." >&2
+      return 1
+      ;;
+    required)
+      if [[ "$remote" != 0 ]]; then return 0; fi
+      echo "$caption: IB_ACCEL=distributed, but Build History reports 0 remote tasks, so" >&2
+      echo "  nothing was distributed and build-proof --distribution required would refuse" >&2
+      echo "  this receipt after every remaining sample had been measured." >&2
+      echo "  This is what this grid does with rustc allow_remote and no -f: the initiator's" >&2
+      echo "  own cores were enough, so Incredibuild kept the work local (maxInitiatorCores=4)." >&2
+      echo "  Either set IB_FORCE_REMOTE=1 to force remotable tasks onto the helpers -- which" >&2
+      echo "  REPLACES the local cores rather than adding to them, and is a deliberately" >&2
+      echo "  handicapped configuration that must be labelled as such -- or run the honest" >&2
+      echo "  configuration for this grid, IB_ACCEL=cache-only, which measures the cache and" >&2
+      echo "  PROVES nothing was distributed instead of hoping something was." >&2
+      return 1
+      ;;
+  esac
+}
+
 ib_sample() {
   local mode="$1" rep="$2" source="$3"
   local target caption log history cache clear start finish
@@ -573,6 +619,7 @@ ib_sample() {
   wait_for_history "$caption" "$history"
   cache_stats "$history" "$caption" "$cache" "$clear"
   capture_cache_report "$caption" "$log" "$cache"
+  check_distribution_contract "$caption" "$history"
   "$PROOF_CLI" robot-demo build-sample \
     --mode "$mode" --repetition "$rep" --wall-ms "$((finish-start))" \
     --started-at-ms "$start" \
@@ -605,6 +652,10 @@ seed_parent_cache() {
   wait_for_history "$SEED_CAPTION" "$SEED_HISTORY"
   cache_stats "$SEED_HISTORY" "$SEED_CAPTION" "$SEED_CACHE" "$clear"
   capture_cache_report "$SEED_CAPTION" "$log" "$SEED_CACHE"
+  # A seed that violated the contract has already put the wrong kind of entries
+  # in the cache the measured build is about to read, so stop here rather than
+  # measure a warm build whose warmth came from somewhere the mode forbids.
+  check_distribution_contract "$SEED_CAPTION" "$SEED_HISTORY"
   # Not removed: ib_sample wipes this same path immediately before the measured
   # build, which is what makes that build a disposable workspace.
 }

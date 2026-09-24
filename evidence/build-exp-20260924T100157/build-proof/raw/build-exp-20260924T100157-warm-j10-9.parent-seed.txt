@@ -1,0 +1,6 @@
+parent_seed_caption=build-exp-20260924T100157-parent-seed-9
+parent_seed_revision=2883e19a166cedcb4075c37fb7a0cfb148b0d540
+parent_seed_started_at_ms=1790244214074
+parent_seed_wall_ms=7094
+parent_seed_jobs=10
+note=native cargo seed; NOT an Incredibuild parent seed; carries no IB telemetry

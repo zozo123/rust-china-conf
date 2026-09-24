@@ -16,7 +16,13 @@ __pycache__/
 *.pyc
 
 # Runtime evidence (run dirs). Schema and docs stay tracked.
-evidence/*/
+# Evidence bundles are the talk's credibility mechanism: a claim on a slide must be
+# re-derivable by anyone who clones this. So the traces, manifests and digests are
+# committed. What stays out is (a) the exported executable -- a verifier builds its
+# own and compares the sha256 we do commit, which is the whole point -- and (b) the
+# multi-megabyte check-* debug bundles, which no slide cites.
+evidence/*/artifact/
+evidence/check-*/
 
 # OS
 .DS_Store

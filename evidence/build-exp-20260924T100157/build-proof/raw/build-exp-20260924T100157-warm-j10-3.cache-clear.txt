@@ -1,0 +1,7 @@
+# swf-cache-clear v1
+argv=-rf /var/folders/w2/81x9sfys2dl6v07z7wnq7yt40000gp/T//native-build-exp.ANVDxP/target-warm
+exit_code=0
+started_at_ms=1790244149697
+completed_at_ms=1790244149746
+--- transcript ---
+
