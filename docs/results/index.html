@@ -84,7 +84,57 @@ zero. It was still slower — and <code>ib-benchmark.sh:176</code> passed <code>
 build cache cannot optimize the loop on its own — which is why cheap gates must reject bad
 candidates before they ever reach SIL.</p>
 
-<h2>6 · The forgeries our own verifier passed</h2>
+<h2 id="microduck">6 · microduck — the contract in the type system</h2>
+<p>The same freshness contract, ported onto a real Rust biped whose control loop runs at 50 Hz
+(<a href="https://github.com/pollen-robotics/microduck">pollen-robotics/microduck</a>, Apache-2.0).
+23 workspace members, 576 packages, 117k lines. Our port is committed as a patch against upstream
+<code>a9ec4b2</code>:
+<a href="https://github.com/zozo123/rust-china-conf/blob/main/demo/microduck/safety-gate-port.patch">2,953 lines, 29 files</a>.</p>
+
+<p>Here the rule is not checked at runtime. It is enforced by types:</p>
+<pre><code>Sensors { observed_at: Instant }   // private — Instant::now() is the ONLY constructor,
+                                   // so a backend carries a stamp, it cannot write one
+
+ObservationAge                     // no Default, no From&lt;Duration&gt;, no public field.
+                                   // ObservationAge::of(&amp;Sensors) is the only way in
+
+Safety::apply(.., age: Option&lt;ObservationAge&gt;)
+                                   // by value, by type: a dispatch site with no
+                                   // observation DOES NOT COMPILE</code></pre>
+<p><strong>"I checked the age" stops being a claim a caller can make.</strong>
+<code>..Sensors::default()</code> stopped compiling in safety.rs's own tests — that is the rule working.</p>
+
+<h3>Staleness against the contract bound</h3>
+<svg viewBox="0 0 900 144" role="img" width="100%"><g transform="translate(0,0)"><text x="0" y="17" class="lbl">no injection</text><rect x="250" y="2" width="15" height="18" rx="3" fill="#4d8b6a"/><text x="270" y="17" class="val">p50 0.4 ms · walks 0.95 m · upright</text></g><g transform="translate(0,36)"><text x="0" y="17" class="lbl">--stale-sensors-ms 40</text><rect x="250" y="2" width="207" height="18" rx="3" fill="#4d8b6a"/><text x="462" y="17" class="val">p50 51.5 ms · walks 1.04 m · upright</text></g><g transform="translate(0,72)"><text x="0" y="17" class="lbl">--stale-sensors-ms 60</text><rect x="250" y="2" width="262" height="18" rx="3" fill="#8b7a4d"/><text x="517" y="17" class="val">p50 66.0 ms · walks 1.11 m · ON ITS SIDE</text></g><g transform="translate(0,108)"><text x="0" y="17" class="lbl">--stale-sensors-ms 100</text><rect x="250" y="2" width="430" height="18" rx="3" fill="#8b5a5a"/><text x="685" y="17" class="val">p50 107.8 ms · flat · odometry claims 0.67 m</text></g></svg>
+<p class="note">Contract bound <strong>80 ms = 20 ms × (COAST_TICKS+1)</strong> — derived from the loop
+rate, not chosen. The 250 ms figure on the robosuite harness is disclaimed in-repo as "an illustrative
+policy, not a hardware limit"; this one is arithmetic.</p>
+
+<table>
+<tr><th></th><th>seeded (<code>let _ = age;</code>)</th><th>repaired</th></tr>
+<tr><td>driving ticks carrying <code>stale_observation</code></td><td class="lose">0 of 273</td><td class="win">266 of 266</td></tr>
+<tr><td>displacement @100 ms stale</td><td>flat on its side</td><td>0.004 m, upright</td></tr>
+<tr><td>its own odometry reports</td><td class="lose">0.67 m of forward travel</td><td>—</td></tr>
+<tr><td>loop health</td><td>—</td><td>49.95 Hz, 0 missed ticks</td></tr>
+<tr><td>cost when healthy</td><td>walks 0.949 m</td><td class="win">walks 0.951 m — the gate is free</td></tr>
+<tr><td>tests</td><td>3 fail of 83</td><td>83 of 83</td></tr>
+</table>
+
+<h3>What this substrate cannot do</h3>
+<p>The measured balance cliff is <strong>46–66 ms</strong>, which sits <em>below</em> the 80 ms bound.
+So by the time staleness violates the contract, the duck has already fallen: there is no window where
+it succeeds while the contract fails. <strong>The "robot succeeded, contract failed" hook belongs to the
+robosuite demo, not this one.</strong> The harness measures this every run and prints
+<code>calibration: no</code>.</p>
+<p>What microduck shows instead is a robot whose <em>own self-report is wrong</em> — odometry claiming
+0.67 m of travel while it lies on its side. That is the same failure as cargo's mtime fingerprint
+returning "nothing to do" when the source changed: a cheap, fast, self-reported signal, confidently wrong.</p>
+<p class="note">No footage: capturing MuJoCo frames needs the camera/frame-port pipeline, which was not
+wired up. The full arc runs 193.89 s against the robosuite demo's 76.58 s, and three staging
+fragilities (fixed port, fixed state dir, unscoped <code>pkill</code>) are unfixed — which is why
+robosuite is the one to run live.</p>
+
+<h2>7 · The forgeries our own verifier passed</h2>
 <table>
 <tr><th>#</th><th>mechanism</th><th>it printed</th><th>status</th></tr>
 <tr><td>1</td><td>receipt asserted its own cache state</td><td><code>ratio=2.999x</code></td><td class="win">closed</td></tr>
@@ -96,7 +146,7 @@ candidates before they ever reach SIL.</p>
 <p><strong>42 guard tests · 12 forgery classes closed · 1 residue, printed by the tool itself.</strong>
 A check wins against exactly the adversary who does not control its input.</p>
 
-<h2>7 · What is not claimed</h2>
+<h2>8 · What is not claimed</h2>
 <ul>
 <li>No speedup from distribution. The measured result was negative and is above.</li>
 <li>Cross-machine cache sharing is undemonstrated — <code>BuildCache.ServiceURL</code> is empty on this grid.</li>
