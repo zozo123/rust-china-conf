@@ -36,8 +36,14 @@ body="$("$TOOL" "$@" 2>&1)"
 status=$?
 completed="$(now_ms)"
 
+# The tool name was shifted off before this point. Recording only "$*" produced
+# transcripts like `argv=-rf /path` with no indication of WHICH tool ran, which
+# made the transcript unable to evidence what it claims to evidence. Record the
+# tool and the full command line, and keep argv for backward compatibility.
 {
-  echo "# swf-cache-clear v1"
+  echo "# swf-cache-clear v2"
+  echo "tool=$TOOL"
+  echo "command=$TOOL $*"
   echo "argv=$*"
   echo "exit_code=$status"
   echo "started_at_ms=$started"
