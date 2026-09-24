@@ -1,1293 +1,756 @@
-# TALK-FINAL — the script the speaker walks on stage with
+# FINAL TALK — END TO END
 
-**How Do You Know? / 你怎么知道？**
-*A robot that succeeded while it was wrong, a proof gate that certified three fabrications, and the one Rust idea that survived.*
-*一个"成功"却全程错误的机器人，一道认证了三份伪造的证明门，以及唯一幸存的那个 Rust 想法。*
+**"A Million Compiles. One Robot Hour." · Rust China Conf**
+Repo: `/Users/yossi.eliaz/Documents/Codex/2026-09-23/thi/rust-china-conf` (branch `main`, commit `a3c35f9`, working tree carries four applied `docs/talk/` edits)
+Public site: `zozo123.github.io/rust-china-conf/`
+Status date: **2026-09-24**
 
-25 minutes + Q&A. Built 2026-09-24. Every number below was re-verified by opening the
-artifact on this machine today; the provenance line under each one names the file.
-
-**Deck subtitle strip (always visible — corrected).** The previous strip claimed one machine
-and one run for three numbers that came from three sources. Use this instead:
-
-> `250 ms` 契约常量 contract constant · `942 ms` 单文件重建 one-file rebuild (Mac, 10 cores)
-> `23,173 / 11,518 ms` IB vs native (AL6555 grid) — **两台机器 two machines, labelled on the slide where each appears**
+The operational half of this talk lives in a separate file so it can be held in one hand on stage:
+`/Users/yossi.eliaz/Documents/Codex/2026-09-23/thi/outputs/PREFLIGHT-AND-RUNBOOK.md`
 
 ---
 
-## §0. HOW THIS DRAFT DIFFERS FROM THE BRIEF — READ THIS FIRST
+## 1. TL;DR — the honest state of the evidence
 
-Two adversarial reviews both returned `refuted=true`. They were right about the two
-load-bearing claims, and I have replaced both rather than patched them. If you only read one
-section, read this one, because the talk you were handed and the talk below reach opposite
-conclusions in two places.
+**The robotics half of this talk is real, live, and reproducible. The acceleration half is not measured, and may not be measured by talk time.**
 
-**1. The 87% / 3.47-effective-cores derivation is deleted.** It divided helper CPU-seconds
-(burned on two m5.large boxes, `remoteCoreTime` 39–42 s) by initiator wall time from a
-*different machine's* native run (11,518 ms), then divided by a core count (4) that exists
-nowhere on disk outside the talk drafts themselves. It is the exact "different machines,
-single instrument" sin on the deck's own blacklist, and the talk disowned its own numerator
-six minutes later by admitting the Build History counters are unverified. **Replaced by** the
-already-committed j1-vs-j10 experiment at
-`evidence/build-exp-20260924T100157/build-proof/summary-native.txt`: one machine, one tool,
-native cargo, no vendor telemetry, 20 samples. It says something stronger and it is checkable
-by division from numbers on the slide.
+What is demonstrably true today, verified against files on disk:
 
-**2. The closing rule — "every field that is still forgeable is a field with no retained
-source document" — is false, and the repository falsifies it.** `outputs/PR-BODY.md:69–77`
-records a forgery that passes *today*, built from **ten transcripts that this repository's own
-`cache-clear.sh` produced**, whose digests `swf-cli` opens and recomputes and which it then
-describes as "10 corroborated clear transcript file(s)." Those are retained source documents.
-They are verified. It prints `ratio=119.949x` and exits 0. The rule is refuted by the artifact
-the talk points at. **Replaced by** the rule in §0.1, which survives that counter-example and
-is, I think, the better talk.
-
-**3. Several beats could not run as scripted.** `demo/forged/` does not exist. `evidence/*/`
-is `.gitignore`d at line 19 (`git ls-files evidence/` returns two files), so no run directory
-named on any slide footer is in the public repository. `docs/assets/robot-lift.mp4` is
-labelled by its own README as **fresh-lift frames** — playing it under a `stale_600ms` caption
-would be precisely the slippage this talk condemns. All three are handled below, and the
-blocking ones are in §7.
-
-**4. A fourth forgery exists and nobody had noticed it.** `demo/robot-sim/config/coverage-matrix.json`
-has `freshness_ms: [0, 50, 600]` and the threshold is 250. A candidate patch of `age_ms > 500`
-passes all seventeen "complete coverage matrix" scenarios. The boundary is pinned only in
-`tests/contract.rs` (`boundary_250ms_permits`, `boundary_251ms_rejects`), not in the matrix.
-This is a gift: it is a live forgery of the speaker's own gate, found hours before the talk,
-by someone adversarially reading the talk. It becomes a beat.
-
-### §0.1 The thesis, rewritten
-
-You asked me to test the thesis and say so if it overreaches. **It overreaches in one place
-and undershoots in another.**
-
-The brief's claim is *a check is weaker than a structure*, with the ladder ordered by cost to
-a forger, terminating in "delete the representation." That ordering is real and the talk should
-keep it. But it is the wrong **axis**, and the wrong axis is what let the closing rule get
-falsified by the speaker's own repo. The evidence is right there: rung three — *derive the
-value by opening a document and recomputing its digest* — did not stop the forger. He ran the
-repo's own recorder over a no-op script and handed the validator ten genuine documents that
-said whatever he wanted.
-
-What actually distinguishes the rung that held from the four that collapsed is not
-representability. It is this:
-
-> **Every check has an adversary it was built for, and it wins against exactly that adversary.
-> A check loses the moment the thing it examines is authored by the party it is defending
-> against. The regress does not terminate — it changes hands.**
-
-Read the five rungs by *who the adversary is and what he controls*:
-
-| rung | the question | adversary | what he controls | outcome |
-|---|---|---|---|---|
-| 1 | is the robot safe? | nobody — the contract was simply unstated | — | fixed by writing the contract down |
-| 2 | is the gate right? | the next person to edit this file | the diff only | **rustc can win this outright — he cannot author the compiler** |
-| 3 | is the benchmark real? | me | the receipt | a validator I also wrote is a mirror |
-| 4 | does the proof gate work? | me | the receipt **and the recorder** | rung three raises his price only if he does not own the recorder. He does. Still open. |
-| 5 | is Incredibuild slower? | my own ignorance | my reading of the manual | beaten only by outside parties: the vendor's help text, and four hundred people doing division |
-
-This makes it a **Rust** talk rather than a testing talk in a way the original framing could
-not. Rust's type system is not a better check. It is a check whose evidence is authored by a
-party your adversary does not control — and whose adversary is the one you actually have most
-of the time: **the next contributor, who controls only the diff.** Against him, a type is
-decisive, permanent and free. Against *yourself writing your own receipt*, no in-process
-mechanism works at all, and the whole of `swf-cli` is 3,811 lines of proof of that.
-
-The corrected, still-testable prediction to give the audience:
-
-> **Old (falsified tonight):** the forgeable fields are the fields with no retained source document.
-> **New:** the forgeable fields are the fields whose evidence *the same party authors*.
-> **Test it on your own CI on the flight home:** list every claim your pipeline prints; beside
-> each, name who authored the evidence for it. Where that name is your own team, the check is
-> a mirror — no matter how many digests it recomputes.
-
-And the honest limit, said out loud: rung four — *evidence authored by a party the forger does
-not control* — appears **nowhere** in my repository. Nothing is signed. No transcript is bound
-to a machine, a user or a clock anyone else attests. rustc is the only rung-four instrument
-anywhere in this project, and it only guards the source, not the receipt.
-
-### §0.2 The build half, rewritten
-
-Distribution sells you **parallelism**. Here is how much parallelism this workload has, measured
-on one machine with one tool, 20 samples, committed:
-
-```
-cold  -j1   22,861 ms   |  cold  -j10   6,976 ms   →  3.277x  on 10 cores
-warm  -j1    1,016 ms   |  warm  -j10     942 ms   →  1.079x  on 10 cores
-                                    (warm = one file changed, the safety-gate patch)
-evidence/build-exp-20260924T100157/build-proof/summary-native.txt
-```
-
-Two findings, both mine, both local, both unfalsifiable by a vendor:
-
-1. **The cold build saturates at ~3.3x no matter how many cores you own.** Ten cores bought
-   3.28x. The limit is the dependency graph's critical path, not the core count. So the honest
-   ceiling for *any* distributor on this workload is about 3.3x — not the 2.3x the brief
-   computed from a core count that does not exist, and certainly not linear scaling.
-2. **The loop that actually matters has no parallelism at all.** Change one file, rebuild: 1.079x
-   from ten cores. That loop is essentially serial. Distribution's entire product is
-   parallelism. On the turn of the loop where a safety bug gets found and fixed, **there is
-   nothing to sell me.**
-
-Which leaves exactly one lever: **do less work.** Two ways to do less work — cache it (which
-is Incredibuild's *other* knob, one word in a profile) or make the bug impossible so the loop
-never turns (which is what a type does). That is the join between the two halves of this talk,
-and it is derived entirely from committed numbers.
-
-And the number that replaces the 230 ms punchline, because the punchline was wrong: the best
-measured one-file rebuild is **942 ms**, which is **3.8 freshness budgets**. The rebuild never
-fits inside the interval it protects. It never will. That is a more interesting finding than
-the one I wanted, and it is the reason the *type* matters more than the *speed*.
-
----
-
-## §1. THE TALK IN ONE SENTENCE, AND THE OPENING LINE
-
-**One sentence.** Ask "how do you know?" of any claim my repository makes and the answer is
-another claim I also wrote — a regress that does not terminate, that my own proof gate lost
-four times in one day and is still losing tonight — and the way out is not more checking but
-moving the evidence to a party the forger does not control, which is the one thing Rust's type
-system does for free, against the one adversary you actually have: the next person to touch
-the file.
-
-**Opening line — verbatim, unchanged from the brief. It is the best sentence in any draft.**
-
-> **EN:** "The robot lifted the cube. It succeeded. And it was wrong the whole time — I'll show
-> you how I know, and then I'll show you why that 'how I know' isn't good enough either."
-
-> **中文（逐字）：**"机器人举起了方块。任务成功了。而它全程都是错的——我先告诉你我是怎么知道的，
-> 然后再告诉你，这个'怎么知道'为什么也不够。"
-
-**Closing line — verbatim, rewritten. The brief's version asserts a rule the repository
-falsifies and invites the audience to clone artifacts that are `.gitignore`d.**
-
-> **EN:** "A check asks a value to be honest. A structure asks the forger for a document. And
-> tonight my repository proves that neither ends the regress — because the forger ran *my*
-> recorder, handed *my* validator ten real documents with real digests, and it printed a
-> hundred and nineteen times faster and exited zero. So here is the rule I can actually
-> defend, and you can test it on your own pipeline on the flight home: **write down every
-> claim your CI prints, and beside each one write the name of whoever authored the evidence.
-> Where that name is your own team, the check is a mirror.** Rust does not end the regress
-> either. What Rust does is give you one instrument whose evidence you did not author —
-> against the adversary you actually have, which is not a forger, it is the next person to
-> touch this file in a hurry, at five o'clock. The compiler holds that door for every
-> contributor who comes after you, and it never gets tired. I would rather one of you forge a
-> fourth receipt class tonight than have me trust that number one more day."
-
-> **中文（逐字）：**"一个检查，是在请求一个值说实话；一个结构，是在向伪造者索要一份文档。而今晚，
-> 我的仓库证明了两者都终结不了这个回归——因为伪造者用的是**我的**记录器，交给**我的**校验器十份
-> 带真实摘要的真实文档，它打印出'快一百一十九倍'，然后退出码零。所以，我真正能站得住的规则是这
-> 一条，你在回程飞机上就能拿去检验自己的流水线：**把你的 CI 打印的每一条声明写下来，在每一条旁
-> 边写上——这份证据是谁写的。凡是写着你自己团队名字的地方，那个检查就是一面镜子。** Rust 也终结
-> 不了这个回归。Rust 给你的，是一件证据不由你书写的仪器——用来对付你真正面对的那个对手：他不是
-> 伪造者，他是下一个在下午五点匆忙改这个文件的人。编译器替此后每一个贡献者守住那扇门，而且它从
-> 不疲倦。比起让我再多信那个数字一天，我更希望你们当中有人今晚就伪造出第四类收据。"
-
-*Note on the cut:* the brief's "Go delete a field" was already removed and stays removed —
-§0.1 establishes that deleting a field is not the top rung. The brief's "the forged receipts
-are in it, including the one I cannot catch" is also removed unless §7-A lands; see §6.
-
----
-
-## §2. BEAT SHEET — minute by minute
-
-Each beat: **SCREEN** / **SAY** (real sentences, speak them) / **LIVE** / **FALLBACK**.
-
----
-
-### 0:00–2:00 — COLD OPEN. The robot succeeded.
-
-**SCREEN.** No replay video. One full-bleed monospace block — the artifact itself, pasted from
-`evidence/local-e2e-20260924T125134-runner-a/scenario-results.json`:
-
-```json
-{ "scenario": "stale_600ms",
-  "backend":  "robosuite 1.5.2 / mujoco 3.9.0",
-  "outcome":  "cube_lifted",
-  "success":  true,
-  "task_dispatches": 4,
-  "decisions": 4,
-  "rejections": [],
-  "ticks": 69,
-  "wall_time_ms": 2066 }
-```
-Footer, small: `evidence/local-e2e-20260924T125134-runner-a/scenario-results.json ·
-github.com/zozo123/rust-china-conf`
-No agenda slide. No bio slide.
-
-> **Why this and not the replay.** `docs/demo/index.html` is titled `run ec2-e2e-20260923-160725`
-> — *yesterday's* run, whose stale episode is `ticks=65, wall=13469` — and its own copy says
-> "Arm poses and playback pacing are schematic, not a MuJoCo video." Overlaying today's
-> `ticks=69 / 2066 ms` on it would put two of five opening numbers in disagreement with the
-> thing under them. And `docs/assets/robot-lift.mp4` cannot rescue it: its README says it is
-> **fresh-lift** frames, not the stale episode. The JSON *is* the evidence. Open on the
-> evidence.
-
-**SAY.**
-> The robot lifted the cube. It succeeded. And it was wrong the whole time — I'll show you how
-> I know, and then I'll show you why that "how I know" isn't good enough either.
->
-> This is a Panda arm in robosuite and MuJoCo, software-in-the-loop. I am saying
-> software-in-the-loop out loud because there is also a kinematic mock in this repository and
-> the difference matters — that string, `robosuite 1.5.2 / mujoco 3.9.0`, is how the run tells
-> you which one it was.
->
-> Four segments proposed: approach, descend, grasp, lift. Four dispatched. Four decisions.
-> Zero rejections. Sixty-nine ticks. Two thousand and sixty-six milliseconds, end to end.
-> Success equals true.
->
-> I am going to ask you one question five times in the next twenty-three minutes. How do you
-> know? The first answer is the one on this screen: the task succeeded. Hold on to how
-> convincing that feels. In ninety seconds I am going to take it away from you — and then I am
-> going to take away the thing that took it away.
-
-**LIVE.** None. This is a slide, deliberately. If you want motion, `jq . <that file>` in a
-terminal and let it print.
-
-**FALLBACK.** Not applicable — it is a slide of a file.
-*Optional B-roll only if you want a moving image later, at 5:30, never here, and only with
-this exact caption:* `遥测回放（示意机械臂）/ telemetry replay — schematic arm, real decisions,
-run ec2-e2e-20260923-160725`.
-
----
-
-### 2:00–4:00 — FLOOR ONE GIVES WAY. Same run, contract verdict red.
-
-**SCREEN.** Split.
-Left, red:
-```
-PROTECTED VERDICT: FAIL (1 scenario(s) failed verification)
-  FAIL  stale_600ms: outcome 'cube_lifted' != expected 'rejected_stale'
-
-test result: FAILED. 5 passed; 3 failed
-  boundary_251ms_rejects · configured_threshold_is_respected · stale_ages_are_rejected
-```
-Right, source, line numbers visible:
-```rust
-//    SEEDED REGRESSION (conference fixture): the check is intentionally
-//    omitted on this revision. The required contract is:
-//      age_ms <= policy.max_observation_age_ms  ->  Permit
-//      age_ms >  policy.max_observation_age_ms  ->  Reject(StalePerception)
-    let _ = (age_ms, policy);
-    Decision::Permit
-```
-Footer: `rust/crates/robot-safety-gate/src/lib.rs:147 — 本演讲中唯一的行号 the ONE line number in this deck`
-ZH caption: `植入的实现缺少第 3 项检查 — 每段派发前，观测年龄须 ≤ 250 ms`
-
-**SAY.**
-> Here is the same evidence, the same run, read by the protected verifier instead of by the
-> task. Fail. One scenario. Outcome `cube_lifted` where the contract required `rejected_stale`.
->
-> The contract has three rules. A simulated stop always wins. A capture timestamp in the future
-> is invalid. And rule three: at segment dispatch, the observation may be at most two hundred
-> and fifty milliseconds old.
->
-> This revision computes the age. And then it does this. [point]
->
-> `let underscore equals age_ms, policy`. The age arrives. The policy is in scope. Both are
-> thrown away — by an idiom whose entire purpose is to tell the compiler to stop complaining
-> about values you are not using.
->
-> The compiler was happy. That is a legal Rust program. Eight contract tests: five pass, three
-> fail, with real panic text — age two hundred and fifty-one milliseconds must be rejected as
-> stale; left: Permit.
->
-> Remember line one hundred and forty-seven. I am coming back to it at minute twenty-one,
-> because it is the one place in this talk where rustc could have saved us and we did not let
-> it.
->
-> So: task success is one check. It is not the check.
-
-**LIVE.** Two commands, both offline, both against committed evidence — no simulator, no network:
-```
-scripts/robot-demo/validate.sh local-e2e-20260924T125134-runner-a --scenario stale_600ms   # exit 1
-sed -n '138,149p' rust/crates/robot-safety-gate/src/lib.rs
-```
-Both are sub-second (I timed the first at 0.196 s on this machine today). **Do not put a
-stopwatch figure on the slide** — the brief's 0.87 s belongs to a different command (the full
-runner-B validation inside the rehearse log), and neither reproduces it standalone.
-
-**FALLBACK.** Safest live beat in the talk. If `cargo`'s target dir is cold, do **not** run the
-contract tests live — show the captured `5 passed; 3 failed` block. Never say "the protected
-matrix failed on runner A": `verify_run.py` calls single-scenario mode a diagnostic, and the
-matrix was never run against runner A.
-
----
-
-### 4:00–5:30 — THE BRIDGE. Two clocks that will never meet.
-
-**SCREEN.** Two numbers, then one division, done in front of the room:
-
-```
-robot:     250 ms   观测时效预算 freshness budget   ( = 5 ticks at this demo's 20 Hz )
-me:        942 ms   改一个文件后的重建 one-file rebuild, median of 5, 10 cores
-           942 / 250 = 3.8     每一次循环 = 3.8 个时效预算
-```
-Provenance, small: `demo/robot-sim/acceptance/verify_run.py:18–19 (MAX_AGE_MS=250, TICK_NS=50_000_000)` ·
-`evidence/build-exp-20260924T100157/build-proof/summary-native.txt (warm-j10 median 942 ms, range 915–984)`
-Side panel, four facts only: `microduck (pollen-robotics) — 23 workspace members · 576 locked
-packages · ~117k lines of Rust · robotd 50 Hz = 20 ms period, and it reports its own missed
-ticks: "loop 50.0 of 50.0 Hz · 721 ticks · 3 missed"`
-
-**SAY.**
-> Before I go further I owe you one division, because otherwise this is two talks stapled
-> together.
->
-> First, where does two hundred and fifty milliseconds come from? From me. It is a demo
-> constant, and the source file says so in a doc comment: "an illustrative demo value, not an
-> established safe threshold for physical robots." I am telling you that because I was about to
-> let you assume otherwise.
->
-> But here is what makes it not arbitrary. On the arm you just watched, the simulation tick is
-> fifty milliseconds — twenty hertz — so two hundred and fifty milliseconds is five ticks.
-> And this morning I read microduck, Pollen Robotics' Rust biped firmware: twenty-three
-> workspace members, five hundred and seventy-six locked packages, a hundred and seventeen
-> thousand lines of Rust. Its control daemon runs at fifty hertz. Twenty-millisecond period. On
-> *that* robot my threshold is twelve and a half missed control cycles — which does not
-> legitimise my number, it indicts it. My demo threshold is twelve and a half cycles too
-> generous. Note the direction of that correction, because it is the direction every correction
-> in this talk goes.
->
-> Now the second clock. Change one file in this repository and rebuild: nine hundred and
-> forty-two milliseconds. That is the median of five, on ten cores, and it is the fastest
-> honest number I have. Divide it by the robot's budget. Three point eight.
->
-> The compiler is not in the control loop. The compiler is in the loop that finds the bugs in
-> the control loop — and the best turn of that loop is almost four times the entire interval
-> in which the robot is allowed to believe what it sees. Those two clocks are never going to
-> meet. Hold that, because at minute twenty-one it is the whole argument.
-
-**LIVE.** None. Do the division on the slide or a whiteboard. Deliberately wifi-proof.
-
-**FALLBACK.** Not applicable by design.
-
-> **Cut from the brief, and why:** the `11,518 / 250 = 46` and `11,518 / 20 = 576` divisions
-> are gone. 11,518 ms is AL6555 (Linux grid, no robosuite venv — its own preflight log line 7
-> reads `warn no sim venv — robosuite backend unavailable, mock backend only`), while the robot
-> numbers are from the Mac. Welding the halves with a number from the box that cannot run the
-> robot half is the banned "different machines" move. And `576 control cycles` collided with
-> microduck's `576 locked packages` on the same slide — pure coincidence, reads as numerology.
-
----
-
-### 5:30–7:30 — The obvious answer: machinery. And it works. Let the floor feel solid.
-
-**SCREEN.** Three panels.
-1. `check-patch.py` — 47 lines. `ALLOWED_PATH = "rust/crates/robot-safety-gate/src/lib.rs"`, an
-   allowlist of exactly one file; refuses new-file/mode/rename/copy headers, and refuses binary
-   patches via `git apply --numstat -z`.
-2. contract `8/8` · matrix **17 scenarios, 17 PASS / 0 FAIL** ·
-   `PROTECTED VERDICT: PASS (17 scenarios)`
-3. `sha256 72e2694ebc0e…881a45` == `manifest.json` == `.sha256` sidecar == recomputed live.
-
-Timing strip: `preflight 2.35 s → robosuite handshakes 2.06 s / 1.23 s → 17-scenario matrix
-36.17 s (episodes sum to 35,560 ms; 1,341–9,519 ms each; the 9,519 is protocol_timeout, an
-intentional timeout) → full rehearsal arc 76.58 s = 21.3% of a 360 s budget`
-Provenance: `outputs/DEMO-RESULTS.md:470–482, from rehearse log timestamps 1790243508.602 → 1790243585.182`
-
-**SAY.**
-> So you do what everyone in this room would do. You stop trusting the claim and you build
-> machinery.
->
-> The agent may propose an implementation change. It may not redefine what passing means.
-> `check-patch.py` is forty-seven lines of Python holding an allowlist of exactly one path — the
-> gate implementation — and it refuses file creations, mode changes, renames and binary patches.
-> The acceptance tests, the simulator and the verifier are outside the patch by construction,
-> not by politeness.
->
-> The bounded patch lands. Contract goes eight of eight. The matrix — five cube placements
-> crossed with three freshness levels, plus emergency stop, plus protocol timeout — seventeen
-> scenarios, seventeen pass. And the verifier re-derives the verdict from the recorded trace
-> against a manifest bound to a sha-two-five-six-identified executable. That digest matches the
-> manifest, matches the sidecar, and recomputes in front of you.
->
-> Build, fail, patch, rebuild, run the matrix, verify: seventy-six and a half seconds. Twenty-one
-> percent of a six-minute budget, which is the only reason you are watching any of it live.
->
-> That is a good answer. I believed it. Notice how much better it feels than green
-> `success = true` did — and notice that the entire reason it feels better is that a machine
-> said it. Hold on to *that* too, because at minute fourteen I am going to come back and show
-> you that this matrix does not check what you just assumed it checks.
-
-**LIVE.**
-```
-python3 scripts/robot-demo/check-patch.py demo/fallback-patch.diff
-  -> candidate allowlist passed: rust/crates/robot-safety-gate/src/lib.rs   (exit 0)
-scripts/robot-demo/validate.sh local-e2e-20260924T125134-runner-b
-  -> 17 PASS lines, PROTECTED VERDICT: PASS, exit 0   (offline, ~0.13 s on this machine)
-```
-
-**FALLBACK.** Both offline and fast; the realistic failure is a mistyped run id — put both lines
-in shell aliases before the talk, **with the `-runner-a` / `-runner-b` suffix**, because the
-bare run id does not exist as a directory and `verify_run.py:190` requires `run_id` to equal
-the directory name. Say "rehearsal coverage"; do not imply the matrix just ran live unless it
-did. Do not attempt the full 76.58 s arc here. Say **"seventeen scenarios, seventeen pass"** —
-not "zero infrastructure failures," which is `swf-cli`'s matrix-runner wording, not the
-verifier's, and stacking them implies one tool said both.
-
----
-
-### 7:30–8:30 — Same question, one rung up: how do you know the BENCHMARK is real?
-
-**SCREEN.** One green terminal block, alone on black, uncommented:
-```
-$ swf-cli robot-demo build-proof --receipt receipt.json --min-samples 5
-BUILD PROOF PASS ... measured ratio=2.999x vs native; saved=14000ms
-exit=0
-```
-
-**SAY.**
-> Now the same question, one rung up. I claimed a build number. How do you know the benchmark
-> is real?
->
-> Same answer as before: don't trust the claim, build machinery. So we wrote a proof gate. It
-> is Rust — this is a Rust conference, so Rust owns the proof path, not just the control path.
-> `swf-cli` parses Incredibuild's Build History response and its cache statistics. Eight
-> fail-closed conditions. Zero remote tasks: fail. Zero remote core time: fail. Ambiguous
-> counters: fail. A warm sample with no cache hits: fail.
->
-> Here is what it printed. Build proof pass. Measured ratio: two point nine nine nine times
-> faster than native. Fourteen seconds saved. Exit zero.
->
-> That receipt is a fabrication. I wrote it. It took about a minute.
-
-**LIVE.** Nothing. Let the block sit in silence for a beat after the last sentence.
-
-**FALLBACK.** None needed; it is a slide.
-
----
-
-### 8:30–12:00 — FLOOR TWO. Three forgeries of our own proof gate. One still open tonight.
-
-**SCREEN.** Three rows, one at a time. Columns: `伪造 Forgery | 校验器检查了什么 What it checked
-| 它打印了什么 What it printed | 状态 Status`.
-
-1 **TAUTOLOGY** — `BuildProof` was *constructed* with `cache_scope` and both `cache_cleared_*`
-fields as literals; `validate_build_proof` then read those literals back. 3 of 8 fail-closed
-conditions could never fire. → `BUILD PROOF PASS … ratio=2.999x; saved=14000ms` (exit 0) →
-**FIXED BY DELETING THE FIELDS**
-
-2 **THE FIX MOVED THE HOLE** — `check_clear_usable` verified `transcript_sha256` was 64 hex
-characters and `transcript_path` non-empty. It never opened the file. Receipt named
-`/tmp/does-not-exist.txt`, digest = 64 zeros. → `BUILD RECEIPT CONSISTENT … ib-parent-warm
-ratio=11.948x; saved=7116ms` (exit 0) → **FIXED BY OPENING AND RECOMPUTING** (now exits 1:
-`transcript /tmp/does-not-exist.txt is not present at its recorded path`)
-
-3 **STILL OPEN, 2026-09-24** — after proof-time transcript verification landed (`swf-cli` opens
-each transcript, recomputes its sha256, cross-checks the parsed header; suite 8 → 17 → **42**,
-clippy clean): **ten transcripts produced by this repository's own `cache-clear.sh` wrapping a
-three-line script that prints a purge message and touches nothing**, plus a hand-typed receipt →
-```
-BUILD RECEIPT CONSISTENT  run=forged-run
-ib-parent-warm  measured ratio=119.949x vs native; saved=833000ms
-cache scope re-derived from 10 corroborated clear transcript file(s): local-user
-```
-exit 0. → **OPEN**
-
-Footer, red: `3 of 8 = 37.5% 的那道门是装饰。这不是免责声明，这就是这场演讲。`
-Provenance: `outputs/PR-BODY.md:69–77`
-
-**SAY.**
-> This is the part of the talk I was tempted to put on a caveat slide near the end. It is not a
-> caveat. It is the talk. Three times in one day, the tool we built to catch unverified claims
-> made one.
->
-> Forgery one: the tautology. The receipt carried a boolean —
-> `cache_cleared_before_each_cold_sample, true` — and that boolean was written as a literal by
-> the same code path that assembled the receipt. Then the validator read it back and pronounced
-> the run valid. Three of eight fail-closed conditions could never fire. Not rarely. Never.
-> Thirty-seven percent of that gate was decoration. It was checking that the receipt agreed
-> with itself.
->
-> Forgery two, and this is the one I want you to remember, because it is the one everybody's
-> fix looks like. We introduced transcripts. Real files, real digests. And the validator checked
-> that the digest was sixty-four hexadecimal characters and that the path was non-empty. It
-> never opened the file. So I handed it a receipt pointing at slash-tmp-slash-does-not-exist-dot-txt
-> with a digest of sixty-four zeros, and it printed: build receipt consistent, eleven point
-> nine four eight times faster, seven thousand one hundred and sixteen milliseconds saved, exit
-> zero. Nothing was invented but JSON fields.
->
-> The fix did not close the hole. It moved it.
->
-> So we did the thing this talk is supposedly about. We stopped asking the receipt and started
-> asking the filesystem. `swf-cli` now opens every transcript, recomputes its digest, and
-> cross-checks the parsed header against the receipt. The suite went from eight tests, to
-> seventeen, to forty-two — every new one named for the forgery it refuses. And the original
-> fabrication now exits one and names the missing file.
->
-> [beat]
->
-> And here is forgery three, which is open, tonight, and which is the reason the thesis I came
-> here with is wrong.
->
-> The forger ran **my** recorder. `cache-clear.sh`, from this repository, wrapping a three-line
-> script that prints a purge message and touches nothing. Ten real transcripts. Real digests.
-> My validator opened all ten, recomputed all ten, and described them — its words — as "ten
-> corroborated clear transcript files." Then it printed: a hundred and nineteen point nine four
-> nine times faster. Exit zero.
->
-> Every one of those documents is real. Every digest is genuine. And the number is furniture.
->
-> And one smaller thing, which is the most humiliating of the four. `cache-clear.sh` wrote
-> `argv equals dollar-star` *after* the tool name had already been shifted off. So every
-> transcript we were about to build a proof on read `argv equals dash-r-f slash-path`. The
-> document whose entire job was to say what ran could not say what ran. It is version two now,
-> with an explicit tool field and an explicit command field.
->
-> So — how do you know the proof gate works? I don't. That is the second floor, and it is gone.
-
-**LIVE.** Only if §7-A has landed and `demo/forged/` is committed:
-```
-swf-cli robot-demo build-proof --receipt demo/forged/receipt-noop-transcripts.json --min-samples 5 ; echo "exit=$?"
-head -20 demo/forged/transcripts/clear-01.txt      # a real transcript of a script that does nothing
-```
-**Do not** run the brief's `receipt-zeros.json`: today's binary *refuses* it, by a passing test
-named `the_receipt_that_printed_ratio_11_948x_from_invented_fields_is_now_refused`. Running it
-would print the opposite of the narration.
-
-**FALLBACK.** Put both terminal blocks on the slide verbatim. `cargo test -p swf-cli` is **not**
-run live (the tree has `swf-cli/src/main.rs` modified). The wifi-proof version of the punchline
-is the three-line no-op script, printed on the slide next to the digest it produced.
-
----
-
-### 12:00–14:30 — FLOOR THREE. Our own negative measurement was wrong too. It is still negative.
-
-**SCREEN.** Table, plain, headed `AL6555 Linux 网格发起端 grid initiator — NOT the Mac above`:
-```
-native           median 11,518 ms   range 11,409–11,605
-ib-cold          median 23,173 ms   range 22,681–24,251   = 2.01× native, SLOWER
-ib-parent-warm   median 22,297 ms   range 21,807–22,489   = 1.94× native, SLOWER
-```
-`5 samples per mode, rotating order · 45 packages in Cargo.lock, ~52 compilation units, one rustc per crate`
-Below, from Incredibuild's own Build History for those exact builds:
-`numberOfRemoteTasks=50 · numberOfLocalTasks=10 · remoteCoreTime 39–42 s · localCoreTime=0 ·
-totalWorkingHelpers=2 · maxBusyHelpersCores=4 · maxInitiatorCores=0 · avgInitiatorCores=0`
-Then, last, white on black:
-```
--f, --force-remote [level]  - force allow_remote tasks to remote helpers
-```
-(No source line number on this slide — the harness was restructured today and the brief's
-`ib-benchmark.sh:176` is already stale.)
-
-**SAY.**
-> Let me now do to myself what I have spent ten minutes doing to my tools.
->
-> We measured Incredibuild against native cargo. One machine, five samples per mode, rotating
-> order, so it is not a warm-up artifact. Native: eleven thousand five hundred and eighteen
-> milliseconds, median, in a tight range. Incredibuild cold: twenty-three thousand one hundred
-> and seventy-three. Two point zero one times native. Slower. Parent-warmed: one point nine
-> four times. Also slower.
->
-> I work at Incredibuild. That number stays on the slide.
->
-> And distribution genuinely happened — this is not a misconfiguration where nothing ran. Their
-> own Build History: fifty remote tasks, thirty-nine to forty-two seconds of remote core time,
-> two working helpers.
->
-> Then we read the help text. [reveal] Dash f. Force remote. Our benchmark script passed it
-> unconditionally. And now look back at the telemetry: max initiator cores — zero. Average
-> initiator cores — zero. Local core time — zero. That is not a curiosity. That is that flag,
-> recorded, in the vendor's own numbers.
->
-> Force-remote does not add remote capacity. It replaces local capacity. The initiator's own
-> cores sat at zero while every task crossed a network onto four helper cores — that is
-> `maxBusyHelpersCores`, also in their telemetry, also four. We had not measured Incredibuild.
-> We had measured four remote cores replacing every local one, shipping multi-megabyte rlibs
-> over a wire.
->
-> The result is still negative and I am not walking it back. But the number was not measuring
-> what the sentence next to it said it was measuring — which is precisely the failure I have
-> spent ten minutes accusing my own tools of. Third time today. And all three times it landed on
-> the people who built the thing that was supposed to catch it.
->
-> And I want to take one more thing away from myself here, because I rehearsed a version of
-> this talk that claimed a win. Our proof gate refused to certify this run — it printed
-> "ib-cold sample one was not empty-cache, hits equals one," and exited one. I was going to
-> tell you the gate worked, once. It did not. Cargo runs `rustc -vV` twice per build; the second
-> hits the entry the first stored. `hits=1` on a properly emptied cache is the unavoidable floor
-> for Rust, and the repository now ships a flag documenting exactly that. The gate did not catch
-> a defect. It misfired on a known artifact, and I was about to sell you the misfire as a
-> success. Call that three and a half.
-
-**LIVE.**
-```
-grep -ni "force.remote" scripts/robot-demo/ib-benchmark.sh
-```
-prints line 117 (the help-text quotation), 124–128 (`IB_FORCE_REMOTE` **defaults to 0** — it is
-no longer the default), and 157–159 (it now refuses to combine with cache-only). Use `-i` and
-the dot: the brief's `grep -n "force-remote"` misses the uppercase variable and shows less than
-the narration promises.
-
-**FALLBACK.** Screenshot the grep output beforehand. **Never hardcode a line number here.**
-
----
-
-### 14:30–16:00 — FORGERY FOUR, found last night, in the thing I just told you to trust.
-
-**SCREEN.**
-```
-demo/robot-sim/config/coverage-matrix.json
-    "freshness_ms": [ 0, 50, 600 ]
-
-阈值 threshold: 250        →  边界 boundary: 250 / 251
-```
-Then, in red:
-```rust
-// passes all 17 "complete coverage matrix" scenarios:
-if age_ms > 500 { Reject(StalePerception) } else { Permit }
-```
-Below, in green: `边界确实被钉住了——但钉在别处 The boundary IS pinned — somewhere else:
-rust/crates/robot-safety-gate/tests/contract.rs :: boundary_250ms_permits, boundary_251ms_rejects`
-
-**SAY.**
-> Ten minutes ago I showed you seventeen green PASS lines and the phrase "complete coverage
-> matrix," and I watched the room relax. Here is what that matrix actually tests for freshness:
-> zero milliseconds, fifty milliseconds, six hundred milliseconds. The threshold is two hundred
-> and fifty.
->
-> So a candidate patch that rejects at *five hundred* — twice the contract, a robot allowed to
-> act on half a second of stale perception — passes all seventeen. Zero fails. Complete
-> coverage matrix. Green.
->
-> I did not find this. Somebody adversarially reading *this talk* found it, last night, and it
-> is the fourth forgery of my own gate in twenty-four hours.
->
-> Now the honest part, because it cuts both ways. The boundary *is* pinned — two-fifty permits,
-> two-fifty-one rejects — in `tests/contract.rs`. Those are two of the three tests that were red
-> on the second slide of this talk. So the system catches it. The *matrix* does not, and the
-> matrix is what I put the word "complete" next to and what I showed you seventeen green lines
-> of.
->
-> Which is exactly the taxonomy I am about to give you. A matrix over three sampled values is a
-> check on values. And a check on values is only as good as the values somebody thought to put
-> in the list.
-
-**LIVE.**
-```
-python3 -c "import json;print(json.load(open('demo/robot-sim/config/coverage-matrix.json'))['freshness_ms'])"
-grep -n "fn boundary_2" rust/crates/robot-safety-gate/tests/contract.rs
-```
-
-**FALLBACK.** Both lines on the slide. This beat has no runtime dependency worth risking.
-
-> **Cost:** 90 seconds, taken from 5:30 (which drops from 2:30 to 2:00) and from 16:00. It is
-> worth it: it is the only beat where the speaker is caught *during the writing of the talk*,
-> and it earns the taxonomy that follows.
-
----
-
-### 16:00–18:30 — The rung that held, and why. Two speedups, one machine, one tool.
-
-**SCREEN.** Worked one line at a time. Header: `同一台机器，同一个工具，20 个样本 · one machine,
-one tool, 20 samples · evidence/build-exp-20260924T100157/build-proof/summary-native.txt`
-```
-cold  -j1   22,861 ms      cold  -j10   6,976 ms      →  3.28×   on 10 cores
-warm  -j1    1,016 ms      warm  -j10     942 ms      →  1.08×   on 10 cores
-                                  warm = 改一个文件 one file changed
-```
-Then, large:
-```
-冷构建的并行度封顶在 ~3.3×，与核数无关。 The cold build saturates at ~3.3×, whatever the core count.
-真正重要的那个循环，并行度 = 1.08×。   The loop that matters has 1.08× of parallelism in it.
-```
-Caption: `分发卖的是并行度。这个工作负载已经没有并行度可卖了。 Distribution sells parallelism. This
-workload has none left to sell.`
-
-**SAY.**
-> So what survived? One thing did. Not a gate, not a green check — a measurement with no vendor
-> in it.
->
-> Same machine, same tool, twenty samples. Build this workspace cold on one core: twenty-two
-> point eight seconds. On ten cores: six point nine eight. Three point two eight times.
->
-> Ten cores bought me a three-point-three-times speedup. Which means the limit is not the cores.
-> It is the shape of the dependency graph — forty-five packages, one rustc per crate, a deep
-> chain and a long pole through it. Give me a hundred cores and I get about the same number.
->
-> Now the second row, which is the one that ends the argument. Change one file — the safety gate,
-> the patch you watched land — and rebuild. One core: one thousand and sixteen milliseconds. Ten
-> cores: nine hundred and forty-two. One point zero eight times.
->
-> The loop I actually live in, the one that turns every time I fix a safety bug, is **serial**.
-> There is essentially nothing in it to spread across machines.
->
-> A distributor's entire product is parallelism. On my cold build there is three point three
-> times of it and cargo already takes it. On my warm build there is none. That is not a criticism
-> of Incredibuild's engineering — it is arithmetic about my dependency graph, and I could have
-> done it before I booted a single helper. We just didn't do the arithmetic first.
->
-> And now the question that matters for the rest of this talk: **why did this rung hold when four
-> machine-checked answers didn't?** Not because I am more trustworthy than my own validator. Look
-> at what is actually holding it up. Two numbers from the same instrument, and a division you are
-> doing in your heads right now — four hundred of you, none of whom work for me. To move this
-> number I would have to move both rows consistently, past a room that is already checking my
-> arithmetic.
->
-> **You are the validator. And you cost more to fool than mine did — because I don't own you.**
->
-> That is the shape of the answer. It was never certainty. It was always: who authored the
-> evidence.
-
-**LIVE.** None — do the division on the slide or the whiteboard. This is the deliberately
-wifi-proof centre of the talk: if every terminal in the room dies, this beat and the close
-still carry it.
-
-**FALLBACK.** Not applicable by design. Under no circumstances re-run the benchmark live.
-
-> **Deleted from the brief and why (say it in Q&A if asked):** the `40,000 / 11,518 = 3.47
-> effective cores, 87% efficiency` derivation is gone. Its numerator is CPU burned on two
-> m5.large helpers; its denominator is wall time from a different machine's native run; and its
-> divisor — four initiator cores — is recorded nowhere on disk. It also needed helper cores and
-> local cores to be the same speed, which the very next beat denied. The `perfect 8-core = 5,000
-> ms → 2.3× ceiling` is gone with it: the retained telemetry says `maxBusyHelpersCores=4`, there
-> was never an eighth core, and this graph does not scale linearly anyway — which is exactly what
-> the 3.28× row proves.
-
----
-
-### 18:30–20:30 — THE LADDER, re-axised. Who authors the evidence?
-
-**SCREEN.** Four rungs, forger on the right:
-```
-0  ASSERT A VALUE        cache_cleared_before_each_cold_sample: true
-                         → anyone who writes the struct                      (one keystroke)
-1  CHECK THE VALUE       the validator reads that boolean back
-                         → the same person, the same keystroke — it is his literal
-2  CHECK THE SHAPE       64 hex chars, non-empty path, file never opened
-                         → anyone willing to type 64 zeros                    (a rewrite)
-3  DERIVE FROM A DOCUMENT swf-cli opens the transcript, recomputes sha256, parses the header
-                         → anyone who OWNS THE RECORDER.   ← 我们就停在这里 WE STOPPED HERE
-                            (that is forgery three: 10 real files, 10 real digests, exit 0)
-4  EVIDENCE YOU DID NOT AUTHOR   a signature, a countersignature, an instrument someone else runs
-                         → 本仓库里没有任何东西在第 4 级。NOTHING IN THIS REPO IS ON RUNG 4.
-                            except rustc, and rustc only guards the source.
-```
-Below, red: `留存文档 ≠ 可信文档。问题不是有没有文档，而是文档是谁写的。`
-`A retained document is not an independent document. The question is not whether evidence exists.
-It is who authored it.`
-
-**SAY.**
-> Here is the shape I promised, and here is where every fix we made today actually sits. And I
-> have re-drawn it since I wrote the abstract, because the abstract was wrong.
->
-> Rung zero: assert a value. The receipt says cache cleared, true. One keystroke.
->
-> Rung one: check the value. Add a validator that reads the boolean. This is what everybody does,
-> and it bought exactly nothing, because it was reading a literal we had written ourselves. Same
-> person. Same keystroke.
->
-> Rung two: check the shape. Sixty-four hex characters. Now he needs sixty-four zeros instead of
-> the word true. We moved the hole about an inch.
->
-> Rung three: stop letting the value be asserted at all. Delete the field. The only way such a
-> value comes into existence is that `swf-cli` opens a transcript, recomputes its digest and
-> parses its header. And I came here to tell you that this is where the ladder ends.
->
-> It is not. It is where *we* stopped. Because rung three only costs the forger a document — and
-> if he owns the recorder, my repository hands him ten. That is forgery three. Real files. Real
-> digests. My own tool calling them corroborated. Exit zero.
->
-> So the axis is not representability. It is authorship. **A check wins against exactly one
-> adversary: the one who does not control its input.** When the thing being examined is written
-> by the party you are defending against, it does not matter how many digests you recompute —
-> you have built a mirror with a hash function in it.
->
-> And rung four — evidence authored by somebody the forger does not control — appears **nowhere**
-> in my repository. Nothing is signed. No transcript is bound to a machine, a user, or a clock
-> that anyone else attests. I am not going to pretend a type system fixes that, because it
-> doesn't. Rung four is a cryptographic and social problem, and I have not solved it.
->
-> One more, because it is the same move somewhere completely different, and it is the fix I am
-> proudest of. Incredibuild's build cache key includes rustc's output path. Our benchmark
-> `mktemp`'d a fresh target directory for every sample — which destroyed cache reuse by
-> construction, invisibly, and every one of our fifteen samples reported the same total of
-> fifty-two lookups and one hit. The fix was not a check for did-we-get-enough-hits. The function
-> that made the temp directory is *gone*. The configuration that could produce the wrong number
-> no longer exists. That is a structural fix, and notice its adversary: it is not a forger. It is
-> me, next month, having forgotten.
-
-**LIVE.** The best live moment in the talk, and it is a grep:
-```
-grep -rn "cache_cleared_before_each" rust/crates/
-```
-Exactly **two** hits, both inside the guard test, both assembled with
-`format!("cache_cleared_before_each_{}", "cold_sample")` so the guard does not match itself. The
-field is gone from the program; the only mentions left are the test that forbids it. Then:
-```
-grep -n "fresh_target" scripts/robot-demo/ib-benchmark.sh
-```
-which returns only the comment recording that the function was removed. **The absence is the
-demonstration.**
-
-**FALLBACK.** Do **not** grep for `mktemp` — it is still in that file at line 130, for an
-unrelated work directory, and the command would fail on stage. Do **not** cite the guard test by
-line number; let grep print it. If the terminal is dead, the two-hit grep output goes on the
-slide as a captured block.
-
-> **Cut and why:** the `52 total / 52 hits (100% reuse)` figure. Fifteen real `cache.txt` files
-> in the evidence tree say `total=52, hits=1`; `52/52` appears in exactly one place —
-> `outputs/FACTORY-STORY.md:73`, a narrative document — with no artifact behind it. By this
-> talk's own rule that is a rung-zero assertion, and it cannot be on a slide in *this* talk. It
-> moves to §7 as `[PENDING]`.
-
----
-
-### 20:30–23:00 — THE RUST BEAT. Breaking my own analogy, then line 147.
-
-**SCREEN.** Left: `别检查非法状态，让它无法被表示。 Don't check for the illegal state. Make it
-unrepresentable.` — `Option` instead of null · exhaustive `match` · private fields, so there is
-no second constructor · `NonZeroU32` · `&mut` exclusivity.
-
-Right, red, headed `还没做完 / NOT DONE — the diffs we have not written`:
-```rust
-// 1. the receipt side
-fn parse(path: &Path, expected: Sha256) -> Result<CacheClear>   // the ONLY public constructor
-                                                                // module-private field
-
-// 2. the gate side
-struct FreshnessVerdict(/* private */);
-impl FreshnessVerdict { fn evaluate(age_ms: u64, policy: &Policy) -> Self { … } }  // ← the inner one
-fn permit(FreshnessVerdict, StopVerdict, TimestampVerdict) -> Decision
-```
-Below, red: `a receipt is JSON — nobody has to use my struct` · `an adversarial pass still forged
-a passing receipt AFTER transcript verification landed` · `rung 4 is not a type-system problem`
-
-**SAY.**
-> You have been watching a Rust idea for six minutes without me naming it. Don't check for the
-> illegal state. Make it unrepresentable. `Option` instead of null, so there is no null to
-> forget. Exhaustive `match`, so the missing case is a compile error and not a Tuesday. Private
-> fields, so there is no second way to construct the thing.
->
-> Now let me break my own analogy, in two places, before one of you does it for me.
->
-> First: a receipt is JSON. Nobody is obliged to use my struct, and the compiler enforced
-> nothing whatsoever about the attacker. What actually holds is smaller and more interesting —
-> there is exactly one code path that can produce a cache-state value, and that path opens a
-> file. Rust did not enforce that. Rust made it the *ergonomic* option: module privacy means the
-> struct literal is impossible from outside, so the smart constructor is not merely available,
-> it is the only door. In C you can write the smart constructor too. You just cannot stop anyone
-> writing the struct literal next to it. That is a smaller claim than "Rust makes it
-> unrepresentable," and it is the true one.
->
-> Second, and worse for me: the regress does not terminate, and a type does not terminate it. I
-> would love to tell you otherwise. My own repository refutes it in the same twenty-four hours.
->
-> So what is the type system actually *for*, if it does not end the regress?
->
-> Here is the answer I believe, and it is the whole talk. **Every check has an adversary.** My
-> validator's adversary was *me*, and I own its input, so it never had a chance. But the type
-> system's adversary is different. Its adversary is the next person to touch this file — a
-> contributor, six months from now, at five in the afternoon, who controls the diff and nothing
-> else. And that person **cannot author rustc.** The evidence is produced by an instrument
-> outside his reach. That is rung four, and it is the only rung four I have.
->
-> That is why a type wins where my digest lost. Not because it is stronger. Because its
-> adversary is weaker — and its adversary is the one you actually face on almost every line you
-> write.
->
-> And now back to line one hundred and forty-seven.
->
-> rustc could never have checked that two hundred and fifty was the right threshold. The age is a
-> runtime quantity; no type system in practical use will help you there, and anyone who tells you
-> otherwise is selling something. But rustc could have caught **the forgetting**. If `decide`
-> returned a `Decision` whose permit constructor required a freshness verdict alongside the stop
-> verdict and the timestamp verdict, then `Decision::Permit`, bare, would not compile. Not failed
-> a test. Not failed a review. **Not compiled.**
->
-> And I have to say the second half of that, because it is rung three all over again, one level
-> down: making the *verdict* an argument only forces me to *name* one. A lazy implementer writes
-> `FreshnessVerdict::Fresh` and discards the age and it compiles fine. The real fix needs the
-> inner constructor too — `FreshnessVerdict` with a private field whose only way in is
-> `evaluate(age_ms, policy)`. That is on the slide, in red, in the not-done column, because I
-> only worked it out while an adversarial reader was taking this talk apart.
->
-> Same file. Same demo. No new machinery. It is the first thing I am doing on the flight home.
-
-**LIVE.**
-```
-grep -n "cache_state_is_never_asserted_by_construction" rust/crates/swf-cli/src/main.rs
-```
-then open the surrounding thirty lines, so nobody has to take the self-criticism on trust. It is
-a test that reads its own source with `include_str!` and fails if the shape comes back — and it
-locates the dispatch arm by an exact source string and `expect`s on it, so a restructure makes it
-**panic** rather than quietly pass. Brittle in the one direction where brittleness is a virtue:
-loudly. **No line number on the slide — let grep print it.**
-
-**FALLBACK.** Static screenshot of the same lines, captured the morning of the talk. This beat has
-no runtime dependency at all: it is a reading, and the reading is the point.
-
-**Say this in this beat, unprompted, because someone will say it in Q&A otherwise:** the two
-components that actually make this demo honest are `check-patch.py`, forty-seven lines of Python,
-and `ib-benchmark.sh`, eight hundred and twenty-eight lines of bash. Rust owns the receipt parser.
-It does not own the discipline. Say it before they do.
-
----
-
-### 23:00–25:00 — CLOSE. Walk the ladder back down, then invite them to break it.
-
-**SCREEN.** Five questions, stacked, bilingual, each answer struck through:
-```
-机器人安全吗？ How do you know the robot is safe?       the task succeeded.        the contract failed.
-门写对了吗？   How do you know the gate is right?       contract tests.            the gate omitted rule 3.
-基准是真的吗？ How do you know the benchmark is real?   the proof gate said PASS.  it certified a fabrication.
-证明门有效吗？ How do you know the proof gate works?    we forged three classes.   the third still passes.
-矩阵覆盖全吗？ How do you know the matrix covers it?    17 PASS.                   age_ms > 500 passes all 17.
-IB 真的更慢？  How do you know Incredibuild is slower?  we measured it.            with --force-remote. wrongly.
-```
-Beneath, alone:
-`可伪造的字段 = 证据由同一方书写的字段`
-`the forgeable set = the fields whose evidence the same party authored`
-Last slide: repo QR · `github.com/zozo123/rust-china-conf` · `3 [PENDING] · 1 forgery class open ·
-evidence/ 中的运行目录未提交 run dirs are NOT committed — see README`
-
-**SAY.**
-> Let me walk it back down.
->
-> How do you know the robot is safe? The task succeeded. No — the contract failed. How do you
-> know the gate is right? Contract tests. No — the gate omitted rule three, in one line I read
-> out loud to you. How do you know the benchmark is real? The proof gate said pass. No — it
-> certified a fabrication. How do you know the proof gate works? We forged it three ways, and
-> the third still passes tonight. How do you know the matrix covers the contract? Seventeen
-> green. No — reject at five hundred and all seventeen still pass. How do you know Incredibuild
-> is slower? We measured it. With force-remote. Wrongly.
->
-> Six rungs. Five collapsed. And the temptation right here is to say *verify everything* — which
-> is not an answer, it is just the ladder again with more rungs on it.
->
-> [the closing paragraph, verbatim — §1]
-
-**LIVE.** None. Stop talking. Do not add a thank-you slide after the last line. Repository URL
-stays on screen through Q&A.
-
-**FALLBACK.** Not applicable. If the deck is dead, deliver the final paragraph from memory. It is
-the one part of this talk that must survive total equipment failure.
-
----
-
-## §3. SLIDE LIST — one line per slide, one idea each
-
-| # | slide | the single idea |
+| Claim | Status | Backing |
 |---|---|---|
-| 1 | the `stale_600ms` JSON row, full bleed | success = true, and it is the evidence itself, not a render of it |
-| 2 | FAIL verdict ∥ `lib.rs:147` | the same run, read by the contract, is red — and the defect is literal |
-| 3 | 250 ms ∥ 942 ms ∥ `= 3.8` | two clocks that will never meet; the threshold is mine, and it is too generous |
-| 4 | check-patch / 17 PASS / digest chain, with the timing strip | machinery, and it feels good, and that feeling is the setup |
-| 5 | one green `BUILD PROOF PASS` block on black | the benchmark's proof gate says yes |
-| 6 | forgery table, three rows | 3 of 8 conditions were decoration; the fix moved the hole; the third is open |
-| 7 | the no-op script + the ten real digests | real documents, real digests, exit 0, `ratio=119.949x` |
-| 8 | AL6555 table + Build History counters + `-f` reveal | we measured four remote cores replacing every local one |
-| 9 | `freshness_ms: [0, 50, 600]` + `age_ms > 500` | forgery four: "complete coverage matrix" checks three sampled values |
-| 10 | j1/j10 table, two rows | cold saturates at 3.3×; warm is 1.08× — there is no parallelism to sell |
-| 11 | the four-rung ladder, forger on the right | the axis is authorship, not representation; rung 4 is empty |
-| 12 | `local_only` + `ib_cache enabled` one-word diff | distribution and caching are two knobs, and the vendor's schema says so |
-| 13 | unrepresentable ∥ NOT DONE (both constructors, in red) | Rust makes rung 3 the cheap rung to build — and does not reach rung 4 |
-| 14 | the six questions, struck through | five collapsed; the regress changes hands |
-| 15 | QR + repo + "3 PENDING · 1 forgery open · run dirs not committed" | come break it |
+| A Rust crate decides whether each motion segment may be dispatched, and this revision omits the freshness rule | **TRUE** | `rust/crates/robot-safety-gate/src/lib.rs:113-149`; the omission is literally `let _ = (age_ms, policy);` at line 147 |
+| A seeded 600 ms stale observation still dispatches the pickup | **TRUE** | `cold.sh` asserts it and refuses to export otherwise |
+| A candidate patch may touch exactly one file | **TRUE** | `scripts/robot-demo/check-patch.py`, `ALLOWED_PATH` is a single constant |
+| A 17-scenario protected matrix runs and passes against a freshly exported executable | **TRUE** | `demo/robot-sim/config/coverage-matrix.json` = 5 placements × 3 freshness + `estop_descend` + `protocol_timeout`; `verify_run.py:238` prints `PROTECTED VERDICT: PASS (17 scenarios; complete coverage matrix)` |
+| The verdict is bound by sha256 to the exported binary | **TRUE** | `verify_run.py:197-203` recomputes and compares against both the manifest digest and the `.sha256` file |
+| The contract suite is 10/10 (8 contract + 2 unit) | **TRUE, AND CURRENT** | `grep -c '#\[test\]'` → `tests/contract.rs` 8, `src/lib.rs` 2 |
+| Incredibuild accelerates this build | **MEASURED 2026-09-24 — THE ANSWER IS NO** | Cache-only, 21 IB builds, n=5/mode, gated receipt `da1b019d…`. IB warm one-file rebuild **6,527 ms**; plain `cargo` with the target directory preserved does the same rebuild in **892 ms**. Full write-up: `CACHE-RESULTS.md` |
+| The verifier "fails closed with no inference anywhere" | **STILL PARTLY FALSE — do not say this** | The *construction* tautology is fixed: cache facts are transcribed per sample from a `cache-clear.sh` transcript (sha256-retained), guarded by `cache_state_is_never_asserted_by_construction` and `schema_one_receipts_are_rejected_because_their_attestations_were_literals`. **But at proof time nothing is re-read.** Measured 2026-09-24: a forged receipt with invented IB counters, `transcript_path=/tmp/does-not-exist.txt` and a `transcript_sha256` of 64 zeros printed `BUILD RECEIPT CONSISTENT … ratio=11.948x`, exit 0. Say **"it fails closed on what is missing; it cannot detect what is fabricated"** |
+| A native-only receipt can be validated | **FALSE — and correctly so** | `validate_build_proof` (`main.rs:941-948`) iterates `["native","ib-cold","ib-parent-warm"]`. The real 2026-09-24 receipt → `Error: missing benchmark mode ib-cold`, exit 1 |
+| The 17-scenario matrix and both protected verdicts run offline on the Mac | **TRUE, MEASURED 2026-09-24** | `evidence/local-e2e-20260924T125134-runner-{a,b}`; full arc 76.58 s, 21.3% of the 360 s budget |
+| 88/88 verifier checks | **STALE** | today's verifier prints 17 scenarios, never 88 |
+| Helpers executed compilation work | **MEASURED — ZERO, BY DESIGN AND THEN BY DEFAULT** | The cache-only run declares rustc `local_only`: `remote_tasks=0` and `remote_core_time=0` on all 21 IB builds, from Build History. Separately, with `allow_remote` and **without** `-f`, this grid distributed nothing either (`numberOfRemoteTasks=0`) — but that is **n=1** and may not be quoted as a conclusion |
 
-**Slide 12 note.** It is a quotation, not a measurement — `/opt/incredibuild/data/ib_profile.xsd`
-lives on the Linux host and does not exist on the laptop, so pre-render the excerpt. It belongs
-at 18:30 or in Q&A as the "what to do instead" answer, not as its own beat; the h-model
-projection that used to sit beside it is cut (see §6).
+### The central problem, stated plainly — RESOLVED 2026-09-24, and not in our favour
 
----
+**The acceleration half is now measured. Incredibuild's Build Cache works on this workload and is slower than plain `cargo`.**
 
-## §4. SPEAKER NOTES FOR THE THREE HARDEST MOMENTS
+The headline for the measurement beat is one number: **892 ms** — the median cost of one agentic-loop iteration (apply the one-file candidate patch, rebuild) using plain `cargo` with the target directory preserved, n=5, range 883–931 ms. The same iteration through Incredibuild's Build Cache costs **6,527 ms** (n=5, 47 of 52 compilations served from cache, `remote_tasks=0`), and **11,515 ms** from an empty target directory (n=5).
 
-### 4.1 Admitting the forgeries (8:30–12:00)
-
-The failure mode here is **performed humility**, and this room will smell it instantly. Four
-rules:
-
-1. **No apologetic framing.** Never "unfortunately," "I'm embarrassed to say," "full
-   disclosure." Say the thing flat, in the past tense, with the number. "That receipt is a
-   fabrication. I wrote it. It took about a minute." Then stop.
-2. **Do not smile on the punchline.** The room will laugh at `/tmp/does-not-exist.txt` and at
-   the three-line no-op script. Let them. Do not laugh with them — you are the one being
-   laughed at, and accepting that silently is what buys the next fifteen minutes.
-3. **Forgery three is not a cliffhanger, it is a concession.** Deliver it slower than the other
-   two, and do not follow it with a recovery sentence. The beat ends on "so — how do you know
-   the proof gate works? I don't." Then move.
-4. **Own the smallest one hardest.** The `argv=$*`-after-`shift` bug is the most humiliating and
-   the most relatable; it is the only place in the talk where you can be genuinely funny without
-   undercutting yourself.
-
-One line to have ready if the room goes cold: *"I'm told this is a strange thing to fly
-fourteen hours to say. I think it's the only thing worth flying fourteen hours to say."*
-
-### 4.2 Presenting a negative distribution result without sounding defensive (12:00–14:30, 16:00–18:30)
-
-You work at Incredibuild. The room knows or will find out. The defensive versions all fail.
-
-**Do:**
-- Say "I work at Incredibuild. That number stays on the slide." Once, early, flat, then never
-  mention it again. It converts the conflict of interest from a liability into the strongest
-  credibility you have.
-- Make the finding about **your workload**, not their product. `3.28× on ten cores` and
-  `1.08× warm` are facts about a dependency graph of forty-five crates. Say "this is arithmetic
-  about my dependency graph" — that is true, it is generous, and it is *more* damning than an
-  accusation because it is checkable.
-- Volunteer the `-f` mistake **before** you state the ratio's meaning. The order matters: the
-  correction has to arrive while the audience still trusts you, not after they've caught you.
-- Keep "the result is still negative and I am not walking it back." The temptation under
-  pressure is to soften it into "inconclusive." Don't — you measured it five times per mode in
-  rotating order, and hedging now would be its own small forgery.
-
-**Don't:**
-- Don't say "in fairness to Incredibuild." Every such clause reads as a company man protecting
-  his employer.
-- Don't claim you predicted the loss in advance. You didn't. The version of that claim that is
-  true is narrow and worth saying: *"the arithmetic was available before the benchmark ran, and
-  we did not do it."*
-- Don't offer the cache pivot as a rescue. Offer it as the **next measurement**, marked pending,
-  with the command. A pivot presented as a result is exactly the move this talk exists to
-  condemn.
-
-### 4.3 The close (23:00–25:00)
-
-- **Slow down by about 20%** for the six-question walk-down. It is the only recapitulation in
-  the talk and the audience needs the beat-count to land — question, answer, strike-through.
-- **The stumble to avoid** is racing into the final paragraph. Put a full two seconds of silence
-  after "with force-remote, wrongly." Then "Six rungs. Five collapsed."
-- **Do not add anything after the last sentence.** No thank-you, no "questions?", no slide.
-  Silence, then the chair. If you need a physical cue: step back from the lectern on "one more
-  day" and stop.
-- **If you are over time**, the close is not what you cut. Cut 5:30 to ninety seconds and cut
-  the microduck side panel entirely. The close is load-bearing.
-- **The one sentence you must not fumble:** "Where that name is your own team, the check is a
-  mirror." Rehearse it cold, twenty times, standing up.
-
----
-
-## §5. Q&A SHEET — the eight hardest questions, with honest answers
-
-**Q1. "Did you just ship a broken verifier?"**
-Yes. Twice, and the third is broken right now. The first shipped with three of eight conditions
-that could not fire. The second checked a digest's shape without opening the file. The third
-opens the file, recomputes the digest, and still passes a receipt whose ten transcripts were
-produced by the repository's own recorder wrapped around a script that does nothing. What is
-*not* broken is the disclosure: `swf-cli` prints its own `NOT CHECKED` paragraph on every run,
-naming the counters it cannot corroborate. That is the difference between a bug and a lie, and
-it is the only defence I am offering.
-
-**Q2. "Then why should we trust any number in this talk?"**
-Don't — grade them. Three tiers, and I will tell you which tier each slide is.
-*Tier one, you can check on the spot:* the two build speedups (3.28× and 1.08×), because they
-are two numbers from one instrument and the conclusion is a division you just did.
-*Tier two, you can check if you clone:* `lib.rs:147`, the three red contract tests, the
-coverage matrix's `[0, 50, 600]`, `check-patch.py`'s allowlist, the two-hit grep. All are in the
-public repository and reproduce in under a minute.
-*Tier three, my word alone:* everything from the AL6555 grid — the 11,518 / 23,173 / 22,297
-medians, the Build History counters. Those run directories are `.gitignore`d. They are rung-zero
-assertions from where you sit, and I would not accept them from a speaker either.
-
-**Q3. "You said the repository is public and the forged receipts are in it. Are they?"**
-[If §7-A landed:] Yes, `demo/forged/`, with a README naming which validator each one defeats and
-which test now refuses it. [If it did not:] No — and that is a real answer, not a dodge. `evidence/*/`
-is gitignored at line 19; `git ls-files evidence/` returns two files. What is public is the code:
-the gate, the seeded line, the contract tests, `check-patch.py`, both profiles, the scripts, and
-`swf-cli` including its own `NOT CHECKED` disclosure. What is not public is every run directory
-whose id appears in my footers. Committing them is the first item on my list and I will post the
-commit.
-
-**Q4. "Isn't 'make illegal states unrepresentable' just the standard Rust talk with a robot on it?"**
-The standard version claims the type system ends the argument. This talk's evidence is that it
-does not: my rung-three fix — the one that deleted the field and derived the value from a parsed
-document — was defeated the same day. What I am adding is the adversary model. A check wins
-against exactly the adversary who does not control its input. The type system's adversary is the
-next contributor, who controls the diff and cannot author the compiler, so the type system wins
-that fight completely and permanently. My validator's adversary was me, and I owned its input, so
-no amount of structure could have saved it. That is a narrower claim than the standard talk makes
-and I think it is the one that is true.
-
-**Q5. "Your 3.28× was measured on a ten-core Mac. Doesn't that number change on other hardware?"**
-The wall times do. The *shape* does not, and the shape is the claim. Ten cores bought 3.28× on the
-cold build, which means the graph's critical path — not the core count — is the binding
-constraint; more cores move that number very little, which is exactly why the AL6555 result came
-out negative with four helper cores. And the warm row, 1.08×, is hardware-independent in its
-conclusion: a one-file rebuild has almost no concurrency in it on any machine. If you want the
-honest limitation: I have not measured this on a large workspace. microduck is 576 locked
-packages and 355 compilation units — 6.8× my units, 8.5× my cold wall on the *same* Mac — and I
-expect the shape to hold and the constant to change. I have not run it. It is on the pending list.
-
-**Q6. "You work at Incredibuild and you're presenting a result where Incredibuild loses. Which is it — bad faith, or bad measurement?"**
-Bad measurement, then a real negative. The run you saw passed `--force-remote`, which does not
-add remote capacity, it *replaces* local capacity — their own Build History recorded
-`maxInitiatorCores=0` for every sample, which is that flag, in their numbers. So the 2.01× figure
-is four helper cores against four idle local ones, and it is not a fair characterisation of the
-product. The reason I still call the result negative is the *other* measurement, the one with no
-Incredibuild in it at all: this workload has 3.3× of parallelism cold and 1.08× warm. A
-distributor sells parallelism. There is very little here to buy, whoever is selling it. And the
-thing I should have measured — the Build Cache, with distribution off, which is one word in the
-profile — I have not measured. That is the honest position.
-
-**Q7. "You called a seventeen-scenario matrix 'complete coverage' and it doesn't test the boundary. How many more of these are there?"**
-I don't know, and the fact that I found this one eighteen hours before standing here is the
-answer to the question you are really asking. What I can tell you is the mechanism: the matrix
-samples three freshness values and the threshold sits between two of them, so it is a check on
-values, and a check on values only covers the values somebody thought to list. The contract tests
-*do* pin 250 and 251 — they are two of the three red tests on my second slide — so the system
-catches it even though the matrix does not. If you want the structural fix rather than another
-value: the freshness axis should be derived from the policy constant, not typed into a JSON file
-next to it. That diff is not written.
-
-**Q8. "What would rung four actually look like, concretely?"**
-For the receipt: a signature from a key the person writing the receipt does not hold — a CI
-runner's attestation, a hardware key, a build service countersigning its own Build History
-response with a digest bound into the receipt. Note that the Build History JSON *is* retained on
-disk, in `build-proof/raw/*.history.json`; what is missing is not the document, it is the
-binding. Nothing digests it into the receipt, so `build-proof` cannot re-read it. That is a schema
-v3 and it is maybe a day of work. For the *source*, rung four already exists and you all use it
-every day: it is rustc. Which is the small, unglamorous point I actually came to make — you
-already own one instrument your colleagues cannot forge, and most teams use it for memory safety
-and nothing else.
-
-*Two more, held in reserve:*
-**"Why not just use sccache / a remote cache?"** — Probably right, and untested. The measurement
-that would settle it is the cache-only profile in §7-C, and it is one word different from the one
-I ran.
-**"Is the demo robot real?"** — It is robosuite 1.5.2 on MuJoCo 3.9.0, software-in-the-loop, and
-the run records that string in all seventeen rows. There is also a kinematic mock in the repo and
-I have been careful all talk to say which is which, because conflating them would be the same
-category of error as everything else I have shown you.
-
----
-
-## §6. WHAT MUST NEVER BE SAID ON STAGE — with the true replacement
-
-| ✗ never say | ✓ say instead |
+| Comparison | Result |
 |---|---|
-| `3.47 effective cores` / `87% parallel efficiency` | `3.28× on ten cores` — one machine, one tool, `summary-native.txt` |
-| `perfect 8-core distribution = 5,000 ms → 2.3× ceiling` | the telemetry says `maxBusyHelpersCores=4`; and this graph does not scale linearly, which is what 3.28× proves |
-| `the arithmetic predicted the loss before the benchmark ran` | `the arithmetic was available before the benchmark ran, and we did not do it` |
-| `h = 0.98 → 230 ms, a rebuild inside the freshness budget` | `942 ms measured, = 3.8 freshness budgets. The rebuild never fits inside the interval it protects.` (the h-model at h=0 is `40,000/3.47`, which is 11,518 **by definition** — a model reading back its own literal) |
-| `every forgeable field is a field with no retained source document` | `every forgeable field is a field whose evidence the same party authored` |
-| `the Build History counters have no retained source document` | `they have one — `build-proof/raw/*.history.json` — but nothing **binds** it to the receipt, so build-proof cannot re-read it` |
-| `52 total / 52 hits, 100% reuse` | `[PENDING]`. Fifteen real `cache.txt` files say `total=52, hits=1`; 52/52 has no artifact |
-| `the gate worked. Once.` | it misfired on cargo's `rustc -vV` self-hit; the repo now ships `--empty-cache-hit-floor 1` for exactly that |
-| `17 → 33 tests` | `8 → 17 → 42` (measured today: `test result: ok. 42 passed`) |
-| `11,518 ms is how long this repository takes to build` (as a Mac/robot-half number) | AL6555 Linux grid, whose own preflight says `no sim venv — mock backend only`. The Mac's number for this run is 13,959 ms cold / 13,034 ms warm |
-| `250 ms comes from microduck, not from me` | `lib.rs:23` calls it an illustrative demo value. It is mine, and against a 50 Hz loop it is 12.5 cycles **too generous** |
-| `12.5 missed control cycles` (over a shot of the Panda arm) | `5 ticks here` (verify_run.py TICK_NS = 50 ms, 20 Hz); `12.5 cycles on a real 50 Hz biped` |
-| `576 packages vs 45 = 12.8× the compilation units` | `355 vs ~52 compilation units = 6.8×`, and `59.23 s vs 6.98 s = 8.5×` cold wall **on the same Mac** |
-| `microduck: 8.7k stars, Apache-2.0, 15 servos, btd/padd/mediad/tofd, cargo-zigbuild, RK3566, kinematics in 4.13 s` | only the four traceable facts: 23 workspace members, 576 locked packages, ~117k lines, robotd 50 Hz with a self-reported missed-tick count |
-| `run local-e2e-20260924T125134` | `…-runner-a` or `…-runner-b`. The bare id is not a directory and `validate.sh` rejects it |
-| `录制回放 RECORDED REPLAY · robosuite/MuJoCo SIL` over `docs/demo/index.html` | it is yesterday's run (`ec2-e2e-20260923-160725`) and its own copy calls the arm schematic. Label it `telemetry replay, schematic arm` or don't show it |
-| playing `docs/assets/robot-lift.mp4` under a stale-episode caption | its README says **fresh-lift** frames. It is a different episode |
-| `0.87 s` on the single-scenario validate line | that figure is runner-B's full validation inside the rehearse log; measured standalone today: 0.196 s and 0.128 s. Put no stopwatch on the slide |
-| `zero infrastructure failures` stacked under the verifier's PASS line | that phrase is `swf-cli`'s matrix runner, not `verify_run.py`. Say `17 scenarios, 17 PASS` |
-| `complete coverage matrix` as evidence of boundary coverage | the matrix samples `[0, 50, 600]`; the boundary lives in `tests/contract.rs` |
-| pointing the audience at `docs/talk/` | it still contains all three banned items: `islo` (`slides.md:99`, `talk-25min.en.md:91,182`), `88/88` (`slides.en.md:165`), `21.426 / 21.948` (`slides.md:134–135`). **Scrub or don't point** |
-| `the forged receipts are in the repo, including the one I cannot catch` | only after §7-A. Otherwise: `the code is public; the run directories are gitignored, and I'll post the commit that fixes that` |
-| `build-proof proves this number is real` | it checks internal consistency. Forgeries pass. It says so itself, in its own `NOT CHECKED` paragraph |
-| the mock backend described as robosuite SIL | the run records `robosuite 1.5.2 / mujoco 3.9.0` in all 17 rows; say the string |
-| `islo` | nothing. It has zero working code and it is on the blacklist |
-| `ib-benchmark.sh:176` or any `swf-cli` line number | let `grep` print it. The harness moved today; only `lib.rs:147` is promised, and it is verified on the working tree **and** origin |
-| the live `receipt-zeros.json` demo | today's binary refuses it, by a named passing test. Use the no-op-transcript forgery |
-| `jq … outputs/evidence-live/build-proof/samples.jsonl` to show inputs are committed | that file is 20 `"mode":"native"` rows from the Mac, and `outputs/` is outside the repo. It visibly proves the opposite. Cut the command |
+| IB warm one-file (6,527 ms) vs native with target preserved (892 ms) | **IB 7.3x SLOWER** |
+| IB warm one-file vs native, brand-new worktree + one shared target (2,778 ms) | **IB 2.35x SLOWER** |
+| IB full reuse (3,706 ms, 52/52 hits) vs native no-op rebuild (81 ms) | **IB 46x SLOWER** |
+| IB cold cache (16,049 ms) vs native from scratch (11,515 ms) | **IB 39% SLOWER** |
+| IB warm one-file vs native **from scratch** (11,515 ms) | IB 1.76x faster — *the certified number, handicapped baseline* |
+
+**Why the certified 1.76x is not the headline.** `ib-benchmark.sh`'s `native_sample()` calls `disposable_workspace()`, which `rm -rf`s the native target directory before *every* native sample, while Incredibuild is handed a persistent store that survives across samples and is deliberately seeded with the parent revision. Every ratio in the receipt inherits that asymmetry. The control that settles it — plain `cargo` with the target directory kept — had never been run; it was run on 2026-09-24 at 13:02 UTC on the initiator (`evidence-live/cache/native-warm-control-20260924T130233Z/`) and it reverses the sign.
+
+**It is the same work on both sides.** cargo's own output on the 892 ms rebuild reads `Compiling robot-safety-gate / swf-app / swf-cli` — exactly the three crates that MISS in Incredibuild's 47/52 warm build. Both recompile three crates. cargo serves the other 49 by checking they are on disk (81 ms); Incredibuild serves 47 of them by unpacking cache tars (~5.6 s).
+
+**The old 21.426 / 21.948 / 522 ms pair is still not a measurement** and is still the fastest way to lose the room. It is now superseded rather than merely disclaimed.
+
+**And the earlier "Incredibuild is 2.01x slower" distribution number is worse than useless.** It was produced with `-f`, which is `--force-remote`: every remotable task was *forced* onto two m5.large helpers while the initiator's own four cores sat idle (`maxInitiatorCores=0`). That is the wall time of a deliberately handicapped configuration, not a measurement of Incredibuild. **Do not quote it in any branch.**
+
+### The missing asset — OBTAINED, with a precise scope
+
+A controlled benchmark receipt exists and is certified: `evidence-live/cache/receipt.json`, sha256 `da1b019daeaa895a1818d32154ce29280d4cf9acdbb8d165b64c78c3527062ce`, schema v2, 15 samples, 5 per mode, rotating order.
+
+```
+swf-cli robot-demo build-proof --receipt <path> --min-samples 5 \
+        --distribution excluded --empty-cache-hit-floor 1
+-> BUILD RECEIPT CONSISTENT, exit 0
+```
+
+The two flags are **verifier-supplied and neither is a weakened threshold.** `--distribution excluded` is a demand in the opposite direction (`remote_tasks == 0` and `remote_core_time == 0` on every IB sample *and* every parent seed; one leaked task refuses the receipt). `--empty-cache-hit-floor 1` is a corrected contract: the old `hits == 0` rule is factually unsatisfiable for Rust, because cargo invokes `rustc -vV` twice and the second invocation is served the entry the first just stored — proven from `/etc/incredibuild/log/2026-Sep-24/local-67,71,79`. The floor is symmetric and defaults to 0, and the receipt cannot set it.
+
+**What exit 0 does NOT cover, and this must be said on stage:** not the wall times. `wall_ms` is corroborated by nothing — a receipt with all five warm samples set to 500 ms still prints `BUILD RECEIPT CONSISTENT` at `ratio=23.030x`, exit 0. The certification establishes **a cache state and the absence of distribution**, and nothing about the speed numbers. It also does not cover the 3.13x full-reuse figure, which the three-mode schema cannot carry and which was therefore never gated. Full scope, including the one false line the verdict still prints (`cache scope … local-user`, when the clear is machine-wide), is in `CACHE-RESULTS.md` §5.
+
+### Two new findings that change the plan
+
+1. **The archived `ib: true` records were not produced by the runner that will be on stage.** `docs/examples/ec2-runner-{a,b}/build-metrics.jsonl` use an old schema — `{"phase","runner","wall_ms","cache_namespace":".runners/a/ib-cache","ib":true}` — with **no** `build_provider`, `sandbox_provider` or `cache_reuse_verified` field. The committed `runner-common.sh:74-78` writes all three and writes `cache_namespace: null`. All six bundles under `evidence/` say `ib: false`. So the only two IB-labelled measurements in the repo come from a script revision that is not the one being projected, and the semantics of their `ib` flag cannot be audited from this tree. This is a *stronger* objection than "one sample per mode" and an IB-literate reviewer will find it first.
+
+2. **The three unfalsifiable conditions are FIXED (2026-09-24).** They were real: `BuildProof` was constructed with `cache_scope`/`cache_cleared_before_each_cold_sample`/`cache_cleared_before_each_parent_seed` as literals, so three of the eight advertised fail-closed conditions could never fire. It was proven by feeding the verifier a fabricated receipt with no Incredibuild involvement and no cache ever cleared: it printed `BUILD PROOF PASS ... measured ratio=2.999x vs native; saved=14000ms`, exit 0. **Schema v2 removes it:** cache facts are parsed out of a `scripts/robot-demo/cache-clear.sh` transcript whose sha256 is retained, nothing is defaulted and nothing is inferred; a sample with no transcript is *unknown*, not clean; v1 receipts are rejected outright because their attestations were literals. Two regression tests fail if anyone puts it back. **Branch B narrates this as found-and-fixed** — a second inference bug, in the proof layer itself, caught by the same discipline the talk argues for. That is a stronger beat than the sentence it replaced.
+
+3. **The fix did not go far enough, and that was measured on 2026-09-24 — this is now the strongest beat in Branch B.** Schema v2 stopped the receipt *asserting* its cache state at construction. It did not make `build-proof` *re-read* anything. `validate_build_proof` reads only the receipt's own fields: it never opens `transcript_path`, never contacts Build History, never runs the cache-statistics tool, and `check_clear_usable` (`main.rs:695-700`) checks `transcript_sha256` for **shape only** (64 chars in `[0-9a-f]`) without ever recomputing it. The digest *is* genuinely computed from the file — at `build-sample` time (`load_cache_clear`, `main.rs:493`) — but a receipt is a hand-editable JSON file afterwards. **Proven by construction:** a receipt of 5 real native samples plus 10 hand-written IB samples with `remote_tasks=412`, `remote_core_time_s=880.5`, `transcript_path: "/tmp/does-not-exist.txt"` and `transcript_sha256` = 64 zeros printed `BUILD RECEIPT CONSISTENT`, `ib-parent-warm measured ratio=11.948x vs native; saved=7116ms`, **exit 0**. It required inventing nothing but JSON fields.
+
+   **The repo defect to fix before the stage:** `print_build_proof` (`main.rs:996-1005`) prints `CHECKED FROM RECORDS: … one Build History record per caption reporting success; … cold-cache hits==0 and warm-cache hits>0 from the cache-statistics tool; every IB build preceded by a transcribed local-user cache clear that exited 0.` **None of that is checked at proof time**, and on the forged receipt the whole line printed verbatim over fabricated counters. The adjacent `NOT CHECKED` paragraph is accurate and saves the tool's honesty — but `CHECKED FROM RECORDS` is the line a reader quotes. Either recompute the digests and re-read the retained responses at proof time, or reword it to `CHECKED FROM THIS RECEIPT'S OWN FIELDS`. **Narrate this as the third inference bug, found by the same discipline that found the first two.**
 
 ---
 
-## §7. [PENDING] REGISTER
+## 2. Blocker ledger
 
-Everything still unmeasured or unlanded, what produces it, and where it goes.
+Ordered by "what breaks if this is not resolved."
 
-### Blocking before stage
+| # | Blocker | Who unblocks | Cost if unresolved |
+|---|---|---|---|
+| **B1** | GlobalProtect VPN disconnected; grid hosts `10.133.20.216 / .27.32 / .29.30 / .10.80` unreachable | Operator (you) | Total. No live beat at all. Falls to abort level L4 — Mac-only recorded replay. |
+| **B2** | IB coordinator cannot load its license keypair; helper cores unlicensed (`no available or licensed cores on helper machine`) | Grid operators / IB support | No receipt, ever. Talk goes to **Branch B**. Robotics beat is unaffected. |
+| **B3** | `rust/target/debug/swf-cli` on the Mac is from **Sep 23 16:42** and predates `build-proof`. `swf-cli robot-demo --help` lists only `run`, `matrix`, `validate`. | You, in 15 seconds: `cargo build --manifest-path rust/Cargo.toml --locked -p swf-cli` | **Stage-fatal for both branches.** The branch decision, A1, A2, B2 and abort level L4 all invoke `build-proof` at that exact path. It returns `error: unrecognized subcommand 'build-proof'`, exit 2 — a clap usage error that reads to the audience as a broken tool, not a refusing gate. |
+| **B4** | Receipt path is off by a `-build` suffix. `ib-benchmark.sh:15` writes `$ROOT/evidence/$RUN_ID/build-proof`; the suffix exists **only** because `ec2-agentic-physical-ai.sh:39` calls it as `ib-benchmark.sh "$RUN_ID-build"`. | You, by picking one convention | **Worst failure in the whole plan:** a receipt that PASSED reads as `No such file`, the T-30 check exits non-zero, and you deliver Branch B while holding a passing receipt. **Resolution adopted here: always invoke `ib-benchmark.sh "$PRERUN-build"`,** so `evidence/$PRERUN-build/build-proof/receipt.json` is correct everywhere and matches `evidence/README.md`. |
+| **B5** | `$PRERUN` is interpolated by six commands and defined by none | You | `evidence/-build/...`, a `No such file` that names the wrong problem. |
+| **B6** | Public site contradicts the talk: `landing.html:145-146` hardcodes `21.426`/`21.948` as **template literals outside `copy.json`**, so `build.py --check` exits 0 while both public pages keep the stale pair; `docs/demo/loop.{html,en.html}` print `(compile stage distributed)`, `88 / 88 PASS` as a green climax frame, and `instance gone` | You, before the talk | Beat 8 sends the room to a site that asserts exactly what Beat 7 forbids. |
+| **B7** | `.env.local` is sourced with `set -a` **after** your exports, in `preflight.sh:6` and `runner-common.sh:9` | You: `cat .env.local` at preflight | A gitignored file on the initiator can silently flip `ROBOT_DEMO_BACKEND`, `REQUIRE_IB` or `ROBOT_DEMO_PYTHON`. Nothing in any checklist looks at it. (The local copy holds only `ISLO_SANDBOX_KEY` — the initiator's cannot be reviewed from here.) |
+| **B8** | Nothing on the stage path builds `$REPO/rust/target/debug/swf-cli`. `runner-common.sh:26` redirects every runner build into a throwaway target dir; the only producer is `ib-benchmark.sh:48`, which sits **after** the env gates at lines 23-44 | You, at preflight P0 | In exactly the world Branch B is written for — benchmark bailed on an env gate — the binary Branch B's centrepiece needs does not exist. |
 
-**A. Commit the forged receipts.** Nothing named `*forg*` exists anywhere in the tree.
-→ Produce: build `demo/forged/` containing (1) `receipt-literals.json` (forgery 1),
-(2) `receipt-zeros.json` (forgery 2, with a README noting today's binary refuses it and naming
-`the_receipt_that_printed_ratio_11_948x_from_invented_fields_is_now_refused`), (3)
-`receipt-noop-transcripts.json` + its ten transcripts + the three-line no-op script (forgery 3,
-**still passes**), and a `README.md` mapping each to the validator it defeats.
-→ Lands on: slide 7, the 8:30 live command, and the closing line.
-→ **If it does not land:** cut the live command (§2, 8:30 FALLBACK) and use the §6 replacement
-for the closing sentence.
-
-**B. Make the evidence public, or say it isn't.** `.gitignore:19` is `evidence/*/`;
-`git ls-files evidence/` returns 2 files. Every run id in every footer is unverifiable from the
-audience's seat.
-→ Produce: `git add -f evidence/local-e2e-20260924T125134-runner-{a,b}
-evidence/build-exp-20260924T100157` (plus the AL6555 grid dir, copied in from `outputs/evidence-live/`),
-then push; **or** add a `README` line stating plainly which directories are not committed.
-→ Lands on: every slide footer, slide 15, Q3.
-
-**C. Scrub or unlink `docs/talk/`.** Contains all three blacklisted items.
-→ Produce: fix the four files, or remove the `docs/talk/` pointer from slide 15.
-→ Lands on: slide 15.
-
-### Measurements
-
-**D. Cache-only warm wall time.** Distribution off, Build Cache on — the measurement this talk
-argues for and has never run.
-→ Produce: `IB_FORCE_REMOTE=0 IB_ACCEL=cache-only scripts/robot-demo/ib-benchmark.sh` with
-`rust/ib_profile.cache-only.xml` (`type="local_only"` + `<ib_cache enabled="true"/>`), a stable
-`CARGO_TARGET_DIR` with wiped contents, 5 samples, and `build-proof` run with distribution
-excluded (it refuses the receipt if `remote_tasks` or `remote_core_time` is anything but zero).
-→ Lands on: slide 12, and Q6's last sentence.
-→ **Comparator that already exists:** native warm one-file rebuild = **942 ms** median j10
-(915–984). Any cache result must be read against that, not against the cold build.
-
-**E. Hit fraction after a one-file change.** Whether a cache serves 51 of 52 units when one crate
-changes.
-→ Produce: same run as D, then `swf-cli robot-demo build-history` for the cache counters.
-→ Lands on: slide 12.
-→ **Caveat to say out loud:** `/ib/mnt/fscache` was recreated by a 09:56 reboot and currently
-reports 28K used — the cache is empty and being re-established. A number taken before it warms
-means nothing.
-
-**F. The 52/52 cache-reuse figure.** Stated in `outputs/FACTORY-STORY.md:73` with no artifact;
-fifteen real `cache.txt` files say `total=52, hits=1`.
-→ Produce: a run against a stable target path whose `raw/*.cache.txt` shows the hits, retained.
-→ Lands on: nowhere until it exists. Cut from slide 11 (§6).
-
-**G. The AL6555 initiator's core count.** Not recorded anywhere; `method.txt` for that run has no
-host line. Every "N effective cores" claim depended on it.
-→ Produce: `nproc` on AL6555, written into `method.txt` by the harness.
-→ Lands on: nowhere. The talk no longer needs it — that is why the 87% derivation was cut.
-
-**H. microduck as the large-workload comparator.** 355 compilation units, 59.23 s cold on the
-same 10-core Mac (6.8× the units, 8.5× the wall). Never built under Incredibuild, never cached.
-→ Produce: cold + one-file-warm, native and cache-only, on the grid.
-→ Lands on: the 4:00 side panel and Q5. **Until then say "I expect the shape to hold and the
-constant to change. I have not run it."**
-
-### Structural work named on stage as not done
-
-**I.** `CacheClear` with a module-private field and `parse(path, expected_digest)` as the only
-public constructor — slide 13, left column of NOT DONE.
-**J.** `FreshnessVerdict` with a private field and `evaluate(age_ms, policy)` as its only way in,
-*plus* a `Decision` permit constructor that requires all three verdicts — slide 13, right column.
-Both are needed; naming only the outer one is rung three all over again.
-**K.** Schema v3: `{path, sha256}` per counter document, so the retained `*.history.json` is
-*bound* to the receipt and re-readable at proof time — Q8.
-**L.** Derive the coverage matrix's freshness axis from `DEFAULT_MAX_OBSERVATION_AGE_MS` instead
-of typing three values into JSON beside it — Q7.
+**Everything B3 through B8 is fixable in under twenty minutes and costs nothing. B1 and B2 are outside your control. Plan for them.**
 
 ---
 
-## §8. NOTES FOR THE ZH SCRIPT (do not write it here — hand these to the translator)
+## 3. The talk, minute by minute
 
-The repo's EN and ZH speaker scripts are structurally 1:1 and must stay that way. Every change
-below needs a matching ZH edit at the same beat index.
+Eight beats, 25:00 on the clock, Q&A separate. **Beats 1-5, 7 and 8 are shared verbatim** — 18:00, plus most of the branch beat's closing argument. **Only Beat 6 (15:30-21:00) branches**, plus one swapped sentence in the close. Nothing before 15:30 promises a speedup, by design; the measurement beat is the only place either branch makes a performance statement.
 
-1. **New beat inserted at 14:30 (forgery four).** ZH needs a whole new section. Key terms to fix
-   in advance: 覆盖矩阵 (coverage matrix), 边界 (boundary), 阈值 (threshold). Suggested heading:
-   `第四次伪造：矩阵里的洞`.
-2. **The 16:00 beat is entirely replaced.** Delete all 87% / 3.47 / 有效核心 / 并行效率 language.
-   The new content is two speedup rows and one sentence: 分发卖的是并行度，而这个工作负载已经没有
-   并行度可卖了。
-3. **The ladder at 18:30 changes axis.** 可表示性 → 谁书写了证据 (authorship). Rung 3's label
-   changes from "删除表示" to "由文档推导出来 —— 但记录器是谁的？". A new rung 4 row is added.
-4. **The closing paragraph is rewritten** (§1 has the ZH verbatim). The old ZH ending asserting
-   没有留存源文档 must be removed wherever it appears.
-5. **The bridge at 4:00 is inverted.** The old ZH said 250 ms 来自真实机器人; the new version says
-   250 ms 是我自己定的演示值，而且对 50 Hz 的机器人来说还宽松了 12.5 倍. This is a reversal of
-   meaning, not a rewording — flag it for the translator explicitly.
-6. **Delete from ZH slides the same blacklist items as EN** (`docs/talk/slides.md:99, 134–135,
-   165`; `talk-25min.md:76, 79, 97, 103`).
-7. **Subtitle strip**: the ZH strip carries the same三-number claim and the same "一台机器" error.
-   Replace both with the corrected strip at the top of this document.
-8. **Terminology to pin once and reuse:** 伪造 forgery · 收据 receipt · 记录 transcript ·
-   摘要 digest · 时效 freshness · 派发 dispatch · 契约 contract · 构造函数 constructor ·
-   模块私有 module-private.
+**Three branches, not two.** The T-30 decision is in §3.6.
+
+```
+  BEAT 1  0:00– 2:00  2:00  The robot succeeded                 SHARED
+  BEAT 2  2:00– 4:30  2:30  What Rust decides                   SHARED
+  BEAT 3  4:30– 6:30  2:00  A candidate cannot redefine passing SHARED
+  BEAT 4  6:30– 9:00  2:30  Disposable workspaces; Rust owns proof  SHARED
+  BEAT 5  9:00–15:30  6:30  The live robotics demonstration     SHARED
+  BEAT 6 15:30–21:00  5:30  MEASUREMENT — A+ / A− / B           BRANCHES
+  BEAT 7 21:00–23:30  2:30  What the evidence keeps             SHARED
+  BEAT 8 23:30–25:00  1:30  Close                    SHARED but one sentence
+                     -----
+                     25:00
+```
+
+For a 20-minute cut: take 2:00 off Beat 5 (drop 5b's work-order read, start `warm.sh` earlier), 1:00 off Beat 4 (drop the islo caption), 1:00 off Beat 7, 1:00 off Beat 2. **Never cut Beat 6 and never cut 5d.**
+
+---
+
+### BEAT 1 · 0:00–2:00 · The robot succeeded — SHARED
+
+No command. Slide only: one frame of the lift, two verdicts side by side.
+
+> "The robot lifted the cube. The simulator reported success. Would you merge it?
+>
+> Now look at the timestamps. Every motion segment was authorized from an observation that was 600 milliseconds old. Our policy allows 250. The task succeeded. The contract failed. Both of those sentences are true, and only one of them was visible."
+
+Then the scope sentence, immediately, before anyone can assume otherwise:
+
+> "This is a simulated Panda arm in robosuite and MuJoCo. Simulation is how we make the mistake repeatable. There is no physical hardware in this talk, and the title is our motivation — not a measured conversion between compiles and robot hours."
+
+**Fallback:** entirely verbal. If the deck fails, say the four sentences over a black screen.
+
+---
+
+### BEAT 2 · 2:00–4:30 · What Rust decides — SHARED
+
+```
+sed -n '113,150p' rust/crates/robot-safety-gate/src/lib.rs
+```
+*(Read-only. Runs anywhere, including the Mac. Verified: the doc comment begins at 113, `pub fn decide` is at 119, the function ends at 149.)*
+
+> "The controller proposes approach, descend, grasp, lift. A Rust crate decides whether each segment may be dispatched. The evaluation order is contractual, and there are exactly three rules:
+> 1. simulated emergency stop — precedes everything;
+> 2. timestamp validity — a capture time after the current simulation time is invalid;
+> 3. freshness — an observation older than the policy threshold is rejected as `StalePerception`.
+>
+> This revision implements rule 1 and rule 2 and deliberately omits rule 3. You are looking at the omission: `let _ = (age_ms, policy);`. It compiles. It passes `cargo build`. It lifts the cube. **A successful compilation does not establish a behavioral property. Neither does a successful lift.** The contract test is the thing that asks the additional question."
+
+**Then the boundary sentence. Mandatory. Say it slowly, and say the second half — it is the question you otherwise cannot answer:**
+
+> "One important boundary. Authorization happens at segment dispatch. A segment contains multiple control steps, and hold steps are explicitly unguarded — the source says so at the top of the file. 250 milliseconds is an illustrative policy value, not a hardware safety limit.
+>
+> And be precise about what this proves. `decide` is a pure function over protocol messages the bridge sends it. What the evidence establishes is that **no trace in this evidence pack contains a dispatch the gate did not permit** — not that the arm cannot physically move on stale perception. A controller that moved the arm and never sent a proposal would not be caught by anything in this crate. That is a real limit of the design and I would rather state it than be asked."
+
+*(Why this matters: `swf-app/src/session.rs:333` errors with `task dispatched without permission` only when the bridge **reports** `dispatched: true` for a non-permitted action. The gate is advisory over self-reported protocol messages. Without this sentence, Beat 5d's "Zero stale dispatches" invites an objection you have no answer to.)*
+
+**Fallback:** the same source is on the slide as a static excerpt. Nothing here executes.
+
+---
+
+### BEAT 3 · 4:30–6:30 · A candidate does not get to redefine acceptance — SHARED
+
+```
+sed -n '1,30p' scripts/robot-demo/check-patch.py
+```
+
+> "When something proposes a fix — a person, a tool, a model — it may touch exactly one file: `rust/crates/robot-safety-gate/src/lib.rs`. Not the threshold. Not the fixtures. Not the acceptance checks. Not the runner. Not the evidence generator. Mode changes, renames, new files, binary hunks and empty patches are rejected outright. **A candidate does not get to redefine what passing means, and it does not get to edit the thing that judges it.**"
+
+**HONESTY LINE — mandatory. Say it here, unprompted, rather than being asked later:**
+
+> "To be exact about what this repository does and does not do: the checked-in rehearsal applies a **reviewed patch**. Nothing in these scripts invokes a language model. The interface accepts a patch from an external agent; today I am showing you the reviewed candidate."
+
+> *[If running a live external agent: show it explicitly and cap the attempt at approximately 45 seconds. On timeout, switch to the reviewed patch and say that you are switching.]*
+
+**This is the single likeliest place in the talk to get caught.** Never narrate the fallback patch as a model writing code on stage.
+
+---
+
+### BEAT 4 · 6:30–9:00 · Disposable workspaces, and why Rust owns the proof path — SHARED
+
+```
+sed -n '1,12p' scripts/robot-demo/ec2-agentic-physical-ai.sh
+```
+
+> "Every candidate needs fresh validation, so every candidate gets a workspace that did not exist a minute ago: a detached git worktree and a fresh Cargo target directory on a Linux host, removed on exit. Be precise about the word sandbox — **we remove workspaces, not machines.** This is not VM isolation and we do not provision or destroy EC2 instances.
+>
+> That split is the interesting part. The workspace is disposable. Test verdicts must be earned again for this candidate. But eligible compilation work is exactly the thing that *should* survive the workspace — that is what a build service is for, and here that is Incredibuild: Cargo running under `ib_console` with a rustc profile that marks compilation remote-eligible.
+>
+> And because this is a Rust conference, Rust owns the proof path too. `swf-cli` — not a spreadsheet, not the vendor's dashboard — parses the coordinator's Build History response and the cache statistics, and it fails closed. It rejects the run if any Incredibuild sample has zero remote tasks, zero remote core time, ambiguous counters, or, on the parent-warmed path, zero cache hits. Python is only the robosuite adapter. It proposes motion. It cannot authorize it and it cannot certify the build."
+
+Provider caption — under 30 seconds, do not elaborate:
+
+> "Islo is the intended future provider of the disposable-execution role. It has no working code in this repository; today's execution is the EC2-backed grid."
+
+*(For accuracy in your own head: islo is named in **14** tracked files, not four. The claim "planned provider, zero working code" is correct in all of them.)*
+
+**Fallback:** read-only. Behind schedule? Cut the islo sentence entirely.
+
+---
+
+### BEAT 5 · 9:00–15:30 · The live robotics demonstration — SHARED, both branches
+
+**This beat is the spine of the talk. It needs `ib_console` on `PATH`; it does not need licensed helpers.** It runs identically in every branch, which is why Branch B is not a weaker talk — 6:30 of live demonstration is untouched by the grid's license state.
+
+Two panes. **PANE 1** = what you narrate. **PANE 2** = the long-running matrix.
+
+#### 5a · 9:00–10:45 — the seeded failure, live
+
+```
+scripts/robot-demo/cold.sh "$RUN-a"
+```
+Expect, in order:
+```
+== runner A: local detached worktree @ <sha>; fresh build outputs ==
+build provider: incredibuild; compilation-cache reuse has not been measured
+== runner A: seeded stale-observation episode ==
+expected seed violation reproduced: stale perception still dispatched the pickup
+run-id: <RUN>-a (seeded failure; runner removed on exit)
+```
+
+Over the build: *"Fresh worktree, fresh target directory, the committed revision — not my laptop's working tree."*
+
+On the assertion line: *"The cube lifted, and the freshness contract was violated. The script asserts that the regression reproduced; if it had not, it refuses to export a misleading failure packet. **A demo that cannot fail is not a demo.**"*
+
+**BRANCH B ONLY — add one line, and plant it early:**
+> "One thing on that second line. It says `incredibuild` because `ib_console` is on `PATH`. Hold that thought. I come back to it in about ten minutes."
+
+*(Without this, a false impression stands uncorrected from 9:00 until the debunk at 19:00. With it, the debunk has a setup.)*
+
+**NEVER run `validate.sh` on `$RUN-a`.** Runner A's evidence is a failure record by design; the verifier is supposed to reject it.
+
+Fallbacks: `refusing to reuse evidence directory` → bump `$RUN`, rerun, 20 s. `REQUIRE_IB=1 but ib_console is unavailable` → `unset REQUIRE_IB`, rerun, and say **"native build, no acceleration claimed"** *before* the audience reads `build provider: native`. `seeded regression was not reproduced` → you are on the wrong commit; abort live, go to the recorded replay, do not debug on stage.
+
+#### 5b · 10:45–12:45 — the bounded candidate, while B builds behind it
+
+**PANE 2 — start this first and let it run for the whole beat:**
+```
+export ROBOT_DEMO_BASE_REVISION="$(cat "$REPO/evidence/$RUN-a/agent-context/base-revision.txt")"
+scripts/robot-demo/warm.sh "$RUN-b"
+```
+*(Safe: `warm.sh` needs only `base-revision.txt`, which `cold.sh` writes before exiting. This buys back 2:00.)*
+
+**PANE 1 — narrate over it:**
+```
+cat evidence/$RUN-a/agent-context/work-order.md
+sed -n '26,48p' demo/fallback-patch.diff
+python3 scripts/robot-demo/check-patch.py demo/fallback-patch.diff
+```
+Expect: `candidate allowlist passed: rust/crates/robot-safety-gate/src/lib.rs`
+
+> "Here is the work order the candidate received, here is the diff, and here is the allowlist accepting it. **Eight added lines in the decision function** — rule 3, restored, with the boundary pinned: exactly the threshold permits, one millisecond beyond rejects."
+
+**Say "in the decision function."** The hunk at lines 26-48 adds exactly 8 lines, but `git apply --numstat` on the whole patch reports **+11 / −20** across two hunks — hunk 1 also strips the 11-line `CONFERENCE FIXTURE — SEEDED REGRESSION` banner from the module doc comment. If anyone runs numstat, the bare "eight lines" disagrees. Consider showing hunk 1 too: removing the seeded-regression banner is itself part of the candidate, and the allowlist permits doc-comment rewrites as readily as logic changes.
+
+#### 5c · 12:45–14:15 — B finishes: fresh build from the recorded base, full matrix
+
+Expect in PANE 2: `candidate applied to exact base <sha>` → a second `ib_console` build → `test result: ok` for `robot-safety-gate` → 17 robosuite episodes → `run-id: <RUN>-b`.
+
+> "That build started from the exact revision runner A recorded, in a workspace that did not exist three minutes ago, and it just ran the full protected matrix: five cube placements times three observation ages, plus a simulated stop and a protocol timeout. Seventeen episodes."
+
+**Timing reference — use the right anchor.** On the EC2 initiator the archived 17-episode matrix totalled **50 906 ms** of scenario wall time (`docs/examples/ec2-runner-b`). The **2026-09-24 macOS** run (`evidence/local-e2e-20260924T125134-runner-b`, robosuite, 0 infrastructure failures) totalled **35 560 ms** of episode wall / **36.17 s** of matrix wall; longest single scenario `protocol_timeout` at **9 519 ms**, an intentional expected timeout. **Budget 90–120 s** on the initiator including MuJoCo init, and plan for 5c to overrun its 1:30 window. For reference, the *entire* rehearsal arc on the Mac — preflight, runner A, patch, runner B, protected validation — took **76.58 s, 21.3% of the 360 s budget** (machine time only; the patch-review beat is 25 ms in the log because nothing human happens there).
+
+**Fallback:** if the matrix has not finished by 14:15, Ctrl-C, say *"the simulator is not cooperating on this host — here is the rehearsal run from this morning, and note that it has its own run ID,"* and run 5d against **`evidence/local-e2e-20260924T125134-runner-b`** (2026-09-24, robosuite, 17 scenarios, verified offline on the Mac the same day). `evidence/sil-final-runner-b` is the second fallback. Do not wait on it.
+
+#### 5d · 14:15–15:30 — THE PROTECTED VERDICT
+
+```
+scripts/robot-demo/validate.sh "$RUN-b"
+```
+Expect 17 lines of `  PASS  <name>: <expected>; N labeled hold(s)` then:
+```
+PROTECTED VERDICT: PASS (17 scenarios; complete coverage matrix)
+```
+
+> "Seventeen scenarios. Ten lifts, five stale rejections, one emergency stop, one timeout. Zero stale dispatches in this trace — and the fresh task still completes, which is the half that matters, because a gate that rejects everything is not a fix. And that verdict is bound by sha256 to the executable this run produced, not to a binary I brought with me in my bag."
+
+**HARD RULE: no `--scenario` flag on a matrix run.** `verify_run.py:207` requires the result set to equal the requested set *exactly*; narrowing a 17-scenario directory fails with a coverage mismatch on the one slide that is supposed to be your verdict. (The `--scenario fresh_lift` example lives at `README.md:55` and `README.en.md:65` and applies only to an evidence directory containing exactly that one scenario.)
+
+Fallbacks: `artifact digest differs from manifest` → the binary was rebuilt after export. Say *"the digest check just caught a rebuild — that is the check doing its job,"* and show the rehearsal evidence. This is recoverable and on-message. `scenario coverage mismatch` → you passed `--scenario`; drop it, 5 s.
+
+---
+
+### BEAT 6 · 15:30–21:00 · MEASUREMENT — the branch
+
+> ## THE BRANCH IS DECIDED: **A−, and it is a CACHE beat, not a distribution beat.**
+>
+> A certified receipt exists (`evidence-live/cache/receipt.json`, sha256 `da1b019d…`). Distribution is switched off at the profile — rustc `local_only` — so every number is the Build Cache and nothing else. The cache demonstrably works (47/52 and 52/52 hits from Incredibuild's own counters) **and is slower than plain `cargo` with the target directory preserved.** Lead with the cache; demote distribution to an honest negative finding (`CACHE-RESULTS.md` §4).
+>
+> **The one number on the payoff slide: `892 ms`.** One agentic-loop iteration with plain `cargo` and a preserved target directory (n=5, 883–931 ms). Against Incredibuild's warm Build Cache: **6,527 ms**. Against a from-scratch build: **11,515 ms**.
+
+**The decision command, run at T-30 (the default form REFUSES — both flags are required and neither is a relaxation):**
+```
+"$REPO/rust/target/debug/swf-cli" robot-demo build-proof \
+  --receipt "$REPO/evidence/$PRERUN-build/build-proof/receipt.json" --min-samples 5 \
+  --distribution excluded --empty-cache-hit-floor 1
+```
+
+| Result | Branch |
+|---|---|
+| `BUILD RECEIPT CONSISTENT` **and** the preserved-target control beats the IB warm median | **A− (WHERE WE ARE)** — receipt obtained, IB not faster |
+| `BUILD RECEIPT CONSISTENT` **and** IB beats the *preserved-target* baseline | **A+** — not observed on this grid, in any configuration |
+| Non-zero exit, or no receipt file | **B** — no measurement |
+
+**A+ now requires beating the right baseline.** The old A+ test — `measured ratio ≥ 1.000` — is satisfied by the receipt (1.764x) and means only that Incredibuild beat a native build starting from an empty target directory. That is not the question an audience asks. **The A+/A− decision is made against the 892 ms preserved-target control, and on this grid there is no branch where the cache wins: keep the target directory → native wins 7.3x; discard the workspace and relocate the target directory → native wins 2.35x; fresh machine → the IB cache is empty and starts at 16,049 ms against 11,515 ms; share the cache between machines → not possible here (`BuildCache.ServiceURL` is unset).**
+
+**A+ and A− are genuinely different talks and you must decide which you are in before you walk on.** `print_build_proof` (`main.rs:498-507`) computes `ratio = native / measured` and `saved = native − measured` and prints them unconditionally once validation passes. **A receipt in which Incredibuild is slower still exits 0 and still prints `BUILD PROOF PASS`,** with a ratio like `0.918x` and a negative `saved`. `BUILD PROOF PASS` means *the telemetry was verified*, not *IB was faster*. Given that the only IB-labelled observation in this repo is 522 ms slower, **A− is a live outcome** and improvising in front of a ratio that reads `0.9xx` is not a plan.
+
+**Do not run `ib-benchmark.sh` or `ec2-agentic-physical-ai.sh` on stage.** The benchmark is 20 full `cargo build --workspace --locked` runs plus up to 24 s of Build History polling per IB sample — 10-15 minutes. And `ec2-agentic-physical-ai.sh:39/45` chains the benchmark then `rehearse.sh` under `set -euo pipefail`, so a benchmark failure at repetition 3 of 5 — exactly what an intermittent license fault produces — would kill the robotics beat entirely. **The receipt is a pre-talk artifact. The stage shows it.**
+
+---
+
+#### BRANCH A+ · receipt obtained, Incredibuild faster
+
+*Arc: we told you it was implemented and not measured. Here is the measurement, and here is what it does not license.*
+
+**A1 · 15:30–17:00 — the experiment, before any number**
+```
+cat "$REPO/evidence/$PRERUN-build/build-proof/method.txt"
+cat "$REPO/evidence/$PRERUN-build/build-proof/run-order.txt"
+```
+> "Before the number, the method — because you cannot check a number you cannot reproduce. One candidate identity, fixed: base revision plus the sha256 of the patch. Three modes: native Cargo; Incredibuild with my user's local cache explicitly cleared first; and Incredibuild after that cache has been populated by building the **parent** revision only. Five samples per mode. Rotating order, so drift in the grid does not land on one mode. `cargo fetch` runs before any timed interval, so no measurement contains a download. Every build gets its own empty target directory."
+
+**A2 · 17:00–19:00 — the number, and one live build**
+```
+cat "$REPO/evidence/$PRERUN-build/build-proof/summary.txt"
+```
+```
+BUILD PROOF PASS  run=<PRERUN>
+candidate=<sha>+patch:<sha256> parent=<sha>
+native          median=  ...ms range= ...ms
+ib-cold         median=  ...ms range= ...ms
+ib-parent-warm  median=  ...ms range= ...ms
+ib-cold         measured ratio=N.NNNx vs native; saved=...ms
+ib-parent-warm  measured ratio=N.NNNx vs native; saved=...ms
+distribution verified for every IB sample; parent-warmed cache hits verified for every warm sample
+```
+> "Medians and ranges, both modes, against native on the same candidate. And the last line is the one I care about: the Rust verifier computed those ratios only after every Incredibuild sample proved remote work and every warm sample proved cache hits."
+
+Then live, ~45 s, from `$REPO/rust`:
+```
+# CACHE-ONLY, and DELIBERATELY at a FIXED target path so the cache can serve it.
+# -f is --force-remote: it forces every remotable task onto helpers and idles the
+# initiator's own 4 cores. It produced the discredited 2.01x-slower number. NEVER use it here.
+# --build-cache-local-user is INERT for rustc (it selects the C/C++ ccache store); kept only
+# because the receipt's argv carries it.
+cp "$REPO/rust/ib_profile.cache-only.xml" "$REPO/rust/ib_profile.xml"   # rustc type="local_only"
+export CARGO_TARGET_DIR=/tmp/stage-fixed-target && rm -rf "$CARGO_TARGET_DIR" && mkdir -p "$CARGO_TARGET_DIR"
+ib_console -c "stage-$RUN" \
+  --build-cache-local-user --build-cache-report-all-miss cargo build --workspace --locked
+curl --fail -sS ${IB_HISTORY_CURL_INSECURE:+-k} -H "client-api-key: $IB_CLIENT_API_KEY" \
+  "$IB_HISTORY_URL" > /tmp/stage.json
+"$REPO/rust/target/debug/swf-cli" robot-demo build-history --input /tmp/stage.json --caption "stage-$RUN"
+```
+Expect `{"build_number":N,"remote_tasks":0,"local_tasks":N,"remote_core_time_s":0.0}` — **zero is the expected and correct answer here**, and the per-task Build Cache report is where the real number lives:
+
+```
+grep -c '^HIT:' <the ib_hm.log path ib_console prints>     # expect 52 on a repeat run at this path
+```
+
+> "`remote_tasks` is zero, and that is the point: I switched distribution off at the profile — one word, `allow_remote` to `local_only` — so everything you are about to see is the build cache and nothing else. Fifty-two of fifty-two compilations served from cache. Those are Incredibuild's counters, not my stopwatch."
+
+*(Say "on our grid," not "in this room." The grid is on the corporate VPN, reached over GlobalProtect, on a different continent from the venue. Someone will know.)*
+
+Fallbacks: build hangs past 45 s → Ctrl-C, *"the grid is busy; the controlled run from this morning stands."* Cost zero — the receipt is the evidence. `remote_tasks: 0` or `found 0 records` → *"The helper licenses are not loading right now, so that build ran locally. The measurements on screen are from a licensed run and I am not going to claim this one."* You have not lost the branch. **Never re-run the curl with a different caption to get a nicer answer** — captions must be globally unique or `build-history` fails with `found 2`.
+
+**A3 · 19:00–21:00 — what the number does not license** *(~70% shared with A− and B)*
+```
+sed -n '403,477p' rust/crates/swf-cli/src/main.rs     # validate_build_proof, the measured conditions
+```
+**The line numbers below are STALE — schema v2 moved everything.** `validate_build_proof` now begins at `main.rs:845` and its bails run to `:958`. Use `845,965p`. Re-derive exact offsets on the day with `grep -n "fn validate_build_proof" main.rs`; do not recite line numbers you have not just checked.
+
+> "Here is why you should believe the previous slide, and it is not because I ran it. This function refuses to print a ratio if any Incredibuild sample has zero remote tasks or zero remote core time; if the telemetry is incomplete or ambiguous; if any cold sample has a non-zero cache-hit count; if any warm sample has a zero cache-hit count; if a sample's source revision differs from the candidate; if repetition numbers repeat; or if any mode has fewer than five samples. Missing telemetry is a failure. Ambiguous telemetry is a failure."
+
+**Then the honest limits, said as strength, not hedging:**
+> "What we measured is `cargo build --workspace --locked`. Not provisioning, not checkout, not agent latency, not tests, not simulation, not export — and to be precise, **not the build you watched in the robotics beat**, which is a different and smaller command. A compilation improvement may or may not dominate the complete candidate cycle. I am not converting it into cost or robot-hours, because we did not measure those quantities. The title of this talk is our motivation. It is not a result."
+
+**You may now say "there is no inference anywhere in that path" — as of 2026-09-24 it is true, and only because it was found to be false and fixed.** The stronger line: *"Three fields in this receipt used to be asserted by the tool that wrote them. We caught it, and the fix is a test that fails if anyone puts it back."* Do not claim it was always true.
+
+---
+
+#### BRANCH A− · receipt obtained, Incredibuild not faster
+
+*Arc: the experiment ran, and it did not say what we hoped. Here is the number anyway, and here is why showing it is the point.*
+
+**Everything in A1 is unchanged** — the method beat is the same, and it matters more here, not less.
+
+**A2− · 17:00–19:00 — the number that did not go our way**
+
+Show the receipt, then show the control the receipt does not contain. **Both, in this order.**
+
+```
+native          median= 11515.0ms range= 11458.. 11549ms
+ib-cold         median= 16049.0ms range= 15456.. 16176ms      1 hit / 52    remote_tasks=0
+ib-parent-warm  median=  6527.0ms range=  6449..  6626ms     47 hits / 52   remote_tasks=0
+ib-cold         measured ratio=0.717x vs native; saved=-4534ms
+ib-parent-warm  measured ratio=1.764x vs native; saved=4988ms
+```
+```
+native, persistent CARGO_TARGET_DIR, same one-file patch applied in place:
+  892 ms   (n=5, range 883-931)        -> IB's warm cache is 7.3x SLOWER
+native, BRAND-NEW worktree path per candidate, one shared persistent target:
+  2778 ms  (n=5, range 2775-2867)      -> IB's warm cache is 2.35x SLOWER
+native, persistent target, nothing changed (no-op rebuild):
+  81 ms    (n=5, range 77-81)          -> IB's 52/52 full reuse (3706 ms) is 46x SLOWER
+```
+
+> "The certified ratio says Incredibuild's cache is 1.76x faster than native. That is true, and it is measured against a native build that starts from an empty target directory every single time, because the benchmark wipes it. So I ran the control the benchmark never ran: keep the target directory, apply the same one-file patch, rebuild. Eight hundred and ninety-two milliseconds. The cache takes six and a half seconds to do the same thing.
+>
+> And it is the same work. Cargo says `Compiling robot-safety-gate, swf-app, swf-cli` — exactly the three crates that miss in Incredibuild's warm build. Both do three compiles. The difference is the other forty-nine: cargo checks they are on disk in eighty-one milliseconds; the cache unpacks forty-seven tarballs in five and a half seconds.
+>
+> An empty cache is worse than no cache: sixteen seconds against eleven and a half. That is the price of writing fifty-one entries, and it belongs on the slide next to everything else."
+
+**Then give Incredibuild the one thing it genuinely wins, because it is real and it is the better argument for this talk** — see `CACHE-RESULTS.md` §6.7:
+
+```
+# one shared target directory, two worktrees, candidate's changed file with an older mtime
+candidate build: 83 ms, 0 crates compiled, rlib byte-identical to the parent (0f0c4b82e21d5aec)
+after `touch`:   2797 ms, rlib 91c4838950d76ff0
+```
+
+> "cargo's fingerprint is mtime-based. Share one target directory across worktrees and it will hand you yesterday's binary and call it a success — eighty-three milliseconds, zero crates compiled, byte-identical to the parent. Incredibuild's cache key is the command line and the content, and it cannot fail this way. For a talk about a gate that decides whether a robot may move, *the fast path cannot silently serve you a stale binary* is a stronger property than any ratio."
+
+> "Five samples per mode, one candidate, rotating order, downloads outside timing, and every Incredibuild sample carrying verified remote work. And the answer is: **on this workload, at this scale, Incredibuild was not faster.** The ratio is right there and I am not going to round it.
+>
+> I want to be clear about what that is and is not. It is not a claim that distributed compilation does not work — this is one crate graph on one grid with two helpers, and the distribution telemetry verified, which means the work genuinely went out and came back. What it says is that for *this* workload the coordination cost was not repaid. That is a scale question, and the honest version of the answer is that we now have an instrument that can tell us where the crossover is, and one data point on the wrong side of it."
+
+Run the same live `ib_console` + Build Cache report sequence as A+ — and the point has changed: `remote_tasks` is **zero by design**, so the cache is cleanly isolated, the reuse is real (52/52), and the *benefit* is what did not appear. **Do not run the `-f` form. Do not narrate distribution at all beyond the structural explanation below:** rustc is one process per crate, this graph is deep rather than wide (45 packages, ~52 units), and proc-macro crates and build scripts must be built *and run* on the host, so they sit on the critical path and cannot be distributed. There is very little width to sell to helpers. That is a measured structural finding, not a vendor criticism — and the without-`-f` distribution result behind it is **n=1**, so state nothing quantitative from it.
+
+**A3− · 19:00–21:00 — identical to A3**, with one added closing sentence:
+> "I could have shown you the 21.4 and 21.9 second numbers from an earlier run, or the 23-second one from the run where I had accidentally forced every task onto two remote helpers and idled the four cores under my own desk. They are two different candidates with one sample each and an uncontrolled cache, and the Incredibuild one was 522 milliseconds slower — so they would have told you nothing, badly. Five samples per mode with verified telemetry tells you something real, even when it is not the something you wanted."
+
+**Do not apologize in A−.** A measured negative on a verified instrument is a better talk than a measured positive on an unverified one, and this audience knows it.
+
+---
+
+#### BRANCH B · no receipt
+
+*Arc: the proof gate failed closed. It refused to certify. The refusal is the result.*
+
+**This is not a consolation prize.** It is the only version of this talk in which you demonstrate the instrument rather than its output, and for a Rust audience that is the more interesting object. Deliver it that way.
+
+**B1 · 15:30–17:00 — the experiment we built, stated as a commitment**
+```
+sed -n '172,207p' scripts/robot-demo/ib-benchmark.sh
+```
+> "Here is the experiment, and I am going to describe it before I tell you what happened, because otherwise you would rightly assume I designed the criteria after seeing the data. One candidate identity: base revision plus the sha256 of the patch. Three modes: native Cargo; Incredibuild with my user's local cache explicitly cleared; Incredibuild after that cache is populated by building the parent revision only. Five samples per mode, minimum. Rotating order — you can see the rotation right there, three orderings cycling across repetitions. `cargo fetch` outside every timed interval. A fresh target directory per build. Twenty builds, fifteen minutes, and it is not something you run on stage."
+
+Then the turn:
+> "That is what we committed to measure. **Now: we do not have the measurement.**"
+
+**B2 · 17:00–19:00 — the refusal, live**
+```
+"$REPO/rust/target/debug/swf-cli" robot-demo build-proof \
+  --receipt "$REPO/evidence/$PRERUN-build/build-proof/receipt.json" --min-samples 5 ; echo "exit=$?"
+```
+There is **no `BUILD PROOF FAIL` banner.** The stage artifact is the bail text on stderr plus a non-zero exit. Expect one of:
+```
+ib-cold sample 1 has no verified remote tasks
+ib-parent-warm sample 2 has no verified cache hits
+missing benchmark mode native
+Error: reading .../receipt.json
+Caused by:
+    No such file or directory (os error 2)
+```
+*(Two corrections to the expected text: a mode that is absent entirely fails at the `with_context` on `main.rs:463` with `missing benchmark mode native` — the `has 0 sample(s), require at least 5` message is only reachable when the mode is present with too few samples. And the file-missing case prints two anyhow blocks, not one line.)*
+
+**Say only what is on the screen. The line is conditional:**
+
+- If the screen says **`... has no verified remote tasks`**:
+  > "That is our own performance verifier, run on our own data, thirty seconds ago. It will not print a speedup. Every Incredibuild sample in that receipt reported zero remote tasks — the helpers did no work for those builds. The verifier will not certify a distribution claim from a build that did not distribute, so there is no number on this slide, and there is not going to be one."
+
+- If the screen says **`No such file`** or **`missing benchmark mode`**:
+  > "That is our own performance verifier, and what it is telling you is that we never produced the experiment. It will not accept an absent experiment as a neutral result either. There is no number on this slide."
+
+**Do not scripted-assert the vendor root cause.** "The coordinator cannot load its license keypair" is an operator report, not something on the screen, and it is a public diagnosis of your own employer's product at a conference. Branch B is entered on *any* non-zero exit — including missing env vars, a cache-statistics parse failure, a history timeout, or the benchmark never having been run — and in several of those worlds no build ran at all. **Keep the license explanation for Q&A, hedged:** *"our operators are still working the cause."*
+
+Then live, ~45 s — show the ground truth rather than asserting it. Same `ib_console` + `build-history` sequence as A2. Expect `{"build_number":N,"remote_tasks":0,"local_tasks":N,"remote_core_time_s":0.0}`
+
+> "`remote_tasks`: zero. That is the whole story, and I would rather show you the zero than tell you about a number you cannot reproduce."
+
+Fallbacks: **VPN or SSH down** → run the identical `build-proof` command on the Mac against the copied receipt. It is a pure file read and needs no grid — *provided you built `swf-cli` on the Mac* (see blocker B3). Skip the live `ib_console` half. **`remote_tasks` unexpectedly non-zero** → you are in Branch A's *fallback*, not Branch A. Say *"that one build distributed — but one build is not the experiment, and I am not going to convert a single sample into a claim,"* and continue with B3 unchanged. **Do not improvise a speedup.**
+
+**B3 · 19:00–21:00 — why a gate that fails closed is the result**
+```
+sed -n '403,477p' rust/crates/swf-cli/src/main.rs
+```
+> "This is the function that just refused. It will not print a ratio if any Incredibuild sample has zero remote tasks or zero remote core time; if the telemetry is incomplete or ambiguous; if any cold sample has a non-zero cache-hit count; if any warm sample has a zero cache-hit count; if a sample built a different revision than the candidate; if repetition numbers repeat; or if any mode has fewer than five samples. Every one of those is a bail, not a warning."
+
+**THE TURN — the strongest ninety seconds available to this talk. Two bugs, both found in our own instrumentation.**
+```
+sed -n '53,78p' scripts/robot-demo/runner-common.sh
+sed -n '41,49p' scripts/robot-demo/preflight.sh
+sed -n '820,832p' rust/crates/swf-cli/src/main.rs
+```
+*(Use `53,78p`, not `53,60p`. Line 57 is `mode=incredibuild`, but the payoff — `"ib": provider == "incredibuild"` — is at line 76, inside the heredoc. The short range leaves the second half of your argument unsupported on screen.)*
+
+> "Now the uncomfortable part, which is the actual reason I am standing here with no number.
+>
+> Look at this. Our runner decides whether a build was an Incredibuild build like this: `if command -v ib_console; then mode=incredibuild`. It checks whether a binary is on `PATH`. Then, twenty lines later, it writes `\"ib\": true` into the evidence file. Our `REQUIRE_IB` flag does the same thing — it checks `PATH`.
+>
+> So a build that executed one hundred percent locally on an unlicensed grid **would** be recorded as an Incredibuild build, and I **would** have narrated it from this stage as an Incredibuild build, and nothing in that evidence format could have told you otherwise. That is not a hypothetical about somebody else's code. That is the line you are looking at.
+>
+> And it is not the only one. Here is the second, and it is in the proof layer — the part I told you fails closed. These three fields — cache scope, cold-cache cleared, parent-seed cleared — are set to `true` by the tool that writes the receipt. Not measured. Asserted. The validator dutifully checks them, and they can never be false. I found that while preparing this talk.
+>
+> **That is the failure mode to take home.** It is not that the grid was down. It is that presence-of-tool was standing in for work-was-distributed, in two different layers, written by the same people on the same week. And the only reason I am not showing you a green slide right now is that *one* of those layers — the one that asks the coordinator for a counter instead of trusting a flag — was built the other way."
+
+**LAND IT:**
+> "We had two options. Write the instrument so it infers, and have a number. Or write it so it verifies, and risk having nothing. Where we wrote it to verify, it has nothing for us today. Where we wrote it to infer, it would have had something for us — and that something would have meant nothing. That is what a working proof gate looks like from the inside. The measurement will exist when the grid is licensed. Not before, and not on a slide."
+
+**MANDATORY — say it plainly so nobody has to ask:**
+> "So: **implemented, not measured.** Incredibuild acceleration in this system is implemented and unmeasured. I am not showing you a speedup today."
+
+**Three things not to say in Branch B:**
+- *"Our committed evidence bundles say `ib: true`."* **False.** Only 2 of 8 do, they use an old schema with no `build_provider` field, and they were not produced by the code on your screen. If you want them, say: *"two archived example bundles say `ib: true`, and they came from an earlier revision of this runner."* Better: drop the sentence. The code excerpt carries the argument alone.
+- *"Every build we ran on an unlicensed grid was recorded as an Incredibuild build."* Nothing on disk establishes that any recorded `ib: true` build ran unlicensed. **Use the subjunctive**, as scripted above.
+- *"I would be showing you a green slide with an entirely fictional speedup."* An inferring receipt fed local builds would produce native-vs-local medians that are roughly **equal** — a ratio near 1.000, not a speedup. Say *"a number on it that meant nothing."* This is the sentence a hostile questioner dismantles.
+
+**And do not volunteer 21.426 / 21.948.** If asked, one sentence: *"Two historical observations, different candidates, one sample each, uncontrolled cache — and the Incredibuild one was 522 milliseconds slower. That is why they are not on a slide."*
+
+**Fallback:** if the terminal is unavailable, B3 works entirely from three slide excerpts — the measured bail conditions, the four-line `command -v ib_console` block, and the cache-clear transcript parser that replaced the three hardcoded receipt fields. Nothing executes.
+
+---
+
+### BEAT 7 · 21:00–23:30 · What the evidence keeps — SHARED
+
+**On the Linux initiator:**
+```
+ls -1 evidence/$RUN-b
+cat evidence/$RUN-b/artifact/swf-cli.sha256
+sha256sum evidence/$RUN-b/artifact/swf-cli
+```
+**On the Mac** (abort level L4), the last command is `shasum -a 256`. `sha256sum` is GNU-only. Name the host before you type.
+
+> "The deliverable is not the patch. It is the patch plus evidence somebody else can inspect: the source identity, the candidate diff, the actual executable, the per-scenario results, and the full proposal-decision-dispatch trace for all seventeen episodes. The verifier recomputed that digest against the exported binary before it printed PASS. If you rebuild after exporting, it refuses.
+>
+> Be precise about what a digest is: **it identifies an artifact. It does not authenticate an execution history and it is not proof of general correctness.** The verdict comes from the protected checks bound to that artifact — the digest is what binds them."
+
+**DO NOT SAY 88/88.** That describes an archived revision and an older verifier; today's verifier says seventeen scenarios. If a slide still shows it, say *"archived, older verifier, different scope"* in the same breath.
+
+**10/10 is different and you may say it.** `tests/contract.rs` has 8 `#[test]` functions and `src/lib.rs` has 2 — exactly the "10 / 10 · 8 contract + 2 unit" the demo page prints. It still describes today's suite. Do not lump it with 88/88 on the do-not-say list.
+
+**Never present the archived `f358e898…` digest as a verified artifact.** That executable is not committed. Any "verify the artifact" beat must use the binary exported live in 5c.
+
+**Fallback:** if `$RUN-b` never completed, run these three commands against **`evidence/local-e2e-20260924T125134-runner-b`** and say *"rehearsal coverage"* out loud before anyone reads the run ID. That bundle is robosuite 1.5.2 / MuJoCo 3.9.0, 17 scenarios, **35 560 ms**, artifact sha256 `72e2694ebc0e8b2cb37e3993bb770e51f7d15af0ccb4755c069b411249881a45` matching manifest and sidecar, and it verifies `PROTECTED VERDICT: PASS (17 scenarios; complete coverage matrix)` offline on the Mac — re-run from disk on 2026-09-24. Second fallback: `evidence/sil-final-runner-b` (2026-09-23, robosuite, 17 scenarios, 31 992 ms), name its date. **Not** `evidence/e2e-local-20260923-194727-runner-b` — that bundle records `backend: "mock (kinematic stand-in; NOT robosuite SIL)"` and 8 976 ms of scenario time. Showing it while narrating robosuite/MuJoCo SIL is exactly the misrepresentation abort level L3 exists to prevent.
+
+---
+
+### BEAT 8 · 23:30–25:00 · Close — SHARED except one sentence
+
+No command. Final slide: repository, evidence link, one scope sentence.
+
+> "The robot lifting the cube was never enough. The candidate had to satisfy a contract it did not get to edit, survive a build in a workspace that did not exist a minute earlier, and produce evidence bound to the executable that actually made the decisions.
+>
+> The architecture separates temporary execution from **compilation that is meant to be reused**. Incredibuild provides the build integration. Independent checks — written in Rust, failing closed — decide whether a candidate advances."
+
+*(Not "reusable compilation." Every `build-metrics` record in this repo literally carries `"cache_reuse_verified": false`.)*
+
+**Branch A+ final sentence:**
+> "Software-in-the-loop, segment-level authorization, no physical-robot result. What we measured is compilation wall time on one candidate, five samples per mode, with verified remote work. Everything else is a separate claim needing a separate experiment."
+
+**Branch A− final sentence:**
+> "Software-in-the-loop, segment-level authorization, no physical-robot result — and a measured result that was not the one we wanted. We built an instrument that could tell us we were wrong, and then it did. That is the part I would keep."
+
+**Branch B final sentence:**
+> "Software-in-the-loop, segment-level authorization, no physical-robot result, and no measured speedup. The gate that refused to certify our build is the same kind of gate that refused to let a cube lift on 600-millisecond-old data. **Both of them said no this week. That is the system working.**"
+
+Memorize the last sentence of your branch. It is the line people quote.
+
+---
+
+### Q&A bank (5:00, outside the 25)
+
+| Question | Answer |
+|---|---|
+| **Why Rust?** | A small typed decision API with deterministic clock inputs makes the contract explicit and testable. Rust does not enforce the right freshness policy for you — it makes the policy a thing you can test. |
+| **Why a robot?** | Because task completion and policy compliance visibly disagree. The simulator makes that disagreement repeatable without booking hardware. |
+| **What does Incredibuild accelerate?** | What it is *intended* to accelerate is eligible compilation. Not model reasoning, not simulator physics, not cached acceptance verdicts. **[Branch B / A−: "and I did not measure that today" / "and on this workload it did not."]** |
+| **Why islo?** | A planned future implementation of the disposable-execution role. It has no working code in this repository today. |
+| **Does the gate stop the arm?** | No. It is a pure function over protocol messages the bridge sends it. What the evidence proves is that no trace contains a dispatch the gate did not permit. A controller that moved the arm without proposing would not be caught by this crate. That is a real design limit. |
+| **[A+] How do I trust it?** | Every sample's telemetry is in `evidence/<run>-build/build-proof/raw/` — raw `ib_console` output, raw Build History JSON, raw cache statistics. The verifier's conditions are in `validate_build_proof` and it fails closed. Caveat: three of the receipt's cache fields are asserted by the writer, not measured. I want to fix that. |
+| **[B] Why no speedup?** | Because our verifier refuses to certify distribution from zero remote tasks. The experiment is implemented and gated; it has not produced a passing receipt. |
+| **[B] Isn't that a failure?** | It is a failed measurement and a working instrument. The alternative — an instrument that inferred distribution from a binary being on `PATH` — would have given me a number today, and it would have been wrong. |
+| **What about 21.4 / 21.9?** | Different candidates, one sample each, uncontrolled cache, and the Incredibuild one was 522 ms slower. They demonstrate the integration path. They are not a performance measurement and I am not presenting them as one. |
+| **Were those `ib: true` runs distributed?** | We don't know. That is the point. Those two bundles come from an earlier runner revision and carry no remote-task counter. Nothing in that evidence format could answer your question, which is why we built one that can. |
+
+---
+
+## 4. Claim inventory — what to change, and in what order
+
+### 4.1 Fix before the talk regardless of branch — public site
+
+These are live on `zozo123.github.io/rust-china-conf/`, and Beat 8 sends the room there.
+
+| Location | Current | Replace with | Why |
+|---|---|---|---|
+| `scripts/site/landing.html:145-146` | `<strong>21.426 <small>s</small></strong>` / `<strong>21.948 <small>s</small></strong>` — **literals**, only the *labels* are `$phase_a`/`$phase_b` | `$phase_a_value` / `$phase_b_value`, keys added to **both** language blocks of `copy.json` | **Highest-value unfixed item.** `build.py --check` exits 0 today and validates only `copy.json` key parity — it never sees these numbers. Edit `copy.json`, see green, push, and the stale pair is still live. **Do this first; it is the precondition for a minutes-long flip later.** |
+| `docs/demo/loop.en.html:119`, `loop.html:105` | `cargo build --locked  (compile stage distributed)` | `(compile stage dispatched via ib_console; distribution unverified)` | Flatly asserts the one thing no committed evidence establishes. Directly contradicts Branch B's thesis. |
+| `docs/demo/loop.html:101` | `空缓存命名空间` (empty cache namespace) | `远程缓存未知`, matching `loop.en.html:115` "remote cache unknown" | ZH-only over-claim — asserts exactly the controlled cache state the receipt is supposed to establish. |
+| `docs/demo/loop.html:154` | `运行器 B — 新实例，热工厂` (new instance, **warm factory**) | `运行器 B — 新工作区，同一基线`, matching `loop.en.html:168` | ZH-only over-claim of a warm shared build farm. |
+| `loop.en.html:113` / `loop.html:99` | frame header `— disposable, empty cache` / `— 一次性，空缓存` | drop "empty cache" / "空缓存" | The header asserts a controlled cold state in both languages while the body line right below says the cache is unknown. |
+| `loop.en.html:163` / `loop.html:149` | `instance gone` / `实例已不在` | `workspace gone` / `工作区已删` | Contradicts the repo's own disclaimer in five other files (`README.en.md:116`, `README.md:101`, `plan.md:39`, `slides.*.md:101`). |
+| `loop.en.html:165` / `loop.html:151` | `and the compilation work the parent revision warmed` | delete | The parent-warmed-hit claim, with no telemetry behind it. |
+| `loop.en.html:193` / `loop.html:179` | `protected verifier: 88 / 88 PASS` as the **green climax frame** | remove, or relabel "historical verifier, archived revision" | Beat 7 forbids saying it; the site says it in green. |
+| `docs/demo/README.md:61` | `证明加速路径运行过` (proves the **acceleration** path ran) | `证明 Incredibuild 构建路径运行过`, matching `README.en.md:85` | ZH substitutes 加速 for the neutral English "build path". |
+| `docs/demo/index.html:384` | static `<dt data-i18n="evV">受保护校验器</dt>` — only the JS dicts at `:430`/`:479` add "历史 / Historical" | qualify the **static** `dt` text too | View-source, JS-disabled, saved page or a mid-load screenshot shows a bare, current-sounding 88/88 on a public site. |
+| `docs/demo/index.html:387` | `<dd>10 / 10 · 8 contract + 2 unit</dd>`, no `data-i18n` | add a key so the label localizes | Cosmetic. **The number itself is correct and current** — leave it. |
+
+**`docs/demo/loop.html` and `loop.en.html` are the most dangerous artifacts in the repo.** They are animated terminal transcripts that *show* a cold build, a warm build, an empty cache, a warm factory, distributed compilation, surviving warmed work, a destroyed instance and a green 88/88 — a complete acceleration story presented as a recorded session. The only thing between them and a false claim is a small-type bilingual note at `loop.en.html:95` / `loop.html:84`.
+
+**After any `copy.json` edit:** `python3 scripts/site/build.py && python3 scripts/site/build.py --check`. Note that `docs/demo/index.html`, `loop.html` and `loop.en.html` are **not** generated by `build.py` and must be edited by hand.
+
+### 4.2 The stale-number map — 21.426 / 21.948 / 522 ms
+
+Twenty files, fifty-eight locations. The ones that matter, in flip order:
+
+1. `scripts/site/landing.html:145-146` → `copy.json` keys (§4.1). Unblocks everything downstream.
+2. `scripts/site/copy.json:99` (en) + `:207` (zh) — `measurement_note`. Once the keys exist, this single string carries the entire public measurement narrative in both languages.
+3. `scripts/site/copy.json:43`+`:151` (`ib_body`, final sentence: *"A completed proof run is still required."*) and `:81`+`:189` (`value_build_body`, final sentence: *"Until that experiment produces a receipt, the speedup stays unmeasured."*). Both are trailing sentences; safe to swap without touching surrounding copy.
+4. `scripts/site/copy.json:105`+`:213` (`scope_body`) — on a receipt, delete **only** the clause "and a measured performance benefit" / "及已测得的性能收益". The rest (physical robots, HIL, trained vision, continuous e-stop) stays verbatim.
+5. `docs/talk/slides.en.md:130-139` and `slides.md:130-139` — the "Build observations" slide is the single projected surface built entirely on the stale pair. **A+/A−:** replace the table with native / ib-cold / ib-parent-warm medians, ranges and sample count. **B:** retitle it *"Why there is no speedup on this slide"* and replace the table with the measured bail conditions plus the live `remote_tasks: 0`. **Both decks are exactly 189 lines with matching Marp breaks — keep the counts equal.**
+6. `docs/talk/talk-25min.en.md:113-135` / `talk-25min.md:99-115` — both already contain the full flip in adjacent paragraphs. On a receipt: delete the historical quote, change the last sentence of the harness paragraph. No other structural change.
+7. `docs/talk/talk-25min.en.md:182-183` / `talk-25min.md:154` — on a receipt, delete the *"Why no speedup?"* Q&A bullet; replace with *"What did you measure?"* citing the run ID and the three modes.
+8. `docs/talk/runbook-6min.en.md:87-92` / `runbook-6min.md:78-81` — **B: unchanged, they are already the correct stage script.** A: replace bullets 3 and 4 with the receipt's numbers and run ID.
+9. `README.en.md:147-150` / `README.md:124-126` — one paragraph, both languages, same flip.
+
+**Leave alone even on a receipt:** `docs/examples/README.en.md:41-45` and `README.md:30`. They describe the archived run, which stays uncontrolled forever. Add a forward link to the new receipt instead of editing the archive's own caveat.
+
+### 4.3 Claims to soften regardless
+
+| Location | Change | Reason |
+|---|---|---|
+| `copy.json:39`+`:147` (`stack_title`) | "Reusable compilation." / "编译成果可复用。" → "Compilation meant to be reused" | **Still soften it, for a new reason.** A parent-warmed cache-hit count now exists (47/52 and 52/52, measured 2026-09-24), so the property is no longer unevidenced — but the mechanism does not support the slogan: reuse requires the target *path* to be pinned, which makes the workspace not disposable, and keeping the directory's contents instead is 80x cheaper. See `CACHE-RESULTS.md` §3. |
+| `README.md:1`, `README.en.md:1`, `copy.json:11`+`:119` | Add one sentence under the title mirroring `talk-25min.en.md:6`: the title states the motivation, not a measured conversion | "A Million Compiles. One Robot Hour." is disclaimed in the talk and slide notes but carried **bare** on both landing pages and both READMEs. **No achievable receipt would support it** — it is the one claim in the inventory the benchmark cannot fix. |
+| `docs/examples/README.en.md:31-32` / `README.md:25` | "both Cargo phases executed under `ib_console`" is backed only by the runner's own `ib` flag | Weakest of the active claims, and the sentence an IB-literate audience member will probe. |
+
+### 4.4 What flips if a receipt lands — the completeness risk
+
+Nine files still say "no measured speedup." **Missing one means the deck contradicts itself on stage.** The order above is built so that `copy.json` (2 new keys + 4 strings) covers both public pages, and the talk / slides / runbook / README edits are four more single-paragraph changes. Everything else in the disclaimer inventory is either an archive note that should not be edited or a presenter comment only you see.
+
+### 4.5 Disclaimers that stay true no matter what the grid does
+
+These are not affected by a receipt and must survive every edit pass:
+
+- **Workspaces, not machines.** `README.en.md:116`, `README.md:101`, `plan.md:39`, `slides.*.md:101`. Worktree separation is not VM or container isolation.
+- **Islo is a planned provider** with zero working code — 14 tracked files. An `ISLO_SANDBOX_KEY` in `.env.local` changes nothing; `preflight.sh:51-55` says so on stdout.
+- **The scripts do not invoke an LLM** — 10 locations.
+- **Runners build the committed revision** (`git rev-parse HEAD^{commit}`), not your working tree.
+- **A digest identifies an artifact**; it does not authenticate an execution history or establish general correctness.
+- **No continuous physical safety supervision**; 250 ms is an illustrative policy, not a hardware limit; hold steps are unguarded.
+- **No hardware-in-the-loop, no physical validation, no trained vision.**
+- **A compilation improvement does not convert to cost or robot-hours without measuring those quantities.** *This stays true even in Branch A+* — the benchmark times `cargo build --workspace --locked` and nothing else. If the receipt lands, over-reading it into the title becomes the new exposure.
+
+---
+
+## 5. Bilingual status
+
+**The brief's premise was wrong and should be struck from the footgun list.** "The ZH 25-minute script is 31 lines shorter and is missing speaker caveats" is not true. The 190-vs-159 line delta is **CJK line wrapping**: Chinese carries the same meaning in roughly 60% of the display width (5 453 display columns vs 8 752 for the same content). Structurally the two scripts are 1:1 — identical section count, identical timings and order, and paragraph blocks that align one-for-one. Every safety-critical caveat is present in Chinese: 未测量, "does not prove speedup / cache reuse / helper execution", cold/warm-are-phase-names, the 522 ms framing, the ≥5-samples gate, and digest-is-not-an-attestation.
+
+**`wc -l` is the wrong parity metric for a CJK/Latin doc pair and will keep generating false alarms.** If any CI check or review habit compares line counts across these files, replace it with a paragraph-block comparison. **Pin the splitter before adopting it** — two independent recomputations of the per-section fingerprint disagree (`3/4/5/5/8/3/5/5/3/3` vs `3/5/6/6/9/4/6/6/4/4`) because they treat the pre-first-heading preamble differently. **The load-bearing property is EN == ZH, and that holds under every splitter tried.** Do not hardcode a published digit string as a CI fingerprint; it will never match.
+
+### What was actually repaired (applied, verified on disk)
+
+Eleven edits across four files in `docs/talk/`. `git diff --stat`: 4 files, +14 / −12, nothing outside `docs/talk/`.
+
+| File | Change |
+|---|---|
+| `talk-25min.md:37-38` | **The only genuine factual divergence, removed.** ZH read "一段运动可以包含多个控制步，**因此**这里没有展示连续的物理安全监督" — the 因此 made multi-step segments the *reason* for the absence of continuous safety supervision. EN states three independent facts. The real reason is that authorization happens at dispatch. Now: "这里有一个重要边界：授权发生在每段运动派发时。一段运动可以包含多个控制步。我们没有演示连续的物理安全监督。250 ms 是演示用的策略阈值，不是硬件安全限。" Causal chain dropped, EN's "One important boundary" signpost restored, 开始之前 → 派发时 to match the 派发 vocabulary already at ZH:47 and :92. |
+| `talk-25min.md:55` | Numeric 45-second cap added: "把单次尝试的等待上限设为约 45 秒；超时就直接切到已审阅的回退补丁". Matches `runbook-6min.md:63` exactly, so the two ZH documents stop disagreeing. |
+| `talk-25min.md:101` | Both halves of the measurement-slide guard merged: "明确标注为历史数据，并标明运行编号". |
+| `talk-25min.md:115` | The dropped conditional restored: "在没有实测这些量之前，不能把它换算为成本节省或机器人工时". |
+| `talk-25min.en.md:44` | "…an illustrative policy, **not a hardware safety limit.**" — a caveat that existed only in ZH. |
+| `talk-25min.en.md:64-65` | "…cap the attempt at approximately 45 seconds; on timeout, switch to the reviewed fallback patch." |
+| `talk-25min.en.md:115` | "[Show two observations, clearly labeled as historical, **with the run ID visible**.]" — EN required only the historical label, ZH only the run ID. Each carried half the guard. Both now carry both. |
+| `slides.md:58` / `slides.en.md:58` | 45-second cap appended inside the existing speaker-note comment. |
+| `slides.md:165` / `slides.en.md:165` | Digest note aligned with the talk script: "…也不证明程序普遍正确" / "…and not proof of general correctness." |
+
+### Parity now
+
+- `python3 scripts/site/build.py --check` → **exit 0**, "Both static editions match the template, translations, and recorded matrix." **Do not read this as evidence the speaker scripts are in sync** — `build.py` reads only `copy.json` and `landing.html` and never opens `docs/talk/`.
+- **Paragraph-block parity: EN == ZH** in all three file pairs.
+- **Numeric-token parity: zero differences** in all three pairs.
+- **Marp symmetry preserved:** `slides.md` and `slides.en.md` are both still exactly 189 lines, no slide break moved.
+- **45-second cap coverage now complete** across all six stage documents. Before: two runbooks only. A presenter driving from the talk script or the deck had **no numeric stop condition on the beat most likely to stall.**
+
+### The real bilingual risk, going forward
+
+**It is the opposite of the one originally stated.** The ZH text was in three places *stricter or more complete* than EN. Two have now been mirrored into EN; the third (`talk-25min.md:53`'s 默认 / "by default" on the reviewed-fallback sentence) remains ZH-only. **Any future sync must be bidirectional.** If EN is treated as canonical and ZH regenerated from it, those guards are silently lost.
+
+**Not applied, deliberately:** no `copy.json` or `landing.html` change. No talk-script caveat maps to a site copy key, and the `landing.html:145-146` finding is a claim-inventory fix (§4.1), not a bilingual-drift fix.
+
+---
+
+## 6. Honest limits — stated plainly
+
+**Things this talk does not establish, in the order an audience will probe them.**
+
+1. **Incredibuild acceleration IS measured now — and the honest limit is the opposite of the old one.** A certified cache-only receipt exists (`evidence-live/cache/receipt.json`, sha256 `da1b019d…`, schema v2, 15 samples, `BUILD RECEIPT CONSISTENT`, exit 0 under `--distribution excluded --empty-cache-hit-floor 1`). The Build Cache works: 47/52 hits after a one-file change, 52/52 on identical source, from Incredibuild's own per-task report. **It is also slower than plain `cargo` with the target directory preserved — 6,527 ms against 892 ms, 7.3x.** Every "faster than native" ratio in the receipt is measured against a native build that `ib-benchmark.sh` wipes the target directory for. Full scope in `CACHE-RESULTS.md`. The old 21.426 / 21.948 / 522 ms pair is superseded, not merely disclaimed, and the `-f` 23-second figure was `--force-remote` and must not be quoted at all.
+
+1b. **The certification does not cover the wall times.** `wall_ms` is corroborated by nothing: a receipt with all five warm samples set to 500 ms prints `BUILD RECEIPT CONSISTENT` at `ratio=23.030x`, exit 0. Exit 0 establishes a cache state and the absence of distribution. **Never compress "certified" into "the speed-up is proven."** The 3.13x full-reuse figure is not in the receipt at all — the three-mode schema cannot carry it.
+
+1c. **Cross-machine cache sharing is NOT demonstrated and cannot be on this grid.** `BuildCache.ServiceURL` carries no value and `BuildCacheService.SizeLimit` is 0, so the store is machine-local. **This is the only branch where the Build Cache could plausibly beat a local target directory** — a fresh container or a second machine has no target directory to preserve, and 90% reuse at a workspace path the cache has never seen would then be worth real time. It is unmeasured. Say "unmeasured", not "would".
+
+2. **Helper execution is measured, and it is zero — in two different senses.** Under the cache-only profile rustc is declared `local_only`, so `remote_tasks=0` and `remote_core_time=0` on all 21 IB builds is the *intended* result and is what the gate demands. Separately, with `allow_remote` and **without** `-f`, this grid also distributed nothing (`numberOfRemoteTasks=0`, `maxInitiatorCores=4`) — but that is **n=1**, a smoke result, and no slide may state a distribution conclusion from it. The earlier "2.01x slower" was produced **with** `-f` (`--force-remote`), which idles the initiator's own cores; it measures a handicapped configuration, not Incredibuild.
+
+3. **Cache reuse is measured, and the key is now understood.** The key includes the rustc **output path** (dominant) and the **CWD**, and does *not* include the user. Varying the target path alone drops reuse to 3/52; moving the workspace to a brand-new path still gives 47/52. Every earlier run's `1 hit / 52` was `fresh_target()` mktemp-ing a new `CARGO_TARGET_DIR` per sample — a guaranteed miss by construction, not a broken cache. **"Disposable workspaces, reusable compilation" survives only in a narrow form:** the cache replays 52/52 when the target *path* is held fixed and its *contents* wiped, but a path you must pin is not disposable, and if you can pin the path you can keep the contents (81 ms instead of 3,706 ms). `CARGO_TARGET_DIR` is an environment variable and need not live inside the workspace being destroyed.
+
+3b. **The cache clear is machine-wide, and the verifier still prints otherwise.** `/opt/incredibuild/management/build_avoid_cache.sh:127` runs `rm -rf /etc/incredibuild/cache/build_cache/shared/*` unconditionally for every scope argument (measured: 102,880 KB / 105 tars → 8 KB / 0 tars from a `user clear`). `receipt-verdict.txt` line 9 still says `cache scope … local-user`. The operator gate and `method.txt` were corrected; the verifier's stdout was not. Also: `--build-cache-local-user` selects the C/C++ ccache store and is **inert for rustc**, and `/ib/mnt/fscache` (28 KB used) is the remote-execution file service, **not** the build cache.
+
+4. **Cache discipline is transcribed, not declared (fixed 2026-09-24) — but the transcript is weaker than it looks, and it is not re-read at proof time.** The receipt no longer asserts its own cache state: cache facts are transcribed per sample from a `cache-clear.sh` transcript with a retained sha256, and an absent transcript yields *unknown* and fails closed. Three honest limits remain, all measured on 2026-09-24:
+   - The transcript records what the cache tool was *asked* to do and its exit status. It does not audit the cache afterwards.
+   - **It does not record the tool's name.** `cache-clear.sh` shifts `TOOL` off the argument list before writing `argv=$*`, so a transcript reads `argv=-rf /path/to/target` with no tool name and an empty body — and `rm -rf` on a nonexistent path also exits 0. **Fix this before the grid run**, because on the grid this same transcript is the only evidence `build-proof` accepts for the `ib-cold` and `ib-parent-warm` clears.
+   - **`build-proof` never opens the transcript.** `check_clear_usable` (`main.rs:695-700`) validates `transcript_sha256` for shape only and never recomputes it; the file is never read at proof time. A 64-zero digest with a nonexistent path passes. See finding 3 in §"Two new findings".
+
+4b. **The 2026-09-24 native receipt cannot distinguish its own configurations.** All 20 samples carry `mode: "native"` and an identical `source_revision`; cold/warm and `-j1`/`-j10` survive only as a substring of the free-text `build_caption`. `mode_stats` (`main.rs:619-633`) takes one median per mode and `print_build_proof` (`main.rs:977-986`) divides by `stats["native"].median_ms` — **3 938 ms, a bimodal midpoint matching no build anyone ran.** The four per-config receipts alongside it (5 homogeneous samples each) are the honest containers. **Never let the 20-sample median become the baseline a future grid receipt is divided into.**
+
+5. **The safety gate is advisory over self-reported protocol messages.** `decide` is a pure function. `session.rs:333` catches a violation only when the bridge *reports* `dispatched: true` for a non-permitted action. The invariant proven is "no trace in this evidence pack contains a dispatch the gate did not permit," not "the arm cannot move on stale perception." Hold steps are explicitly unguarded and never reach the gate at all.
+
+6. **The receipt would not measure the build the audience watches.** `ib-benchmark.sh` times `cargo build --workspace --locked`. The runner builds `cargo build --locked` plus `cargo test -p robot-safety-gate -p swf-app --locked --no-run`. Different workloads. Say so, or the first person who diffs the two scripts says it for you.
+
+7. **The robotics beat's own builds cannot be correlated to any counter, ever.** `runner-common.sh:62-63` invokes `ib_console cargo build --locked` with **no `-c <caption>`**, no `-f`, no cache flags, no `--workspace`. `parse_ib_history` (`main.rs:218`) matches records by caption. So `build-history` can only ever describe the separate hand-typed `ib_console` command in A2/B2 — never the `cold.sh`/`warm.sh` builds on screen. **Beat 5a's `build provider: incredibuild` is a `PATH` inference with no counter behind it and no way to get one.**
+
+8. **No physical hardware, no hardware-in-the-loop, no trained vision, no learned policy.** Cube state comes from the simulator. 250 ms is an illustrative policy value.
+
+9. **The workspace is disposable; the machine is not.** Git worktrees and fresh target directories, removed on exit. Not VM isolation. No EC2 provisioning or destruction.
+
+10. **No coding agent is wired in.** `scripts/robot-demo/` invokes no LLM anywhere. The rehearsal applies a reviewed patch.
+
+11. **Islo has no working code.** Named as a planned provider in 14 tracked files.
+
+12. **The title is not a result.** "A Million Compiles. One Robot Hour." is a motivation. **No receipt this pipeline can produce would support it** — the benchmark measures compilation wall time and licenses no claim about cost, CPU-hours or robot-hours. If the receipt lands, over-reading it into the title becomes the new exposure.
+
+---
+
+## 7. What to fix in the repo, when there is time
+
+Not required for the talk, but each of these is a real defect the talk currently works *around*.
+
+| File | Change | Priority |
+|---|---|---|
+| `scripts/robot-demo/preflight.sh:25-32` | Hard-FAIL when `ROBOT_DEMO_BACKEND=robosuite` and the import fails. Today it prints `warn` and exits 0, so preflight is **not a gate** for the SIL path Beat 5 depends on. | High |
+| `scripts/robot-demo/preflight.sh:41-49` | When `IB_HISTORY_URL` and `IB_CLIENT_API_KEY` are set, run one captioned `ib_console` build and assert `remote_tasks > 0`. **This is the T-30 branch decision, automated**, and the only check that distinguishes a licensed grid from a silent local build. | High |
+| ~~`rust/crates/swf-cli/src/main.rs:826-828`~~ | **DONE 2026-09-24.** Cache scope and both clearing flags now come from a parsed `cache-clear.sh` transcript (sha256 retained); absent transcript = *unknown* and fails closed; v1 receipts rejected; two regression tests guard it. | ~~High~~ Closed |
+| `scripts/robot-demo/runner-common.sh:57,76` | When `REQUIRE_IB=1`, verify remote execution occurred before writing `"ib": true`, rather than inferring from `command -v ib_console`. | High |
+| `scripts/robot-demo/runner-common.sh:62-63` | Pass `-c <caption>` to `ib_console` so the runner's own builds become correlatable to Build History at all. | High |
+| `scripts/robot-demo/ec2-agentic-physical-ai.sh:37-47` | Add `SKIP_BUILD_EXPERIMENT` / `SKIP_BEHAVIOR`, or run the phases with recorded status, so a benchmark failure cannot swallow the behavior rehearsal under `set -e`. | Medium |
+| `scripts/robot-demo/ec2-agentic-physical-ai.sh:16-17` | Also require `ROBOT_DEMO_PYTHON` (absolute, executable) and `IB_ALLOW_CLEAR_USER_CACHE=1`. Today the wrapper exports `REQUIRE_IB` and `ROBOT_DEMO_BACKEND` but not these two, so the robosuite bridge silently falls back to system `python3`. | Medium |
+| `scripts/robot-demo/ib-benchmark.sh:22,48` | Move the `swf-cli` bootstrap **above** the env gates, and honor or explicitly override `CARGO_TARGET_DIR` when locating `PROOF_CLI`. | Medium |
+| `scripts/robot-demo/*.sh` | Stop sourcing `.env.local` with `set -a` *after* the caller's exports, or at minimum print what it overrode. | Medium |
+| `README.md:55`, `README.en.md:65` | The `validate.sh one-run --scenario fresh_lift` example needs the exact-set constraint stated inline (`verify_run.py:207`). **This string is in the READMEs, not the runbooks** — the runbooks' `validate.sh stage-b` example is already correct. | Low |
+| `docs/talk/runbook-6min.en.md:32-42` and `runbook-6min.md` | The visible-sequence table is anchored to 0:00–6:00; the new Beat 5 is 9:00–15:30 with a parallel-pane `warm.sh` start at 10:45. Re-anchor and add the pane-2 start as its own row. | Low |
+| `docs/talk/slides.*.md` | Add one Branch-B slide after the measurement slide: the four-line `command -v ib_console` excerpt plus "presence of a tool was standing in for work was distributed". Add it **symmetrically** to both decks. | Low |

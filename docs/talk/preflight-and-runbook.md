@@ -246,46 +246,88 @@ head -c 200 evidence/local-e2e-20260924T125134-runner-b/scenario-results.json
 ```bash
 ls -l "$REPO/evidence/$PRERUN-build/build-proof/receipt.json"
 "$REPO/rust/target/debug/swf-cli" robot-demo build-proof \
-  --receipt "$REPO/evidence/$PRERUN-build/build-proof/receipt.json" --min-samples 5
+  --receipt "$REPO/evidence/$PRERUN-build/build-proof/receipt.json" --min-samples 5 \
+  --distribution excluded --empty-cache-hit-floor 1
 ```
 - **`ls` first.** A path typo and a real refusal produce the same-looking error, and confusing them costs you the branch.
-- **BRANCH A+:** `BUILD PROOF PASS run=...` **and** both `measured ratio` lines **≥ 1.000**.
-- **BRANCH A−:** `BUILD PROOF PASS` **and** either `measured ratio` **< 1.000** (with a negative `saved`). **This is a pass, not a failure.** `print_build_proof` (`main.rs:498-507`) prints the ratio unconditionally once validation succeeds — `BUILD PROOF PASS` means *the telemetry was verified*, not *IB was faster*.
-- **BRANCH B:** non-zero exit, or the file is absent.
-- **Read the ratio, not just the exit code.** Given that the only IB-labelled observation in this repo is 522 ms in the wrong direction, A− is a live outcome.
+- **Both flags are required for a cache-only receipt, and neither is a relaxation.** Without them the command exits 1 — that refusal is expected, not a Branch B trigger. See §3.
+- **BRANCH B:** non-zero exit *with both flags*, or the file is absent.
+- **BRANCH A− (where we are):** `BUILD RECEIPT CONSISTENT`. **This is a pass, not a failure.**
+- **The branch is NOT decided by the printed ratio.** The receipt's `1.764x` is measured against a native build with a wiped target directory, which `ib-benchmark.sh` enforces at `native_sample() -> disposable_workspace()`. The decision is made against the preserved-target control in §3: **892 ms**, so the warm cache is 7.3x slower and this is **A−**. Exit 0 establishes a cache state and the absence of distribution; it does not establish any wall time (a receipt with fabricated 500 ms warm samples passes at `ratio=23.030x`).
+- **`swf-cli` is NOT on PATH on the initiator**, contrary to the old briefing. Build it first: `cargo build --release -p swf-cli` (or `--manifest-path rust/Cargo.toml -p swf-cli` for the debug path this runbook uses).
 
 ---
 
-## 3. T-60 minutes (or the night before): produce the receipt
+## 3. T-60 minutes (or the night before): the receipt — ALREADY OBTAINED
 
-**INITIATOR. This is the single missing asset and it cannot be produced on stage.**
+> **A certified CACHE receipt exists on the Mac: `outputs/evidence-live/cache/receipt.json`,
+> sha256 `da1b019daeaa895a1818d32154ce29280d4cf9acdbb8d165b64c78c3527062ce`, schema v2,
+> 15 samples.** You do **not** need to re-run the benchmark to have a talk. Re-run it only to
+> refresh the numbers on the day; budget 10-15 minutes and a new run id if you do.
+>
+> **The measurement beat is a CACHE beat.** Distribution is switched off at the profile
+> (rustc `local_only`), `remote_tasks=0` on all 21 IB builds, and the distribution result is a
+> demoted negative finding. Full write-up and stage wording: `outputs/CACHE-RESULTS.md`.
+
+**INITIATOR — to re-run (cache-only is now the default mode):**
 
 ```bash
 cd "$REPO"
 export PRERUN="proof-$(date -u +%Y%m%dT%H%M%SZ)"
 echo "PRERUN=$PRERUN"
-time scripts/robot-demo/ib-benchmark.sh "$PRERUN-build"     # note the -build suffix (§0.2)
+export REQUIRE_IB=1                                    # without it the runner silently falls back to native cargo
+time IB_ACCEL=cache-only IB_SAMPLES=5 scripts/robot-demo/ib-benchmark.sh "$PRERUN-build"
 ls -l "$REPO/evidence/$PRERUN-build/build-proof/receipt.json"
 ```
 
-**Duration: 10-15 minutes** — 20 workspace builds plus up to 24 s of history polling per IB sample.
+`IB_ACCEL=cache-only` (the default) installs `rust/ib_profile.cache-only.xml` — sha256
+`20d976e763a43fa623a52d41e798f1d621de5f8a6d66df0c6513a4cff94cb02d`, one attribute different from
+the shipped profile: `<process filename="rustc" type="local_only">`. `IB_ACCEL=distributed` is a
+clearly-labelled variant that **cannot satisfy its own gate on this grid** and fails fast in ~30 s
+with that explanation. `IB_SMOKE=1` is a single-sample rehearsal that refuses to produce a receipt
+at all and drops a `SMOKE-NOT-A-MEASUREMENT.txt` marker — nothing downstream may quote it.
 
-**What it proves.** The same candidate (BASE + sha256 of `fallback-patch.diff`) built 5× native, 5× IB with a wiped local-user cache, 5× IB after seeding that cache from the **parent** revision only; every IB sample carrying `remote_tasks > 0` and `remote_core_time_s > 0` from the Build History API; every cold sample with exactly 0 cache hits; every warm sample with > 0 cache hits; run order rotating across repetitions; downloads outside all timed intervals.
-
-**Expected tail:**
+**Verify it — the default command form REFUSES, and both extra flags are required:**
+```bash
+"$REPO/rust/target/debug/swf-cli" robot-demo build-proof \
+  --receipt "$REPO/evidence/$PRERUN-build/build-proof/receipt.json" --min-samples 5 \
+  --distribution excluded --empty-cache-hit-floor 1
 ```
-BUILD PROOF PASS  run=<PRERUN>-build
+Neither flag is a relaxation. `--distribution excluded` **demands** `remote_tasks == 0` and
+`remote_core_time == 0` on every IB sample and every parent seed (one leaked task refuses the
+receipt). `--empty-cache-hit-floor 1` is a corrected contract: `hits == 0` is unsatisfiable for
+Rust, because cargo invokes `rustc -vV` twice and the second is served the entry the first stored.
+The floor is symmetric, defaults to 0, and the receipt cannot set it.
+
+**ALSO RUN THE CONTROL, and put it on the slide next to the receipt.** The benchmark wipes the
+native target directory before every native sample, so no receipt it can produce contains the
+baseline an audience will demand. Script and raw timings:
+`outputs/evidence-live/cache/native-warm-control-20260924T130233Z/` (`nwcontrol.sh`, `stale.sh`).
+Measured 2026-09-24 on the initiator, n=5 per mode:
+
+```
+native, persistent CARGO_TARGET_DIR, one-file patch in place   892 ms  (883-931)
+native, brand-new worktree path, one shared persistent target 2778 ms  (2775-2867)
+native, persistent target, no-op rebuild                        81 ms  (77-81)
+IB cache-only warm, one-file change (47/52 hits)              6527 ms  (6449-6626)
+```
+
+**Expected receipt tail:**
+```
+BUILD RECEIPT CONSISTENT  run=<PRERUN>-build
 candidate=<sha>+patch:<sha256> parent=<sha>
-native          median=  ...ms range= ...ms
-ib-cold         median=  ...ms range= ...ms
-ib-parent-warm  median=  ...ms range= ...ms
-ib-cold         measured ratio=N.NNNx vs native; saved=...ms
-ib-parent-warm  measured ratio=N.NNNx vs native; saved=...ms
-distribution verified for every IB sample; parent-warmed cache hits verified for every warm sample
-verified build proof: .../evidence/<PRERUN>-build/build-proof/receipt.json
+native          median= 11515.0ms range= 11458.. 11549ms
+ib-cold         median= 16049.0ms range= 15456.. 16176ms
+ib-parent-warm  median=  6527.0ms range=  6449..  6626ms
+ib-cold         measured ratio=0.717x vs native; saved=-4534ms
+ib-parent-warm  measured ratio=1.764x vs native; saved=4988ms
+DISTRIBUTION CONTRACT: --distribution excluded (CACHE-ONLY) ...
 ```
+**`BUILD RECEIPT CONSISTENT` does not mean the numbers are real.** `wall_ms` is corroborated by
+nothing — a receipt with all five warm samples set to 500 ms passes at `ratio=23.030x`, exit 0.
+Exit 0 establishes a cache state and the absence of distribution. Nothing more.
 
-**Copy to the Mac:** `evidence/<PRERUN>-build/build-proof/{receipt.json,summary.txt,method.txt,run-order.txt,raw/}`.
+**Copy to the Mac:** `evidence/<PRERUN>-build/build-proof/{receipt.json,summary.txt,method.txt,run-order.txt,raw/,cache-report-per-task.txt}`.
 
 ### Failure handling, in order
 
@@ -294,11 +336,12 @@ verified build proof: .../evidence/<PRERUN>-build/build-proof/receipt.json
 | exit 2, `set IB_ALLOW_CLEAR_USER_CACHE=1` / `IB_HISTORY_URL and IB_CLIENT_API_KEY are required` / `cache management tools are unavailable` | Env gap. **Nothing was built** — costs seconds. | Fix and rerun. **Note:** these gates sit *before* the `swf-cli` bootstrap at line 48, which is why P0 exists. |
 | `refusing to reuse .../build-proof` | Run id collision | New `$PRERUN` |
 | script dies ~20-30 s in, right after the **first native build** | A stale exported `CARGO_TARGET_DIR`. `PROOF_CLI` is hardcoded at `ib-benchmark.sh:21` and first used by `native_sample`'s `build-sample` call at 121-123; rep 1's rotation is (native, ib-cold, ib-parent-warm). | `unset CARGO_TARGET_DIR`, rerun. **Do not wait for a multi-minute failure — this one is fast.** |
-| `Build History API never returned exactly one record for <caption>` | Coordinator API or license | Re-run **P4**. If `remote_tasks` is 0, **stop — you cannot make this receipt today.** |
-| `<mode> sample N has no verified remote tasks` | A helper dropped its license mid-run | Rerun the whole benchmark with a new id. **A partial receipt is worthless.** |
+| `Build History API never returned exactly one record for <caption>` | Coordinator API or license | Re-run **P4**. **`remote_tasks: 0` is now EXPECTED and correct** under `IB_ACCEL=cache-only` — it is what `--distribution excluded` demands. Only a *missing record* blocks the receipt. |
+| `<mode> sample N has no verified remote tasks` | You verified with the **default** contract | Add `--distribution excluded`. This is the expected refusal for a cache-only receipt, not a failure. |
+| `<mode> sample N was not empty-cache (hits=Some(1), floor=0)` | The unsatisfiable `hits == 0` rule | Add `--empty-cache-hit-floor 1`. The residual hit is cargo's `rustc -vV` self-hit, proven from `/etc/incredibuild/log/2026-Sep-24/local-67,71,79`. |
 | `ib-parent-warm sample N has no verified cache hits` | Build cache off, or not local-user scoped | The cache-reuse claim is unavailable. The distribution claim may still stand from the ib-cold samples. |
 | `expected one unambiguous cache hits counter, found [...]` | Statistics format drift — see **P6** | No receipt today |
-| Out of time | — | **No receipt. Branch B.** And do not show 21.426 vs 21.948 as a speedup: two different candidates, one sample each, uncontrolled cache, and the IB one was **522 ms slower.** |
+| Out of time | — | **Use the certified receipt already on the Mac** (`outputs/evidence-live/cache/receipt.json`, sha256 `da1b019d…`) plus the control in §3. Branch B is now a fallback, not the default. Do not show 21.426 vs 21.948 as a speedup (two candidates, one sample each, uncontrolled cache, IB **522 ms slower**), and do not show the 23,173 ms `-f` run at all. |
 
 > **Read this before you quote `CHECKED FROM RECORDS` on stage (found 2026-09-24).**
 > `build-proof` reads **only the receipt's own fields.** It never opens `transcript_path`, never
@@ -411,18 +454,46 @@ PROTECTED VERDICT: PASS (17 scenarios; complete coverage matrix)
 
 ### Beat 6 · 15:30-21:00 · MEASUREMENT
 
+> **BRANCH IS A−, AND IT IS A CACHE BEAT.** Lead with the cache. Demote distribution to an
+> honest negative finding. **Payoff slide: `892 ms`** — one agentic-loop iteration with plain
+> `cargo` and a preserved target directory (n=5, 883-931), against **6,527 ms** through
+> Incredibuild's warm Build Cache and **11,515 ms** from scratch. Stage wording:
+> `outputs/CACHE-RESULTS.md` §6.
+
 **Branch decided at T-30 by P15. Do not decide it on stage.**
 
-**Shared live sequence (A+, A−, and B all run it) — INITIATOR, ~45 s:**
+**Shared live sequence — INITIATOR, ~45 s. NOTE THE TWO CHANGES FROM THE OLD SCRIPT:**
 ```bash
 cd "$REPO/rust"
-CARGO_TARGET_DIR="$(mktemp -d /tmp/stage.XXXX)" ib_console -c "stage-$RUN" -f \
+# 1. NO -f. `-f` is --force-remote: it forces every remotable task onto helpers and idles the
+#    initiator's own 4 cores. It produced the discredited "2.01x slower" number.
+# 2. A FIXED target path, contents wiped -- the Build Cache key includes the rustc output path,
+#    so a mktemp target guarantees ~0% reuse by construction. That is why every earlier run
+#    showed 1 hit out of 52.
+cp "$REPO/rust/ib_profile.cache-only.xml" "$REPO/rust/ib_profile.xml"   # rustc type="local_only"
+export CARGO_TARGET_DIR=/tmp/stage-fixed-target
+rm -rf "$CARGO_TARGET_DIR" && mkdir -p "$CARGO_TARGET_DIR"
+ib_console -c "stage-$RUN" \
   --build-cache-local-user --build-cache-report-all-miss cargo build --workspace --locked
+# the number that matters is the per-task Build Cache report, not Build History:
+grep -c '^HIT:' <the ib_hm.log path ib_console just printed>     # expect 52 on a repeat run
 curl --fail -sS ${IB_HISTORY_CURL_INSECURE:+-k} -H "client-api-key: $IB_CLIENT_API_KEY" \
   "$IB_HISTORY_URL" > /tmp/stage.json
 "$REPO/rust/target/debug/swf-cli" robot-demo build-history --input /tmp/stage.json --caption "stage-$RUN"
 ```
-Expect `{"build_number":N,"remote_tasks":...,"local_tasks":N,"remote_core_time_s":...}`
+Expect `{"build_number":N,"remote_tasks":0,"local_tasks":N,"remote_core_time_s":0.0}` —
+**zero is the expected and correct answer**, because distribution is off at the profile. Say so
+before you show it, or the room will read it as a failure.
+
+**`--build-cache-local-user` is inert for rustc** (it selects the C/C++ ccache store at
+`/etc/incredibuild/cache/build_avoid/<user>.<uid>`). The rustc store is
+`/etc/incredibuild/cache/build_cache/shared`. `/ib/mnt/fscache` (28 KB used) is the
+remote-execution file service and is **not** the build cache — never report it as cache size.
+
+**⚠️ The cache clear is MACHINE-WIDE.** `build_avoid_cache.sh:127` runs
+`rm -rf /etc/incredibuild/cache/build_cache/shared/*` unconditionally for every scope argument.
+Anyone else on this initiator loses their entire rustc Build Cache when you run a cold sample.
+The verifier's own stdout still prints `cache scope ... local-user`; that line is false.
 
 **NEVER re-run the curl with a different caption to get a nicer answer.** Captions must be globally unique or `build-history` fails with `found 2`.
 
@@ -430,13 +501,26 @@ Expect `{"build_number":N,"remote_tasks":...,"local_tasks":N,"remote_core_time_s
 
 **This build is not the receipt's configuration and cannot be correlated to Beat 5's builds.** `runner-common.sh:62-63` invokes bare `ib_console cargo build --locked` with **no caption**, no `-f`, no cache flags and no `--workspace`, and `parse_ib_history` matches by caption. So Beat 5's builds are permanently uncorrelatable to any counter. Never say *"the same `ib_console` path you just saw measured."*
 
-#### Branch A+ / A−
+#### Branch A− (where we are)
 ```bash
 cat "$REPO/evidence/$PRERUN-build/build-proof/method.txt"       # A1, 15:30
 cat "$REPO/evidence/$PRERUN-build/build-proof/run-order.txt"    # A1
-cat "$REPO/evidence/$PRERUN-build/build-proof/summary.txt"      # A2, 17:00
-sed -n '403,477p' rust/crates/swf-cli/src/main.rs               # A3, 19:00
+cat "$REPO/evidence/$PRERUN-build/build-proof/summary.txt"      # A2, 17:00 -- the receipt
+cat "$REPO/evidence/$PRERUN-build/build-proof/cache-report-per-task.txt"   # A2 -- the HIT counts
+cat outputs/evidence-live/cache/native-warm-control-*/results.txt          # A2 -- THE CONTROL
+sed -n '403,477p' rust/crates/swf-cli/src/main.rs               # A3, 19:00 (re-derive the offsets)
 ```
+**Show the control on the same slide as the receipt.** Receipt: `ib-parent-warm 6,527 ms,
+ratio 1.764x vs native`. Control: the same one-file patch with the target directory preserved is
+**892 ms**, so the cache is 7.3x slower; a no-op rebuild is **81 ms**, so 52/52 full reuse
+(3,706 ms) is 46x slower. Both configurations compile the same three crates
+(`robot-safety-gate`, `swf-app`, `swf-cli`).
+
+**Then the one thing Incredibuild wins, and it is not speed** (`stale.sh` in the control bundle):
+one shared target directory across two worktrees, candidate's changed file backdated — cargo
+returns in **83 ms having compiled nothing**, shipping an rlib byte-identical to the parent's
+(`0f0c4b82e21d5aec`). After `touch`: 2,797 ms and a different rlib. cargo's fingerprint is
+mtime-based; Incredibuild's key is command-line/content-based and cannot fail this way.
 
 #### Branch B
 ```bash
@@ -514,8 +598,12 @@ No command. Say *"compilation that is meant to be reused"*, not *"reusable compi
 
 ### What you MAY say
 
-- *"Implemented, and here is the controlled receipt"* — **only** if §3 produced `BUILD PROOF PASS` **and** P4 showed `remote_tasks > 0` today.
-- *"Measured, and on this workload it was not faster"* — Branch A−. Legitimate, and stronger than it feels.
+- *"Implemented, and here is the controlled CACHE receipt"* — the certified receipt `da1b019d…` covers this today. **`remote_tasks` is 0 and that is correct**: distribution is off at the profile.
+- *"Measured, and on this workload it was not faster"* — Branch A−. Legitimate, and stronger than it feels. **Back it with the 892 ms control, not just the receipt.**
+- *"The build cache works — forty-seven of fifty-two compilations served from cache after a one-file change, fifty-two of fifty-two on identical source. Those are Incredibuild's own counters."* Measured, from the per-task Build Cache report.
+- *"An empty cache is slower than no cache: sixteen seconds against eleven and a half."* Measured, n=5.
+- *"Incredibuild's cache key is the command line and the content, so it cannot serve you a stale artifact. Cargo's fingerprint is mtime-based, and it can."* Measured, with a deterministic repro.
+- *"Distribution is not the story here, and the reason is structural: rustc is one process per crate, and this graph is deep, not wide."* Structural claim, measured counters behind it.
 - Disposable git worktrees and fresh Cargo target dirs on an EC2-backed Linux initiator. **Removing a workspace is not destroying a machine.**
 - Software-in-the-loop, robosuite/MuJoCo, segment-level authorization.
 - *"No trace in this evidence pack contains a dispatch the gate did not permit."*
@@ -525,6 +613,14 @@ No command. Say *"compilation that is meant to be reused"*, not *"reusable compi
 
 - **88/88.** Stale — archived revision, older verifier.
 - **21.426 s vs 21.948 s as acceleration.** Different candidates, one sample each, uncontrolled cache, and the IB one was **522 ms SLOWER**.
+- **The 23,173 ms / "2.01x slower" distribution figure, in either direction.** It was produced with `-f` = `--force-remote`, which forced every remotable task onto two helpers and idled the initiator's own four cores (`maxInitiatorCores=0`). It measures a handicapped configuration, not Incredibuild.
+- **"1.76x faster" or "3.13x faster" without the baseline in the same breath.** Both are measured against a native build starting from an empty target directory. Preserved-target native is **892 ms** (one-file change) and **81 ms** (no-op). Say the baseline or do not say the ratio.
+- **"Certified" as shorthand for "the speed-up is proven."** `wall_ms` is corroborated by nothing; a receipt with fabricated 500 ms warm samples passes at exit 0 with `ratio=23.030x`. The gate certifies a cache state and the absence of distribution.
+- **Any quantitative distribution conclusion from the without-`-f` run.** It is **n=1**, a smoke result.
+- **"Disposable workspaces, reusable compilation"** as an unqualified claim. Reuse requires the target *path* to be pinned; a pinned path is not disposable, and keeping the directory's contents instead is ~80x cheaper.
+- **"The cache is shared across the grid."** `BuildCache.ServiceURL` is unset and `BuildCacheService.SizeLimit` is 0 — the store is machine-local and cross-machine reuse is **unmeasured**.
+- **"The clear only touches my own cache."** `build_avoid_cache.sh:127` `rm -rf`s the shared rustc store unconditionally for every scope. It is machine-wide.
+- **`/ib/mnt/fscache` as the build cache size.** It is the remote-execution file service, 28 KB used. The rustc store is `/etc/incredibuild/cache/build_cache/shared`.
 - **"Our committed evidence bundles say `ib: true`."** Only 2 of 8 do; they use an old schema with no `build_provider` field and were **not produced by the runner on screen.** All six bundles under `evidence/` say `ib: false`.
 - **"Every build we ran on an unlicensed grid was recorded as Incredibuild."** Nothing on disk establishes this. **Use the subjunctive:** *"a build that executed entirely locally **would** be recorded as an Incredibuild build; nothing in this evidence format could tell you otherwise."*
 - ~~"There is no inference anywhere in that path."~~ **No longer banned — true as of 2026-09-24.** The three conditions were hardcoded and are now transcribed from a cache-clear transcript. Say it as found-and-fixed, never as always-true.
@@ -582,7 +678,18 @@ BEFORE YOU LEAVE THE HOTEL
   [ ] localhost:8765 replay tab open in a second window
   [ ] evidence/local-e2e-20260924T125134-runner-b verified offline on Mac  (P14)
   [ ] MUJOCO_GL unset on the Mac (osmesa/egl hard-fail at import mujoco)
-  [ ] branch decided: A+ / A- / B      READ THE RATIO, NOT THE EXIT CODE
+  [ ] branch decided: A- (CACHE beat). Verify with BOTH flags:
+      --distribution excluded --empty-cache-hit-floor 1   (bare form REFUSES, by design)
+  [ ] the 892 ms CONTROL is on the slide next to the receipt
+      outputs/evidence-live/cache/native-warm-control-*/results.txt
+  [ ] ib_profile.cache-only.xml installed; NO -f anywhere; FIXED target path
+
+THE PAYOFF SLIDE — ONE NUMBER
+  892 ms   one agentic-loop iteration, plain cargo, target directory preserved
+           n=5, range 883-931, initiator, 2026-09-24
+  vs  6,527 ms  Incredibuild warm Build Cache, 47/52 hits, remote_tasks=0   (7.3x slower)
+  vs 11,515 ms  native from an empty target directory                      (12.9x slower)
+  IB cold cache 16,049 ms = 39% SLOWER than no cache at all
 
 HOSTS
   Beats 1-4        either        read-only sed
@@ -598,6 +705,11 @@ NEVER
   ib-benchmark.sh or the e2e wrapper on stage
   a reused ib_console caption
   a reused evidence run id
+  -f / --force-remote      - it idles the initiator's 4 cores; source of the bad 23,173 ms
+  a mktemp CARGO_TARGET_DIR for a cache demo - the key includes the output path: 1 hit / 52
+  "1.76x" or "3.13x" without saying the baseline had an empty target directory
+  "certified" as shorthand for "the speed-up is proven" - wall_ms is corroborated by nothing
+  any distribution number from the without-`-f` run - it is n=1
   88/88   f358e898...   "a coding agent wrote this"   "in this room"
   (REMOVED from the banned list 2026-09-24 — now true; see the proof-layer fix)
 
@@ -605,6 +717,11 @@ SAY WITHOUT BEING ASKED
   reviewed candidate, not a live model                              Beat 3
   workspaces removed, not machines                                  Beat 4
   the gate is advisory over self-reported protocol messages         Beat 2
+  measured, and the cache was not faster than keeping the target dir Beat 6
+  remote_tasks is ZERO on purpose - distribution is off at the profile Beat 6
+  the cache cannot serve a stale artifact; cargo's mtime check can    Beat 6
+  cross-machine cache sharing is UNMEASURED (ServiceURL unset)        Beat 6
+  the cache clear is machine-wide, not per-user                       Beat 6
   implemented, not measured                                         Beat 6B
   the title is motivation, not a measured conversion                Beat 1
 ```
