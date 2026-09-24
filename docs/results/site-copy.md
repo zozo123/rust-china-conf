@@ -11,7 +11,7 @@
 That asymmetry is the whole cost of automated software research — and it is a
 build problem, not a model problem.
 
-`[ Read the evidence ]`   `[ 447 files, re-derivable from a clone ]`
+`[ Read the evidence ]`   `[ 453 files, re-derivable from a clone ]`
 
 ---
 
@@ -57,7 +57,7 @@ destroy and recreate is not a sandbox.**
 
 | | |
 |---|---|
-| build from an empty workspace | **12,149 ms** |
+| build from an empty workspace | **11,515 ms** |
 | …once per candidate, every candidate | |
 
 That is the bill for isolation. Most teams pay it, notice it hurts, and quietly
@@ -72,8 +72,8 @@ Same source. Same empty workspace. Cache on.
 
 | scenario | plain cargo | Build Cache | |
 |---|---|---|---|
-| **empty workspace** (fork · CI · agent loop) | 12,149 ms | **3,485 ms** | **3.49× faster** |
-| warm workspace (a developer rebuilding) | **980 ms** | 3,951 ms | cargo wins |
+| **empty workspace** (fork · CI · agent loop) | 11,515 ms | **3,706 ms** | **3.13× faster** |
+| warm workspace (a developer rebuilding) | **939 ms** | 4,048 ms | cargo wins |
 
 **Both rows are published, because the second one is how you know the first is
 honest.**
@@ -167,14 +167,14 @@ is not you.
 ```
    Rust            the contract, enforced by types rather than vigilance
    Sandboxes       a clean box per candidate — EC2 today, same shape anywhere
-   Build Cache     3.49x, which is what makes a clean box affordable
+   Build Cache     3.13x, which is what makes a clean box affordable
    Verification    a reward the candidate cannot author
 ```
 
 Four parts. Remove any one and the loop degrades into something that looks like
 research and measures nothing.
 
-`[ Evidence: 447 files ]`  `[ The talk ]`  `[ The proof layer ]`  `[ The port ]`
+`[ Evidence: 453 files ]`  `[ The talk ]`  `[ The proof layer ]`  `[ The port ]`
 
 ---
 

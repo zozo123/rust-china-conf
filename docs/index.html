@@ -15,7 +15,7 @@
   <meta property="og:title" content="百万次编译，一小时机器人 | Rust China Conf">
   <meta property="og:description" content="机器人举起了方块，却违反了观测时效约束。查看 Rust 修复、Incredibuild 重建流程，以及记录下来的仿真证据。">
   <meta property="og:url" content="https://zozo123.github.io/rust-china-conf/">
-  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-lift-poster.png">
+  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-stale_600ms-poster.png">
   <meta property="og:image:alt" content="Panda 机械臂接近、抓取并举起方块的仿真录像。">
   <meta property="og:type" content="website">
   <link rel="stylesheet" href="assets/fonts/fonts.css">
@@ -50,9 +50,9 @@
       <figure class="film">
         <div class="film-bar"><span>robosuite / MuJoCo</span><span>新鲜观测 · 录制画面</span></div>
         <video width="512" height="384" controls muted playsinline preload="none"
-               poster="assets/robot-lift-poster.png" aria-label="Panda 机械臂接近、抓取并举起方块的仿真录像。" aria-describedby="video-description">
-          <source src="assets/robot-lift.mp4" type="video/mp4">
-          <img src="assets/robot-lift-poster.png" width="512" height="384" alt="Panda 机械臂接近、抓取并举起方块的仿真录像。">
+               poster="assets/robot-stale_600ms-poster.png" aria-label="Panda 机械臂接近、抓取并举起方块的仿真录像。" aria-describedby="video-description">
+          <source src="assets/robot-stale_600ms.mp4" type="video/mp4">
+          <img src="assets/robot-stale_600ms-poster.png" width="512" height="384" alt="Panda 机械臂接近、抓取并举起方块的仿真录像。">
         </video>
         <figcaption id="video-description">点击播放真实仿真画面。每段运动先经 Rust 授权。这段新鲜观测录像用于说明任务；陈旧观测导致的缺陷可在下方回放。</figcaption>
       </figure>
@@ -146,11 +146,11 @@ dispatches   <span class="good">0</span></pre>
       </div>
       <p class="note">其他场景：仿真停止 → emergency_stop；桥接停顿 → timeout。合计：10 次举起、5 次陈旧拒绝、1 次停止、1 次超时。</p>
       <div class="measurements">
-        <div><p>运行器 A 构建阶段</p><strong>21.426 <small>s</small></strong><p class="warn">单次未受控采样 · 归档历史运行</p></div>
-        <div><p>运行器 B 构建阶段</p><strong>21.948 <small>s</small></strong><p class="warn">比 A 慢 522 ms · 未确立任何加速</p></div>
-        <p>每个阶段各只有一次采样，来自归档运行，缓存未受控。B 比 A 多用了 522 ms。两个记录均标明使用了 Incredibuild。这些观测只能说明集成路径已运行；它们不能确立任何加速，也不是受控缓存实验或性能测量。</p>
+        <div><p>空工作区 · 原生 cargo</p><strong>11,515 <small>s</small></strong><p class="warn">分叉、CI 运行器、智能体循环——每个候选都要付的冷构建</p></div>
+        <div><p>空工作区 · 构建缓存</p><strong>3,706 <small>s</small></strong><p class="warn">快 3.13 倍 · 52 个编译单元中 52 个来自缓存</p></div>
+        <p>每种模式五个样本，轮换顺序，同一台机器，零辅助机——仅缓存，无分布式。反证一行：若保留 target 目录，原生 cargo 为 939 毫秒，构建缓存为 4,048 毫秒，cargo 快 4.3 倍。缓存不会让构建更快，它让丢弃工作区变得便宜。两行都在证据里。</p>
       </div>
-      <details><summary>归档证据包含什么</summary><p>历史运行在原校验器下报告了 10/10 项 Rust 决策门测试与 88/88 项检查。这些数字属于当时的修订，不代表当前加强后的测试套件。仓库保留轨迹、清单、构建计时和可执行文件摘要；没有提交可执行文件本体，因此仅克隆仓库无法重新核对该历史二进制。新彩排会导出自己的可核验产物。</p><p><a href="examples/README.md">阅读证据说明</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">查看原始记录</a></p></details>
+      <details><summary>归档证据包含什么</summary><p>历史运行报告的 10/10 Rust 门测试至今仍然成立；其 88 中 88 的校验计数已不成立——当前受保护校验器报告 17 个场景。归档的 21.426 秒 / 21.948 秒从来不是缓存基准，也不作为基准呈现。</p><p><a href="examples/README.md">阅读证据说明</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">查看原始记录</a></p></details>
     </section>
 
     <section class="shell section scope" aria-labelledby="scope-title">
@@ -167,7 +167,7 @@ dispatches   <span class="good">0</span></pre>
         <li><a href="results/">全部实测数据与图表</a></li>
         <li><a href="results/proof-layer.md">证明层，以及它漏掉的伪造</a></li>
         <li><a href="results/#microduck">microduck：用 Rust 类型系统强制执行的契约</a></li>
-        <li><a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">447 个证据文件</a></li>
+        <li><a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 个证据文件</a></li>
       </ul>
       <p><small>分布式的测量结果为负，与缓存结果一并发布。跨机器缓存共享未经演示。</small></p>
     </section>

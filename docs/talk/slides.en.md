@@ -17,7 +17,7 @@ fabrications, and the one rung that held
 
 [简体中文](slides.md)
 
-<!-- Every number in this deck was measured 2026-09-24 on one machine. Evidence is committed: 447 files. -->
+<!-- Every number in this deck was measured 2026-09-24 on one machine. Evidence is committed: 453 files. -->
 
 ---
 
@@ -195,8 +195,8 @@ Cache and distribution are independent knobs on the same declaration.
 
 | | cargo | Build Cache | |
 |---|---|---|---|
-| **empty workspace** | 12,149 ms | **3,485 ms** | **3.49x** |
-| warm workspace | **980 ms** | 3,951 ms | cargo wins |
+| **empty workspace** | 11,515 ms | **3,706 ms** | **3.13x** |
+| warm workspace | **939 ms** | 4,048 ms | cargo wins |
 
 ```
 HIT 52 / MISS 0 · 9 tasks of 58 · helpers 0
