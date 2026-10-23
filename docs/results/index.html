@@ -2,6 +2,18 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Measurements — Rust China Conf</title>
+<meta name="description" content="Measurements behind the Rust China Conf demo by Yossi Eliaz (2026-09-24, n=5 per mode): build cache, parallelism, distribution, and microduck.">
+<meta name="author" content="Yossi Eliaz">
+<link rel="canonical" href="https://zozo123.github.io/rust-china-conf/results/">
+<meta property="og:title" content="Measurements — Rust China Conf talk by Yossi Eliaz">
+<meta property="og:description" content="Measurements behind the Rust China Conf demo by Yossi Eliaz (2026-09-24, n=5 per mode): build cache, parallelism, distribution, and microduck.">
+<meta property="og:url" content="https://zozo123.github.io/rust-china-conf/results/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Share card: A Million Compiles. One Robot Hour. Yossi Eliaz, Rust and simulation demo.">
+<meta name="twitter:card" content="summary_large_image">
 <style>
  :root { color-scheme: dark; }
  body { background:#10171d; color:#edf2f4; font:16px/1.65 -apple-system,system-ui,sans-serif; margin:0; }
@@ -18,18 +30,21 @@
  .val { fill:#edf2f4; font:13px sans-serif; }
  .note { color:#9fb3c8; font-size:.9rem; }
  .win { color:#7fc4a0; } .lose { color:#d98b8b; }
+ pre { overflow-x:auto; }
+ td code { overflow-wrap:anywhere; }
  figure { margin:1.5rem 0; } img { max-width:100%; border-radius:6px; }
  ul { padding-left:1.1rem; }
 </style></head><body><main class="shell">
 
 <h1>Measurements</h1>
+<p class="note">By <a href="https://zozo123.github.io/">Yossi Eliaz</a> · September 2026</p>
 <p class="note">Every figure below was measured on 2026-09-24, one machine per comparison,
 n=5 per mode with rotating run order unless stated. Evidence is committed —
 <a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 files</a> — so a clone
 re-derives all of it. Three numbers here replaced numbers we withdrew; the corrections ship with
 the measurements that forced them.</p>
-<p><a href="../">← back to the talk</a> · <a href="../talk/slides.en.md">deck</a> ·
-<a href="../talk/presentation.md">full talk</a></p>
+<p><a href="../">← back to the talk</a> · <a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/slides.en.md">deck</a> ·
+<a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/presentation.md">full talk</a></p>
 
 <h2>1 · The failure the talk opens on</h2>
 <figure>

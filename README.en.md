@@ -1,5 +1,7 @@
 # A Million Compiles. One Robot Hour.
 
+Talk demo by [Yossi Eliaz](https://yossieliaz.netlify.app/). Simulation only; no physical robot.
+
 [简体中文](README.md) · [English website](https://zozo123.github.io/rust-china-conf/en/) · [Recorded replay](https://zozo123.github.io/rust-china-conf/demo/index.html?play=seeded&lang=en)
 
 **The robot succeeded. The freshness contract failed.**
@@ -147,7 +149,9 @@ Those counts do not describe the strengthened current suite.
 Build phase A measured **21.426 s**, phase B **21.948 s**. B was **522 ms slower**.
 Both metrics records indicate IB use. They do not establish helper execution,
 controlled cache state, cache reuse, or a speedup. New metrics explicitly mark
-cache reuse as unverified. The controlled benchmark remains outstanding.
+cache reuse as unverified. A later controlled cache benchmark (2026-09-24,
+one machine, n=5 per mode) is in [docs/results/](docs/results/), rendered at
+<https://zozo123.github.io/rust-china-conf/results/>.
 
 The historical executable is not committed. Its digest identifies the recorded
 artifact, but cloning the logs cannot independently recheck that binary.

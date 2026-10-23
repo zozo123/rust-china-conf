@@ -13,6 +13,33 @@ ROOT = Path(__file__).resolve().parents[2]
 SOURCE = Path(__file__).resolve().parent
 
 
+def json_ld(lang, strings):
+    url = "https://zozo123.github.io/rust-china-conf/" + ("en/" if lang == "en" else "")
+    data = {
+        "@context": "https://schema.org",
+        "@type": "TechArticle",
+        "headline": strings["conference_title"],
+        "description": strings["description"],
+        "inLanguage": "en" if lang == "en" else "zh-CN",
+        "url": url,
+        "image": "https://zozo123.github.io/rust-china-conf/assets/og-card.png",
+        "datePublished": "2026-09-23",
+        "dateModified": "2026-09-24",
+        "author": {
+            "@type": "Person",
+            "name": "Yossi Eliaz",
+            "url": "https://yossieliaz.netlify.app/",
+            "sameAs": ["https://github.com/zozo123", "https://www.linkedin.com/in/yossi-eliaz/"],
+        },
+        "isBasedOn": {
+            "@type": "SoftwareSourceCode",
+            "codeRepository": "https://github.com/zozo123/rust-china-conf",
+            "url": "https://github.com/zozo123/rust-china-conf",
+        },
+    }
+    return json.dumps(data, ensure_ascii=False).replace("<", "\\u003c")
+
+
 def build(lang, copy):
     strings = copy[lang]
     values = {key: html.escape(value, quote=True) for key, value in strings.items()}
@@ -35,6 +62,7 @@ def build(lang, copy):
         rows.append(f'<tr><th scope="row">{html.escape(strings[place])}</th>{"".join(cells)}</tr>')
     values["matrix_rows"] = "\n".join(rows)
     values["episode_count"] = str(len(recorded))
+    values["jsonld"] = json_ld(lang, strings)
     return Template((SOURCE / "landing.html").read_text()).substitute(values)
 
 

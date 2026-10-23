@@ -5,19 +5,24 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <base href="./">
-  <title>百万次编译，一小时机器人 | Rust China Conf</title>
+  <title>百万次编译，一小时机器人 — Yossi Eliaz</title>
   <meta name="description" content="机器人举起了方块，却违反了观测时效约束。查看 Rust 修复、Incredibuild 重建流程，以及记录下来的仿真证据。">
   <meta name="theme-color" content="#10171d">
   <link rel="canonical" href="https://zozo123.github.io/rust-china-conf/">
   <link rel="alternate" hreflang="zh-CN" href="https://zozo123.github.io/rust-china-conf/">
   <link rel="alternate" hreflang="en" href="https://zozo123.github.io/rust-china-conf/en/">
   <link rel="alternate" hreflang="x-default" href="https://zozo123.github.io/rust-china-conf/">
-  <meta property="og:title" content="百万次编译，一小时机器人 | Rust China Conf">
+  <meta property="og:title" content="百万次编译，一小时机器人 — Yossi Eliaz">
   <meta property="og:description" content="机器人举起了方块，却违反了观测时效约束。查看 Rust 修复、Incredibuild 重建流程，以及记录下来的仿真证据。">
   <meta property="og:url" content="https://zozo123.github.io/rust-china-conf/">
-  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-stale_600ms-poster.png">
-  <meta property="og:image:alt" content="Panda 机械臂接近、抓取并举起方块的仿真录像。">
-  <meta property="og:type" content="website">
+  <meta name="author" content="Yossi Eliaz">
+  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="分享卡片：百万次编译，一小时机器人。Yossi Eliaz，Rust 与仿真演示，配有 Panda 机械臂与方块的仿真画面。">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">{"@context": "https://schema.org", "@type": "TechArticle", "headline": "百万次编译，一小时机器人", "description": "机器人举起了方块，却违反了观测时效约束。查看 Rust 修复、Incredibuild 重建流程，以及记录下来的仿真证据。", "inLanguage": "zh-CN", "url": "https://zozo123.github.io/rust-china-conf/", "image": "https://zozo123.github.io/rust-china-conf/assets/og-card.png", "datePublished": "2026-09-23", "dateModified": "2026-09-24", "author": {"@type": "Person", "name": "Yossi Eliaz", "url": "https://yossieliaz.netlify.app/", "sameAs": ["https://github.com/zozo123", "https://www.linkedin.com/in/yossi-eliaz/"]}, "isBasedOn": {"@type": "SoftwareSourceCode", "codeRepository": "https://github.com/zozo123/rust-china-conf", "url": "https://github.com/zozo123/rust-china-conf"}}</script>
   <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="assets/site.css">
 </head>
@@ -25,7 +30,7 @@
   <a class="skip" href="index.html#main">跳到正文</a>
   <header class="shell">
     <nav class="nav" aria-label="主导航">
-      <a class="brand" href="index.html">Rust China Conf</a>
+      <a class="brand" href="index.html">Rust China Conf 演讲 · Yossi Eliaz</a>
       <a href="index.html#stack">技术架构</a>
       <a href="index.html#evidence">运行证据</a>
       <a class="nav-replay" href="demo/index.html?lang=zh&amp;play=seeded">回放</a>
@@ -40,21 +45,22 @@
       <div>
         <p class="conference-title">百万次编译，一小时机器人</p>
         <h1>机器人成功了，契约却失败了。</h1>
+        <p class="byline">作者：<a href="https://zozo123.github.io/">Yossi Eliaz</a> · 2026 年 9 月</p>
         <p class="lead">四段运动使用的观测都已过期 600 ms。修复 Rust 决策门，在全新工作区重建，再检查机器人实际执行了什么。</p>
         <div class="actions">
           <a class="button primary" href="demo/index.html?lang=zh&amp;play=seeded">回放缺陷</a>
-          <a class="button" href="talk/talk-25min.md">阅读讲稿</a>
+          <a class="button" href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/talk-25min.md">阅读讲稿</a>
         </div>
         <p class="scope-line">软件在环演示。提供运行记录与源码，不涉及实体机器人。</p>
       </div>
       <figure class="film">
-        <div class="film-bar"><span>robosuite / MuJoCo</span><span>新鲜观测 · 录制画面</span></div>
+        <div class="film-bar"><span>robosuite / MuJoCo</span><span>植入缺陷的构建 · 600 ms 前的观测 · 录制画面</span></div>
         <video width="512" height="384" controls muted playsinline preload="none"
                poster="assets/robot-stale_600ms-poster.png" aria-label="Panda 机械臂接近、抓取并举起方块的仿真录像。" aria-describedby="video-description">
           <source src="assets/robot-stale_600ms.mp4" type="video/mp4">
           <img src="assets/robot-stale_600ms-poster.png" width="512" height="384" alt="Panda 机械臂接近、抓取并举起方块的仿真录像。">
         </video>
-        <figcaption id="video-description">点击播放真实仿真画面。每段运动先经 Rust 授权。这段新鲜观测录像用于说明任务；陈旧观测导致的缺陷可在下方回放。</figcaption>
+        <figcaption id="video-description">植入缺陷构建的仿真录像。机械臂依据 600 ms 前的观测举起方块，违反了 250 ms 观测时效契约。</figcaption>
       </figure>
     </section>
 
@@ -88,7 +94,7 @@ dispatches   <span class="good">0</span></pre>
       <div class="section-head"><h2 id="stack-title">工作区可丢弃，编译成果可复用。</h2><p>每个候选改动都要重新验证。架构将临时工作区、编译服务和保留的证据分开管理。</p></div>
       <dl class="stack">
         <div><dt>运行器工作区</dt><dd>候选改动使用全新的 Git 检出和 Cargo 输出目录。导出补丁与证据后删除工作区，Linux 主机继续运行。</dd></div>
-        <div><dt>Incredibuild</dt><dd>Cargo 通过 ib_console 与 rustc 配置构建。新的 Rust 证明命令读取 Build History 的远程任务计数与缓存统计；遥测不完整就失败，并且每种模式至少五次后才计算比率。仍需完成一次真实证明运行。</dd></div>
+        <div><dt>Incredibuild</dt><dd>Cargo 通过 ib_console 与 rustc 配置构建。新的 Rust 证明命令读取 Build History 的远程任务计数与缓存统计；遥测不完整就失败，并且每种模式至少五次后才计算比率。</dd></div>
         <div><dt>Rust + robosuite</dt><dd>策略、锁步会话、协议身份、超时、证据、校验入口、IB 遥测解析和基准门都由 Rust 负责。Python 只保留为 robosuite / MuJoCo 仿真适配器与脚本运动来源。</dd></div>
         <div><dt>独立检查</dt><dd>契约测试与仿真检查重新执行。校验器检查必需场景、按顺序记录的提案／决策／结果，以及导出文件的摘要。智能体自己的报告不能替代检查结论。</dd></div>
       </dl>
@@ -126,7 +132,7 @@ dispatches   <span class="good">0</span></pre>
         <div><dt>科研迭代</dt><dd>每次实验都使用全新工作区、记录下来的基线修订和导出的证据。无法从该基线重建的结果只是截图，不是结论。</dd></div>
         <div><dt>智能体 AI 研究</dt><dd>智能体可以提出补丁，但白名单限定它能改动的范围，最终结论由受保护的校验器给出。智能体自述的成功不算结果。</dd></div>
         <div><dt>面向物理 AI</dt><dd>仿真阶段发现策略违规的代价最低。本次运行展示了“成功举起却违反时效契约”的回合——这正是你不希望在真实硬件上第一次遇到的失败类型。</dd></div>
-        <div><dt>编译吞吐</dt><dd>Incredibuild 已接入该闭环，用于测量分布式执行与缓存复用的受控实验也已用 Rust 实现。在该实验产出收据之前，加速幅度仍未测量。</dd></div>
+        <div><dt>编译吞吐</dt><dd>2026-09-24 运行了一次受控缓存基准（同一台机器，每种模式 n=5）。从空工作区开始，构建缓存用时 3,706 ms，原生 cargo 为 11,515 ms（快 3.13 倍）。保留 target 目录时，原生 cargo 更快（939 ms 对 4,048 ms）。使用 --force-remote 的分布式运行更慢；该结果连同其注意事项一并发布。</dd></div>
       </dl>
     </section>
 
@@ -146,33 +152,33 @@ dispatches   <span class="good">0</span></pre>
       </div>
       <p class="note">其他场景：仿真停止 → emergency_stop；桥接停顿 → timeout。合计：10 次举起、5 次陈旧拒绝、1 次停止、1 次超时。</p>
       <div class="measurements">
-        <div><p>空工作区 · 原生 cargo</p><strong>11,515 <small>s</small></strong><p class="warn">分叉、CI 运行器、智能体循环——每个候选都要付的冷构建</p></div>
-        <div><p>空工作区 · 构建缓存</p><strong>3,706 <small>s</small></strong><p class="warn">快 3.13 倍 · 52 个编译单元中 52 个来自缓存</p></div>
+        <div><p>空工作区 · 原生 cargo</p><strong>11,515 <small>ms</small></strong><p class="warn">分叉、CI 运行器、智能体循环——每个候选都要付的冷构建</p></div>
+        <div><p>空工作区 · 构建缓存</p><strong>3,706 <small>ms</small></strong><p class="warn">快 3.13 倍 · 52 个编译单元中 52 个来自缓存</p></div>
         <p>每种模式五个样本，轮换顺序，同一台机器，零辅助机——仅缓存，无分布式。反证一行：若保留 target 目录，原生 cargo 为 939 毫秒，构建缓存为 4,048 毫秒，cargo 快 4.3 倍。缓存不会让构建更快，它让丢弃工作区变得便宜。两行都在证据里。</p>
       </div>
-      <details><summary>归档证据包含什么</summary><p>历史运行报告的 10/10 Rust 门测试至今仍然成立；其 88 中 88 的校验计数已不成立——当前受保护校验器报告 17 个场景。归档的 21.426 秒 / 21.948 秒从来不是缓存基准，也不作为基准呈现。</p><p><a href="examples/README.md">阅读证据说明</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">查看原始记录</a></p></details>
+      <details><summary>归档证据包含什么</summary><p>历史运行报告的 10/10 Rust 门测试至今仍然成立；其 88 中 88 的校验计数已不成立——当前受保护校验器报告 17 个场景。归档的 21.426 秒 / 21.948 秒从来不是缓存基准，也不作为基准呈现。</p><p><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/examples/README.md">阅读证据说明</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">查看原始记录</a></p></details>
     </section>
 
     <section class="shell section scope" aria-labelledby="scope-title">
       <h2 id="scope-title">结果的适用范围，也要说清楚。</h2>
-      <p>本演示覆盖 Rust 契约检查与仿真机器人行为。方块位置来自仿真器状态，250 ms 是示例策略。实体机器人、硬件在环、训练视觉、连续急停监督及已测得的性能收益，均不在已演示范围内。</p>
-      <div class="actions"><a class="button primary" href="demo/index.html?lang=zh&amp;play=seeded">回放缺陷</a><a class="button" href="talk/runbook-6min.md">打开舞台手册</a></div>
+      <p>本演示覆盖 Rust 契约检查与仿真机器人行为。方块位置来自仿真器状态，250 ms 是示例策略。实体机器人、硬件在环、训练视觉、连续急停监督及跨机器缓存共享，均不在已演示范围内。</p>
+      <div class="actions"><a class="button primary" href="demo/index.html?lang=zh&amp;play=seeded">回放缺陷</a><a class="button" href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/runbook-6min.md">打开舞台手册</a></div>
     </section>
     <section class="shell">
       <h2>演讲，以及支撑它的一切</h2>
       <p>下列每个数字都在同一台机器上实测，证据已提交，克隆仓库即可自行复现。其中三个数字替换了我们撤回的旧数字；更正与迫使更正的测量一同发布。</p>
       <ul>
         <li><a href="story/">五分钟读完的故事</a></li>
-        <li><a href="talk/slides.md">幻灯片</a></li>
+        <li><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/slides.md">幻灯片</a></li>
         <li><a href="results/">全部实测数据与图表</a></li>
-        <li><a href="results/proof-layer.md">证明层，以及它漏掉的伪造</a></li>
+        <li><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/results/proof-layer.md">证明层，以及它漏掉的伪造</a></li>
         <li><a href="results/#microduck">microduck：用 Rust 类型系统强制执行的契约</a></li>
         <li><a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 个证据文件</a></li>
       </ul>
       <p><small>分布式的测量结果为负，与缓存结果一并发布。跨机器缓存共享未经演示。</small></p>
     </section>
   </main>
-  <footer class="shell"><p>两种语言、字体、媒体和回放均可从 docs/ 本地副本打开。请在演讲电脑上保留一份。</p><a href="https://github.com/zozo123/rust-china-conf">GitHub</a><a href="talk/slides.md">幻灯片提纲</a></footer>
+  <footer class="shell"><p>两种语言、字体、媒体和回放均可从 docs/ 本地副本打开。请在演讲电脑上保留一份。</p><a href="https://github.com/zozo123/rust-china-conf">GitHub</a><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/slides.md">幻灯片提纲</a><a href="https://zozo123.github.io/">Yossi Eliaz 的更多文章</a><a href="https://yossieliaz.netlify.app/">关于作者</a></footer>
   <script>
     // Compatibility for existing shared ?lang= links. Both editions also work without JS.
     (function () {

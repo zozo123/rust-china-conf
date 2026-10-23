@@ -1,6 +1,6 @@
 # 网站媒体
 
-首页使用由原有 `robot-lift.gif` 转换的 `robot-lift.mp4` 与 `robot-lift-poster.png`。画面来自 robosuite / MuJoCo 的新鲜观测举起回合，不是实时机器人画面，也不是陈旧观测回合。播放由用户控制。
+首页主视频使用 `robot-stale_600ms.mp4` 与 `robot-stale_600ms-poster.png`：植入缺陷的构建依据 600 ms 前的观测举起方块（详见下文）。`robot-lift.mp4`、`robot-lift.gif` 与 `robot-lift-poster.png` 来自 robosuite / MuJoCo 的新鲜观测举起回合；故事页将 `robot-lift.gif` 与陈旧观测画面并列展示。以上均不是实时机器人画面。播放由用户控制。
 
 在固定版本的 Linux 环境中运行 `scripts/robot-demo/record-gif.sh` 可重新录制。网站媒体不替代 `docs/examples/` 中与摘要绑定的证据。
 

@@ -1,5 +1,7 @@
 # 百万次编译，一小时机器人
 
+演讲演示，作者 [Yossi Eliaz](https://yossieliaz.netlify.app/)。仅为仿真，不涉及实体机器人。
+
 [English](README.en.md) · [中文网站](https://zozo123.github.io/rust-china-conf/) · [记录回放](https://zozo123.github.io/rust-china-conf/demo/index.html?play=seeded&lang=zh)
 
 **机器人成功了，观测时效契约却失败了。**
@@ -123,7 +125,8 @@ scripts/robot-demo/ec2-agentic-physical-ai.sh conference-proof
 
 构建 A 用时 **21.426 s**，B 用时 **21.948 s**，B **慢了 522 ms**。
 两个记录均标明使用 IB，但不能据此证明辅助机执行、受控缓存状态、缓存复用或加速效果。
-新指标明确标记缓存复用尚未核实，受控性能基准仍待运行。
+新指标明确标记缓存复用尚未核实。之后的受控缓存基准（2026-09-24，同一台机器，每种模式 n=5）见
+[docs/results/](docs/results/)，网页版：<https://zozo123.github.io/rust-china-conf/results/>。
 
 历史可执行文件没有提交到仓库。摘要标识了记录中的产物，仅克隆日志无法独立核对该二进制。
 新彩排会导出自己的可执行文件。[证据说明](docs/examples/README.md)

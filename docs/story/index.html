@@ -2,12 +2,25 @@
 <html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>The robot succeeded. The contract failed.</title>
+<meta name="description" content="Five-minute story of a Rust robotics simulation demo by Yossi Eliaz: a robot that passed while breaking its contract, a verifier that was fooled, and a build cache.">
+<meta name="author" content="Yossi Eliaz">
+<link rel="canonical" href="https://zozo123.github.io/rust-china-conf/story/">
+<meta property="og:title" content="The robot succeeded. The contract failed.">
+<meta property="og:description" content="Five-minute story of a Rust robotics simulation demo by Yossi Eliaz: a robot that passed while breaking its contract, a verifier that was fooled, and a build cache.">
+<meta property="og:url" content="https://zozo123.github.io/rust-china-conf/story/">
+<meta property="og:type" content="article">
+<meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/og-card.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="Share card: A Million Compiles. One Robot Hour. Yossi Eliaz, Rust and simulation demo.">
+<meta name="twitter:card" content="summary_large_image">
 <style>
  :root{color-scheme:dark}
  body{background:#0d1319;color:#edf2f4;font:17px/1.7 -apple-system,system-ui,sans-serif;margin:0}
  .w{max-width:780px;margin:0 auto;padding:3rem 1.25rem 5rem}
  h1{font-size:2.4rem;line-height:1.15;margin:0 0 .5rem}
  h2{font-size:1.5rem;margin:3.5rem 0 .75rem;color:#f0b85d}
+ .byline{color:#8fa3b5;font-size:.95rem;margin:0 0 1.25rem}
  .lede{font-size:1.2rem;color:#b8c7d4;margin:0 0 2rem}
  a{color:#f0b85d}
  figure{margin:1.5rem 0}
@@ -30,6 +43,7 @@
 </style></head><body><div class="w">
 
 <h1>The robot succeeded.<br>The contract failed.</h1>
+<p class="byline">By <a href="https://zozo123.github.io/">Yossi Eliaz</a> · September 2026</p>
 <p class="lede">What we measured in one day: a robot that was wrong while every light was green,
 a verifier that certified four fabrications, and a build cache that only pays off when you
 throw your workspace away.</p>
@@ -121,8 +135,8 @@ self-reported signal that is confidently wrong.</p>
 <a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">452 evidence files</a>
 are committed, so a clone re-derives all of it. Three numbers here replaced numbers we withdrew.</p>
 <p><a href="../results/">All measurements, with charts</a> ·
-<a href="../talk/presentation.md">The full talk</a> ·
-<a href="../talk/slides.en.md">The deck</a> ·
+<a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/presentation.md">The full talk</a> ·
+<a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/slides.en.md">The deck</a> ·
 <a href="../">Home</a></p>
 <p>No distribution speedup is claimed — that result was negative and is published.
 Cross-machine cache sharing is not demonstrated. No footage exists of the walking robot;

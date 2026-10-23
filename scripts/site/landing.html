@@ -15,9 +15,14 @@
   <meta property="og:title" content="$title">
   <meta property="og:description" content="$description">
   <meta property="og:url" content="https://zozo123.github.io/rust-china-conf/$canonical">
-  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/robot-stale_600ms-poster.png">
-  <meta property="og:image:alt" content="$video_alt">
-  <meta property="og:type" content="website">
+  <meta name="author" content="Yossi Eliaz">
+  <meta property="og:image" content="https://zozo123.github.io/rust-china-conf/assets/og-card.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:image:alt" content="$og_image_alt">
+  <meta property="og:type" content="article">
+  <meta name="twitter:card" content="summary_large_image">
+  <script type="application/ld+json">$jsonld</script>
   <link rel="stylesheet" href="assets/fonts/fonts.css">
   <link rel="stylesheet" href="assets/site.css">
 </head>
@@ -25,7 +30,7 @@
   <a class="skip" href="$page#main">$skip</a>
   <header class="shell">
     <nav class="nav" aria-label="$navigation">
-      <a class="brand" href="$page">Rust China Conf</a>
+      <a class="brand" href="$page">$brand</a>
       <a href="$page#stack">$nav_stack</a>
       <a href="$page#evidence">$nav_evidence</a>
       <a class="nav-replay" href="demo/index.html?lang=$edition&amp;play=seeded">$nav_replay</a>
@@ -40,10 +45,11 @@
       <div>
         <p class="conference-title">$conference_title</p>
         <h1>$headline</h1>
+        <p class="byline">$byline_by<a href="https://zozo123.github.io/">Yossi Eliaz</a> · $byline_date</p>
         <p class="lead">$lead</p>
         <div class="actions">
           <a class="button primary" href="demo/index.html?lang=$edition&amp;play=seeded">$replay_cta</a>
-          <a class="button" href="talk/talk-25min$suffix.md">$talk_cta</a>
+          <a class="button" href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/talk-25min$suffix.md">$talk_cta</a>
         </div>
         <p class="scope-line">$hero_scope</p>
       </div>
@@ -146,29 +152,29 @@ dispatches   <span class="good">0</span></pre>
         <div><p>$phase_b</p><strong>$phase_b_value <small>$measurement_unit</small></strong><p class="warn">$phase_b_flag</p></div>
         <p>$measurement_note</p>
       </div>
-      <details><summary>$provenance_title</summary><p>$provenance_body</p><p><a href="examples/README$suffix.md">$evidence_link</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">$source_link</a></p></details>
+      <details><summary>$provenance_title</summary><p>$provenance_body</p><p><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/examples/README$suffix.md">$evidence_link</a> · <a href="https://github.com/zozo123/rust-china-conf/tree/main/docs/examples">$source_link</a></p></details>
     </section>
 
     <section class="shell section scope" aria-labelledby="scope-title">
       <h2 id="scope-title">$scope_title</h2>
       <p>$scope_body</p>
-      <div class="actions"><a class="button primary" href="demo/index.html?lang=$edition&amp;play=seeded">$replay_cta</a><a class="button" href="talk/runbook-6min$suffix.md">$runbook_cta</a></div>
+      <div class="actions"><a class="button primary" href="demo/index.html?lang=$edition&amp;play=seeded">$replay_cta</a><a class="button" href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/runbook-6min$suffix.md">$runbook_cta</a></div>
     </section>
     <section class="shell">
       <h2>$story_title</h2>
       <p>$story_body</p>
       <ul>
         <li><a href="story/">$story_talk</a></li>
-        <li><a href="talk/slides$suffix.md">$story_deck</a></li>
+        <li><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/slides$suffix.md">$story_deck</a></li>
         <li><a href="results/">$story_cache</a></li>
-        <li><a href="results/proof-layer.md">$story_proof</a></li>
+        <li><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/results/proof-layer.md">$story_proof</a></li>
         <li><a href="results/#microduck">$story_duck</a></li>
         <li><a href="https://github.com/zozo123/rust-china-conf/tree/main/evidence">$story_evidence</a></li>
       </ul>
       <p><small>$story_caveat</small></p>
     </section>
   </main>
-  <footer class="shell"><p>$offline</p><a href="https://github.com/zozo123/rust-china-conf">GitHub</a><a href="talk/slides$suffix.md">$slides_link</a></footer>
+  <footer class="shell"><p>$offline</p><a href="https://github.com/zozo123/rust-china-conf">GitHub</a><a href="https://github.com/zozo123/rust-china-conf/blob/main/docs/talk/slides$suffix.md">$slides_link</a><a href="https://zozo123.github.io/">$footer_more</a><a href="https://yossieliaz.netlify.app/">$footer_about</a></footer>
   <script>
     // Compatibility for existing shared ?lang= links. Both editions also work without JS.
     (function () {
