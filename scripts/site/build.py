@@ -26,6 +26,7 @@ def json_ld(lang, strings):
         "datePublished": "2026-09-23",
         "dateModified": "2026-10-22",
         "author": {
+            "@id": "https://yossieliaz.netlify.app/#person",
             "@type": "Person",
             "name": "Yossi Eliaz",
             "url": "https://yossieliaz.netlify.app/",
