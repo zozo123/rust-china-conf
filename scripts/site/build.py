@@ -24,7 +24,7 @@ def json_ld(lang, strings):
         "url": url,
         "image": "https://zozo123.github.io/rust-china-conf/assets/og-card.png",
         "datePublished": "2026-09-23",
-        "dateModified": "2026-09-24",
+        "dateModified": "2026-10-22",
         "author": {
             "@type": "Person",
             "name": "Yossi Eliaz",
